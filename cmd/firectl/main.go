@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/awslabs/go-firecracker"
+	firecracker "github.com/awslabs/go-firecracker"
 	flags "github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 )
@@ -31,7 +31,7 @@ func validateDriveEntry(entry string) error {
 	return nil
 }
 
-func checkConfig(cfg machine.Config) error {
+func checkConfig(cfg firecracker.Config) error {
 	var err error
 
 	// Check for the existence of some required files:
@@ -57,8 +57,8 @@ func checkConfig(cfg machine.Config) error {
 	return nil
 }
 
-func parseBlockDevices(entries []string) ([]machine.BlockDevice, error) {
-	var devices []machine.BlockDevice
+func parseBlockDevices(entries []string) ([]firecracker.BlockDevice, error) {
+	var devices []firecracker.BlockDevice
 	for _, entry := range entries {
 		var path string
 		if strings.HasSuffix(entry, ":rw") {
@@ -67,7 +67,7 @@ func parseBlockDevices(entries []string) ([]machine.BlockDevice, error) {
 			path = strings.TrimSuffix(entry, ":ro")
 		} else {
 			msg := fmt.Sprintf("Invalid drive specification. Must have :rw or :ro suffix")
-			return []machine.BlockDevice{}, errors.New(msg)
+			return []firecracker.BlockDevice{}, errors.New(msg)
 		}
 		if path == "" {
 			return nil, errors.New("Invalid drive specification")
@@ -76,7 +76,7 @@ func parseBlockDevices(entries []string) ([]machine.BlockDevice, error) {
 		if err != nil {
 			return nil, err
 		}
-		e := machine.BlockDevice{
+		e := firecracker.BlockDevice{
 			HostPath: path,
 			Mode:     "rw",
 		}
@@ -99,18 +99,18 @@ func parseNicConfig(cfg string) (string, string, error) {
 
 // Given a list of string representations of vsock devices,
 // return a corresponding slice of machine.VsockDevice objects
-func parseVsocks(devices []string) ([]machine.VsockDevice, error) {
-	var result []machine.VsockDevice
+func parseVsocks(devices []string) ([]firecracker.VsockDevice, error) {
+	var result []firecracker.VsockDevice
 	for _, entry := range devices {
 		fields := strings.Split(entry, ":")
 		if len(fields) != 2 {
-			return []machine.VsockDevice{}, errors.New("Could not parse")
+			return []firecracker.VsockDevice{}, errors.New("Could not parse")
 		}
 		CID, err := strconv.ParseUint(fields[1], 10, 32)
 		if err != nil {
-			return []machine.VsockDevice{}, errors.New("Vsock CID could not be parsed as a number")
+			return []firecracker.VsockDevice{}, errors.New("Vsock CID could not be parsed as a number")
 		}
-		dev := machine.VsockDevice{
+		dev := firecracker.VsockDevice{
 			Path: fields[0],
 			CID:  uint32(CID),
 		}
@@ -162,7 +162,7 @@ func main() {
 		logger.SetLevel(log.DebugLevel)
 	}
 
-	var NICs []machine.NetworkInterface
+	var NICs []firecracker.NetworkInterface
 
 	if len(opts.FcNicConfig) > 0 {
 		tapDev, tapMacAddr, err := parseNicConfig(opts.FcNicConfig)
@@ -170,8 +170,8 @@ func main() {
 			log.Fatalf("Unable to parse NIC config: %s", err)
 		} else {
 			log.Printf("Adding tap device %s", tapDev)
-			NICs = []machine.NetworkInterface{
-				machine.NetworkInterface{
+			NICs = []firecracker.NetworkInterface{
+				firecracker.NetworkInterface{
 					MacAddress:  tapMacAddr,
 					HostDevName: tapDev,
 				},
@@ -179,7 +179,7 @@ func main() {
 		}
 	}
 
-	rootDrive := machine.BlockDevice{HostPath: opts.FcRootDrivePath, Mode: "rw"}
+	rootDrive := firecracker.BlockDevice{HostPath: opts.FcRootDrivePath, Mode: "rw"}
 
 	blockDevices, err := parseBlockDevices(opts.FcAdditionalDrives)
 	if err != nil {
@@ -191,7 +191,7 @@ func main() {
 		log.Fatalf("Invalid vsock specification: %s", err)
 	}
 
-	fcCfg := machine.Config{
+	fcCfg := firecracker.Config{
 		BinPath:           opts.FcBinary,
 		SocketPath:        "./firecracker.sock",
 		LogFifo:           opts.FcLogFifo,
@@ -206,7 +206,7 @@ func main() {
 		VsockDevices:      vsocks,
 		Console:           opts.FcConsole,
 		CPUCount:          opts.FcCPUCount,
-		CPUTemplate:       machine.CPUTemplate(opts.FcCPUTemplate),
+		CPUTemplate:       firecracker.CPUTemplate(opts.FcCPUTemplate),
 		HtEnabled:         !opts.FcDisableHt,
 		MemInMiB:          opts.FcMemSz,
 	}
@@ -216,8 +216,8 @@ func main() {
 		log.Fatalf("Configuration error: %s", err)
 	}
 
-	fireracker := machine.NewFirecrackerClient(fcCfg.SocketPath)
-	m := machine.NewMachine(fcCfg, fireracker, logger)
+	fireracker := firecracker.NewFirecrackerClient(fcCfg.SocketPath)
+	m := firecracker.NewMachine(fcCfg, fireracker, logger)
 
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
