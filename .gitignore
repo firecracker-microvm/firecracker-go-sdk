@@ -1,0 +1,4 @@
+*.img
+firecracker
+firecracker-*
+vmlinux
