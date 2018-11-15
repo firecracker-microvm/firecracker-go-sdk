@@ -15,4 +15,4 @@
 //go:generate docker run --rm -v $PWD:/work -w /work quay.io/goswagger/swagger generate model -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER
 //go:generate docker run --rm -v $PWD:/work -w /work quay.io/goswagger/swagger generate client -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER
 
-package machine
+package firecracker
