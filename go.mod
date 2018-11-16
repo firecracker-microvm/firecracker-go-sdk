@@ -1,4 +1,4 @@
-module github.com/awslabs/go-firecracker
+module github.com/firecracker-microvm/go-firecracker
 
 require (
 	github.com/go-openapi/errors v0.17.1
