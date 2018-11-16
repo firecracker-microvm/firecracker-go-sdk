@@ -26,7 +26,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	client_models "github.com/firecracker-microvm/go-firecracker/client/models"
+	client_models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutGuestBootSourceReader is a Reader for the PutGuestBootSource structure.
