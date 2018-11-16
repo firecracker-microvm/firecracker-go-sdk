@@ -24,13 +24,13 @@ import (
 	"syscall"
 	"time"
 
-	models "github.com/firecracker-microvm/go-firecracker/client/models"
-	ops "github.com/firecracker-microvm/go-firecracker/client/operations"
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	userAgent       = "go-firecracker-client"
+	userAgent       = "firecracker-go-sdk"
 	fcExecutable    = "./firecracker"
 	terminalProgram = "xterm"
 	// ConsoleXterm indicates that the machine's console should be presented in an xterm
@@ -95,7 +95,7 @@ type Machine struct {
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
 func (m *Machine) Logger() *log.Logger {
-	// return m.logger.WithField("subsystem", "go-firecracker")
+	// return m.logger.WithField("subsystem", "firecracker-go-sdk")
 	return m.logger
 }
 

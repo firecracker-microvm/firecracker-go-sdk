@@ -30,7 +30,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	client_models "github.com/firecracker-microvm/go-firecracker/client/models"
+	client_models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // NewCreateSyncActionParams creates a new CreateSyncActionParams object

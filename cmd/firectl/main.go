@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firecracker-microvm/go-firecracker"
+	"github.com/firecracker-microvm/firecracker-go-sdk"
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 )
