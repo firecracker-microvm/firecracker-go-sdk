@@ -135,13 +135,21 @@ func (m Machine) LogLevel() string {
 }
 
 // NewMachine initializes a new Machine instance
-func NewMachine(cfg Config, firecracker Firecracker, l *log.Logger) *Machine {
+func NewMachine(cfg Config, opts ...Opt) *Machine {
 	m := &Machine{}
-	if l != nil {
-		m.logger = l
-	} else {
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	if m.logger == nil {
 		m.logger = log.New()
 	}
+
+	if m.client == nil {
+		m.client = NewFirecrackerClient(cfg.SocketPath)
+	}
+
 	m.logger.Debug("Called NewMachine()")
 
 	m.cfg = cfg
@@ -151,13 +159,12 @@ func NewMachine(cfg Config, firecracker Firecracker, l *log.Logger) *Machine {
 		HtEnabled:   cfg.HtEnabled,
 		CPUTemplate: models.CPUTemplate(cfg.CPUTemplate),
 	}
+
 	if len(cfg.BinPath) > 0 {
 		m.binPath = cfg.BinPath
 	} else {
 		m.binPath = fcExecutable
 	}
-
-	m.client = firecracker
 
 	return m
 }

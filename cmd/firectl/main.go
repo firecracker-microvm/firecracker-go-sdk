@@ -21,15 +21,10 @@ import (
 	"strconv"
 	"strings"
 
-	firecracker "github.com/firecracker-microvm/go-firecracker"
-	flags "github.com/jessevdk/go-flags"
+	"github.com/firecracker-microvm/go-firecracker"
+	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 )
-
-func validateDriveEntry(entry string) error {
-
-	return nil
-}
 
 func checkConfig(cfg firecracker.Config) error {
 	var err error
@@ -216,8 +211,7 @@ func main() {
 		log.Fatalf("Configuration error: %s", err)
 	}
 
-	fireracker := firecracker.NewFirecrackerClient(fcCfg.SocketPath)
-	m := firecracker.NewMachine(fcCfg, fireracker, logger)
+	m := firecracker.NewMachine(fcCfg, firecracker.WithLogger(logger))
 
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
