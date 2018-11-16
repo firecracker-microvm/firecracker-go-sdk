@@ -39,7 +39,7 @@ func init() {
 
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
-	m := NewMachine(Config{}, NewFirecrackerClient(""), nil)
+	m := NewMachine(Config{})
 	if m == nil {
 		t.Errorf("NewMachine did not create a Machine")
 	}
@@ -63,7 +63,7 @@ func TestMicroVMExecution(t *testing.T) {
 		CPUTemplate: cpuTemplate,
 		MemInMiB:    memSz,
 	}
-	m := NewMachine(cfg, NewFirecrackerClient(cfg.SocketPath), nil)
+	m := NewMachine(cfg)
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
@@ -97,7 +97,7 @@ func TestStartVMM(t *testing.T) {
 		SocketPath: filepath.Join("fc-start-vmm-test.sock"),
 		BinPath:    getFirecrackerBinaryPath(),
 	}
-	m := NewMachine(cfg, NewFirecrackerClient(cfg.SocketPath), nil)
+	m := NewMachine(cfg)
 	timeout, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 	errchan, err := m.startVMM(timeout)
