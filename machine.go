@@ -24,8 +24,8 @@ import (
 	"syscall"
 	"time"
 
-	models "github.com/awslabs/go-firecracker/client/models"
-	ops "github.com/awslabs/go-firecracker/client/operations"
+	models "github.com/firecracker-microvm/go-firecracker/client/models"
+	ops "github.com/firecracker-microvm/go-firecracker/client/operations"
 	log "github.com/sirupsen/logrus"
 )
 

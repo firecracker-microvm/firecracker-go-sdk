@@ -21,9 +21,9 @@ import (
 
 	"github.com/go-openapi/strfmt"
 
-	"github.com/awslabs/go-firecracker/client"
-	models "github.com/awslabs/go-firecracker/client/models"
-	ops "github.com/awslabs/go-firecracker/client/operations"
+	"github.com/firecracker-microvm/go-firecracker/client"
+	models "github.com/firecracker-microvm/go-firecracker/client/models"
+	ops "github.com/firecracker-microvm/go-firecracker/client/operations"
 	httptransport "github.com/go-openapi/runtime/client"
 )
 

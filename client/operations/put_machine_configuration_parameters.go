@@ -30,7 +30,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	client_models "github.com/awslabs/go-firecracker/client/models"
+	client_models "github.com/firecracker-microvm/go-firecracker/client/models"
 )
 
 // NewPutMachineConfigurationParams creates a new PutMachineConfigurationParams object
