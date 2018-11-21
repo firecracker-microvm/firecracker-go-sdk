@@ -12,7 +12,7 @@ func WithClient(client Firecracker) Opt {
 	}
 }
 
-func WithLogger(logger *logrus.Logger) Opt {
+func WithLogger(logger *logrus.Entry) Opt {
 	return func(machine *Machine) {
 		machine.logger = logger
 	}
