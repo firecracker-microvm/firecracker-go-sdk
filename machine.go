@@ -42,7 +42,7 @@ const (
 )
 
 // CPUTemplate defines a set of CPU features that are exposed by Firecracker
-type CPUTemplate models.CPUTemplate
+type CPUTemplate = models.CPUTemplate
 
 // CPUTemplates known by Firecracker. These are passed through directly from the model.
 const (
@@ -89,12 +89,12 @@ type Machine struct {
 	cfg           Config
 	client        Firecracker
 	cmd           *exec.Cmd
-	logger        *log.Logger
+	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
-func (m *Machine) Logger() *log.Logger {
+func (m *Machine) Logger() *log.Entry {
 	// return m.logger.WithField("subsystem", "firecracker-go-sdk")
 	return m.logger
 }
@@ -143,7 +143,7 @@ func NewMachine(cfg Config, opts ...Opt) *Machine {
 	}
 
 	if m.logger == nil {
-		m.logger = log.New()
+		m.logger = log.NewEntry(log.New())
 	}
 
 	if m.client == nil {
