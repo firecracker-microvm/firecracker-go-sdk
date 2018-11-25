@@ -5,8 +5,9 @@ This package is a Go library to interact with the Firecracker API.  There is
 also a command-line application that can be used to control Firecracker microVMs
 called `firectl`.
 
-The library and command-line application are not yet complete. See the
-[TODO](TODO.md) file for an incomplete list of missing features.
+There are some Firecracker features that are not yet supported by the
+SDK. Please see the [TODO](TODO.md) file for details. Contributions to
+address missing features are welcomed.
 
 Developing
 ---
@@ -30,16 +31,16 @@ access to filesystems, and network connectivity.
 
 ```
 Usage of ./cmd/firectl/firectl:
-    --firecracker-binary=  Path to firecracker binary
+    --firecracker-binary=  Path to Firecracker binary
     --firecracker-console= Console type (stdio|xterm|none) (default: stdio)
     --kernel=              Path to the kernel image (default: ./vmlinux)
     --kernel-opts=         Kernel commandline (default: ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules)
     --root-drive=          Path to root disk image
     --add-drive=           Path to additional drive, suffixed with :ro or :rw, can be specified multiple times
     --tap-device=          NIC info, specified as DEVICE:MAC
-    --vmm-log-fifo=        FIFO for firecracker logs
+    --vmm-log-fifo=        FIFO for Firecracker logs
     --log-level=           vmm log level (default: Debug)
-    --metrics-fifo=        FIFO for firecracker metrics
+    --metrics-fifo=        FIFO for Firecracker metrics
 -d, --debug                Enable debug output
 -h, --help                 Show usage
 ```
@@ -49,7 +50,9 @@ Usage of ./cmd/firectl/firectl:
 Network configuration
 ---
 
-TODO
+Firecracker, by design, only supports Linux tap devices. The SDK
+provides facilities to attach a tap device to the Firecracker VM, but
+the client is responsible for further configuration.
 
 License
 ====
