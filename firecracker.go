@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/go-openapi/strfmt"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client"
@@ -33,7 +34,7 @@ type FirecrackerClient struct {
 	client *client.Firecracker
 }
 
-func NewFirecrackerClient(socketPath string) *FirecrackerClient {
+func NewFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *FirecrackerClient {
 	httpClient := client.NewHTTPClient(strfmt.NewFormats())
 
 	socketTransport := &http.Transport{
@@ -49,6 +50,15 @@ func NewFirecrackerClient(socketPath string) *FirecrackerClient {
 
 	transport := httptransport.New(client.DefaultHost, client.DefaultBasePath, client.DefaultSchemes)
 	transport.Transport = socketTransport
+
+	if debug {
+		transport.SetDebug(debug)
+	}
+
+	if logger != nil {
+		transport.SetLogger(logger)
+	}
+
 	httpClient.SetTransport(transport)
 
 	return &FirecrackerClient{client: httpClient}

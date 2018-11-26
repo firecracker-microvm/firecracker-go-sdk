@@ -204,6 +204,7 @@ func main() {
 		CPUTemplate:       firecracker.CPUTemplate(opts.FcCPUTemplate),
 		HtEnabled:         !opts.FcDisableHt,
 		MemInMiB:          opts.FcMemSz,
+		Debug:             opts.Debug,
 	}
 
 	err = checkConfig(fcCfg)
@@ -211,7 +212,7 @@ func main() {
 		log.Fatalf("Configuration error: %s", err)
 	}
 
-	m := firecracker.NewMachine(fcCfg, firecracker.WithLogger(logger))
+	m := firecracker.NewMachine(fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
 
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithCancel(ctx)

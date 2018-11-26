@@ -80,6 +80,7 @@ type Config struct {
 	NetworkInterfaces []NetworkInterface
 	VsockDevices      []VsockDevice
 	Console           string
+	Debug             bool
 	machineCfg        models.MachineConfiguration
 }
 
@@ -143,11 +144,17 @@ func NewMachine(cfg Config, opts ...Opt) *Machine {
 	}
 
 	if m.logger == nil {
-		m.logger = log.NewEntry(log.New())
+		logger := log.New()
+
+		if cfg.Debug {
+			logger.SetLevel(log.DebugLevel)
+		}
+
+		m.logger = log.NewEntry(logger)
 	}
 
 	if m.client == nil {
-		m.client = NewFirecrackerClient(cfg.SocketPath)
+		m.client = NewFirecrackerClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
 	m.logger.Debug("Called NewMachine()")
