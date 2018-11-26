@@ -39,7 +39,7 @@ func init() {
 
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
-	m := NewMachine(Config{})
+	m := NewMachine(Config{Debug: true})
 	if m == nil {
 		t.Errorf("NewMachine did not create a Machine")
 	}
@@ -62,6 +62,7 @@ func TestMicroVMExecution(t *testing.T) {
 		CPUCount:    nCpus,
 		CPUTemplate: cpuTemplate,
 		MemInMiB:    memSz,
+		Debug:       true,
 	}
 	m := NewMachine(cfg)
 	ctx := context.Background()
