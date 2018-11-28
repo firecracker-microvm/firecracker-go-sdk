@@ -299,7 +299,7 @@ func (m *Machine) startVMM(ctx context.Context) (chan error, error) {
 	}()
 
 	// Wait for firecracker to initialize:
-	err = waitForSocket(m.cfg.SocketPath, 3*time.Second, exitchannel)
+	err = m.waitForSocket(3*time.Second, exitchannel)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
@@ -514,28 +514,38 @@ func (m *Machine) refreshMachineConfig() error {
 	return nil
 }
 
-// waitFile waits for the given file to exist
-func waitForSocket(path string, timeout time.Duration, exitchan chan error) error {
+// waitForSocket waits for the given file to exist
+func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	exists := make(chan bool)
-	var err error
+
+	done := make(chan error)
+	ticker := time.NewTicker(10 * time.Millisecond)
+
 	go func() {
 		for {
-			_, err = os.Stat(path)
-			if err == nil {
-				exists <- true
+			select {
+			case <-ctx.Done():
+				done <- ctx.Err()
+				return
+			case err := <-exitchan:
+				done <- err
+				return
+			case <-ticker.C:
+				if _, err := os.Stat(m.cfg.SocketPath); err != nil {
+					continue
+				}
+
+				// Send test HTTP request to make sure socket is available
+				if _, err := m.client.GetMachineConfig(); err != nil {
+					continue
+				}
+
+				done <- nil
 				return
 			}
-			time.Sleep(10 * time.Millisecond)
 		}
 	}()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-exists:
-		return nil
-	case <-exitchan:
-		return errors.New("Firecracker exited unexpectedly")
-	}
+
+	return <-done
 }

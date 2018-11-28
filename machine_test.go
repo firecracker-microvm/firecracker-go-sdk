@@ -11,6 +11,8 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
+//go:generate mockgen -source=machine.go -destination=machine_mock_test.go -package=firecracker
+
 package firecracker
 
 import (
@@ -21,6 +23,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/golang/mock/gomock"
 )
 
 const (
@@ -216,13 +220,27 @@ func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func TestWaitForSocket(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	okClient := NewMockFirecracker(ctrl)
+	okClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, nil)
+
+	errClient := NewMockFirecracker(ctrl)
+	errClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, errors.New("http error"))
+
 	// testWaitForSocket has three conditions that need testing:
-	// 1. The expected file is created within the deadline
+	// 1. The expected file is created within the deadline and
+	//    socket HTTP request succeeded
 	// 2. The expected file is not created within the deadline
 	// 3. The process responsible for creating the file exits
-	//  (indicated by an error published to exitchan)
+	//    (indicated by an error published to exitchan)
 	filename := "./test-create-file"
 	errchan := make(chan error)
+
+	m := Machine{
+		cfg: Config{SocketPath: filename},
+	}
 
 	go func() {
 		time.Sleep(50 * time.Millisecond)
@@ -231,23 +249,34 @@ func TestWaitForSocket(t *testing.T) {
 			t.Fatalf("Unable to create test file %s: %s", filename, err)
 		}
 	}()
-	err := waitForSocket(filename, 500*time.Millisecond, errchan)
-	if err != nil {
+
+	// Socket file created, HTTP request succeeded
+	m.client = okClient
+	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
 		t.Errorf("waitForSocket returned unexpected error %s", err)
 	}
 
-	os.Remove(filename)
-	err = waitForSocket(filename, 100*time.Millisecond, errchan)
-	if err == nil {
+	// Socket file exists, HTTP request failed
+	m.client = errClient
+	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
 
+	os.Remove(filename)
+
+	// No socket file
+	if err := m.waitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
+		t.Error("waitforSocket did not return an expected timeout error")
+	}
+
+	chanErr := errors.New("this is an expected error")
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		errchan <- errors.New("This is an expected error")
+		errchan <- chanErr
 	}()
-	err = waitForSocket(filename, 100*time.Millisecond, errchan)
-	if err == nil {
+
+	// Unexpected process exit
+	if err := m.waitForSocket(100*time.Millisecond, errchan); err != chanErr {
 		t.Error("waitForSocket did not properly detect program exit")
 	}
 }
