@@ -26,32 +26,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func checkConfig(cfg firecracker.Config) error {
-	var err error
-
-	// Check for the existence of some required files:
-	_, err = os.Stat(cfg.BinPath)
-	if err != nil {
-		return err
-	}
-	_, err = os.Stat(cfg.KernelImagePath)
-	if err != nil {
-		return err
-	}
-	_, err = os.Stat(cfg.RootDrive.HostPath)
-	if err != nil {
-		return err
-	}
-
-	// Check the non-existence of some files:
-	_, err = os.Stat(cfg.SocketPath)
-	if err == nil {
-		msg := fmt.Sprintf("Socket %s already exists.", cfg.SocketPath)
-		return errors.New(msg)
-	}
-	return nil
-}
-
 func parseBlockDevices(entries []string) ([]firecracker.BlockDevice, error) {
 	var devices []firecracker.BlockDevice
 	for _, entry := range entries {
@@ -207,12 +181,10 @@ func main() {
 		Debug:             opts.Debug,
 	}
 
-	err = checkConfig(fcCfg)
+	m, err := firecracker.NewMachine(fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
 	if err != nil {
-		log.Fatalf("Configuration error: %s", err)
+		log.Fatalf("Failed creating machine: %s", err)
 	}
-
-	m := firecracker.NewMachine(fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
 
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
