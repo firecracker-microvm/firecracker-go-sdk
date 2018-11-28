@@ -5,9 +5,10 @@ This package is a Go library to interact with the Firecracker API.  There is
 also a command-line application that can be used to control Firecracker microVMs
 called `firectl`.
 
-There are some Firecracker features that are not yet supported by the
-SDK. Please see the [TODO](TODO.md) file for details. Contributions to
-address missing features are welcomed.
+There are some Firecracker features that are not yet supported by the SDK.
+These are tracked as GitHub issues with the
+[firecracker-feature](https://github.com/firecracker-microvm/firecracker-go-sdk/issues?q=is%3Aissue+is%3Aopen+label%3Afirecracker-feature)
+label . Contributions to address missing features are welcomed.
 
 Developing
 ---
