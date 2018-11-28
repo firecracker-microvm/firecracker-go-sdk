@@ -11,7 +11,7 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
-//go:generate mockgen -source=machine.go -destination=machine_mock_test.go -package=firecracker
+//go:generate mockgen -source=machine.go -destination=fctesting/machine_mock.go -package=fctesting
 
 package firecracker
 
@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/golang/mock/gomock"
 )
 
@@ -51,10 +52,11 @@ func init() {
 
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
-	m, err := NewMachine(Config{
-		Debug:             true,
-		disableValidation: true,
-	})
+	m, err := NewMachine(
+		Config{
+			Debug:             true,
+			DisableValidation: true,
+		})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -68,31 +70,41 @@ func TestMicroVMExecution(t *testing.T) {
 	var nCpus int64 = 2
 	cpuTemplate := CPUTemplate(CPUTemplateT2)
 	var memSz int64 = 256
-
-	tmpdir := os.TempDir()
-	defer os.RemoveAll(tmpdir)
+	socketPath := filepath.Join(testDataPath, "firecracker.sock")
+	logFifo := filepath.Join(testDataPath, "firecracker.log")
+	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
+	defer func() {
+		os.Remove(socketPath)
+		os.Remove(logFifo)
+		os.Remove(metricsFifo)
+	}()
 
 	cfg := Config{
-		SocketPath:  filepath.Join(tmpdir, "firecracker.sock"),
-		BinPath:     getFirecrackerBinaryPath(),
-		LogFifo:     filepath.Join(tmpdir, "firecracker.log"),
-		LogLevel:    "Debug",
-		MetricsFifo: filepath.Join(tmpdir, "firecracker-metrics"),
-		CPUCount:    nCpus,
-		CPUTemplate: cpuTemplate,
-		MemInMiB:    memSz,
-		Debug:       true,
-		disableValidation: true,
+		SocketPath:        socketPath,
+		LogFifo:           logFifo,
+		MetricsFifo:       metricsFifo,
+		LogLevel:          "Debug",
+		CPUCount:          nCpus,
+		CPUTemplate:       cpuTemplate,
+		MemInMiB:          memSz,
+		Debug:             true,
+		DisableValidation: true,
 	}
-	m, err := NewMachine(cfg)
+
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(socketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
+	m, err := NewMachine(cfg, WithProcessRunner(cmd))
 	if err != nil {
 		t.Fatalf("unexpectd error: %v", err)
 	}
 
-	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
-	var exitchannel chan error
+	var exitchannel <-chan error
 	go func() {
 		var err error
 		exitchannel, err = m.startVMM(vmmCtx)
@@ -101,6 +113,7 @@ func TestMicroVMExecution(t *testing.T) {
 		}
 	}()
 	time.Sleep(2 * time.Second)
+
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
 	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
 	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m) })
@@ -118,19 +131,23 @@ func TestMicroVMExecution(t *testing.T) {
 }
 
 func TestStartVMM(t *testing.T) {
-	tmpdir := os.TempDir()
-	defer os.RemoveAll(tmpdir)
+	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	defer os.Remove(socketPath)
 	cfg := Config{
-		SocketPath: filepath.Join("fc-start-vmm-test.sock"),
-		BinPath:    getFirecrackerBinaryPath(),
-		disableValidation: true,
+		SocketPath:        socketPath,
+		DisableValidation: true,
 	}
-	m, err := NewMachine(cfg)
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(cfg, WithProcessRunner(cmd))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	timeout, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
 	errchan, err := m.startVMM(timeout)
 	if err != nil {
@@ -250,10 +267,10 @@ func TestWaitForSocket(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	okClient := NewMockFirecracker(ctrl)
+	okClient := fctesting.NewMockFirecracker(ctrl)
 	okClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, nil)
 
-	errClient := NewMockFirecracker(ctrl)
+	errClient := fctesting.NewMockFirecracker(ctrl)
 	errClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, errors.New("http error"))
 
 	// testWaitForSocket has three conditions that need testing:
@@ -315,4 +332,3 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 		t.Errorf("failed to set metadata: %s", err)
 	}
 }
-

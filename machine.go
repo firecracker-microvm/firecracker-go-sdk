@@ -30,15 +30,7 @@ import (
 )
 
 const (
-	userAgent       = "firecracker-go-sdk"
-	fcExecutable    = "./firecracker"
-	terminalProgram = "xterm"
-	// ConsoleXterm indicates that the machine's console should be presented in an xterm
-	ConsoleXterm = "xterm"
-	// ConsoleStdio indicates that the machine's console should re-use the parent's stdio streams
-	ConsoleStdio = "stdio"
-	// ConsoleNone indicates that the machine's console IO should be discarded
-	ConsoleNone = "none"
+	userAgent = "firecracker-go-sdk"
 )
 
 // CPUTemplate defines a set of CPU features that are exposed by Firecracker
@@ -50,6 +42,8 @@ const (
 	CPUTemplateC3 = models.CPUTemplateC3
 )
 
+// Firecracker is an interface that can be used to mock
+// out an Firecracker agent for testing purposes.
 type Firecracker interface {
 	PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error)
 	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration) (*ops.PutMachineConfigurationNoContent, error)
@@ -64,8 +58,8 @@ type Firecracker interface {
 
 // Config is a collection of user-configurable VMM settings
 type Config struct {
-	BinPath           string
-	SocketPath        string
+	SocketPath string
+
 	LogFifo           string
 	LogLevel          string
 	MetricsFifo       string
@@ -85,13 +79,13 @@ type Config struct {
 	machineCfg        models.MachineConfiguration
 
 	// Allows for easier mock testing
-	disableValidation bool
+	DisableValidation bool
 }
 
 // Validate will ensure that the required fields are set and that
 // the fields are valid values.
 func (cfg *Config) Validate() error {
-	if cfg.disableValidation {
+	if cfg.DisableValidation {
 		return nil
 	}
 
@@ -112,7 +106,6 @@ func (cfg *Config) Validate() error {
 
 // Machine is the main object for manipulating firecracker VMs
 type Machine struct {
-	binPath       string
 	cfg           Config
 	client        Firecracker
 	cmd           *exec.Cmd
@@ -198,46 +191,45 @@ func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 		CPUTemplate: models.CPUTemplate(cfg.CPUTemplate),
 	}
 
-	if len(cfg.BinPath) > 0 {
-		m.binPath = cfg.BinPath
-	} else {
-		m.binPath = fcExecutable
-	}
-
 	return m, nil
 }
 
 // Init starts the VMM and attaches drives and network interfaces.
-func (m *Machine) Init(ctx context.Context) (chan error, error) {
+func (m *Machine) Init(ctx context.Context) (<-chan error, error) {
 	m.logger.Debug("Called Machine.Init()")
-	var err error
-	errchan, err := m.startVMM(ctx)
-	if err != nil {
-		return errchan, err
+
+	if m.cmd == nil {
+		m.cmd = defaultFirecrackerVMMCommandBuilder.
+			WithSocketPath(m.cfg.SocketPath).
+			Build(ctx)
 	}
-	err = m.setupLogging(ctx)
+
+	errCh, err := m.startVMM(ctx)
 	if err != nil {
+		return errCh, err
+	}
+
+	if err := m.setupLogging(ctx); err != nil {
 		m.logger.Warnf("setupLogging() returned %s. Continuing anyway.", err)
 	} else {
 		m.logger.Debugf("back from setupLogging")
 	}
-	err = m.createMachine(ctx)
-	if err != nil {
+
+	if err = m.createMachine(ctx); err != nil {
 		m.stopVMM()
-		return errchan, err
+		return errCh, err
 	}
 	m.logger.Debug("createMachine returned")
-	err = m.createBootSource(ctx, m.cfg.KernelImagePath, m.cfg.KernelArgs)
-	if err != nil {
+
+	if err = m.createBootSource(ctx, m.cfg.KernelImagePath, m.cfg.KernelArgs); err != nil {
 		m.stopVMM()
-		return errchan, err
+		return errCh, err
 	}
 	m.logger.Debug("createBootSource returned")
 
-	err = m.attachDrive(ctx, m.cfg.RootDrive, 1, true)
-	if err != nil {
+	if err = m.attachDrive(ctx, m.cfg.RootDrive, 1, true); err != nil {
 		m.stopVMM()
-		return errchan, err
+		return errCh, err
 	}
 	m.logger.Debug("Root drive attachment complete")
 
@@ -247,7 +239,7 @@ func (m *Machine) Init(ctx context.Context) (chan error, error) {
 		if err != nil {
 			m.logger.Errorf("While attaching secondary drive %s, got error %s", dev.HostPath, err)
 			m.stopVMM()
-			return errchan, err
+			return errCh, err
 		}
 		m.logger.Debugf("attachDrive returned for %s", dev.HostPath)
 	}
@@ -255,7 +247,7 @@ func (m *Machine) Init(ctx context.Context) (chan error, error) {
 		err = m.createNetworkInterface(ctx, iface, id+1)
 		if err != nil {
 			m.stopVMM()
-			return errchan, err
+			return errCh, err
 		}
 		m.logger.Debugf("createNetworkInterface returned for %s", iface.HostDevName)
 	}
@@ -263,51 +255,37 @@ func (m *Machine) Init(ctx context.Context) (chan error, error) {
 		err = m.addVsock(ctx, dev)
 		if err != nil {
 			m.stopVMM()
-			return errchan, err
+			return errCh, err
 		}
 	}
 
 	m.logger.Debugf("returning from Machine.Init(), RootDrive=%s", m.cfg.RootDrive.HostPath)
-	return errchan, nil
+	return errCh, nil
 }
 
 // startVMM starts the firecracker vmm process and configures logging.
-func (m *Machine) startVMM(ctx context.Context) (chan error, error) {
-	var cmd *exec.Cmd
-	var exitchannel = make(chan error)
+func (m *Machine) startVMM(ctx context.Context) (<-chan error, error) {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
-	switch m.cfg.Console {
-	case ConsoleXterm:
-		cmd = exec.CommandContext(ctx, terminalProgram, "-e", m.binPath, "--api-sock", m.cfg.SocketPath)
-	case ConsoleStdio:
-		cmd = exec.CommandContext(ctx, m.binPath, "--api-sock", m.cfg.SocketPath)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	default:
-		cmd = exec.CommandContext(ctx, m.binPath, "--api-sock", m.cfg.SocketPath)
-	}
-	m.cmd = cmd
 
-	err := cmd.Start()
+	exitCh := make(chan error)
+	err := m.cmd.Start()
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
-		return exitchannel, err
+		return exitCh, err
 	}
-	m.logger.Debugf("VMM started, PID=%d, socket path is %s", cmd.Process.Pid, m.cfg.SocketPath)
+	m.logger.Debugf("VMM started socket path is %s", m.cfg.SocketPath)
 
-	// Set up an exit handler
 	go func() {
-		err := cmd.Wait()
-		if err != nil {
+		if err := m.cmd.Wait(); err != nil {
 			m.logger.Warnf("firecracker exited: %s", err.Error())
 		} else {
 			m.logger.Printf("firecracker exited: status=0")
 		}
+
 		os.Remove(m.cfg.SocketPath)
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
-		exitchannel <- err
+		exitCh <- err
 	}()
 
 	// Set up a signal hander and pass INT, QUIT, and TERM through to firecracker
@@ -323,22 +301,22 @@ func (m *Machine) startVMM(ctx context.Context) (chan error, error) {
 		select {
 		case sig := <-sigchan:
 			m.logger.Printf("Caught signal %s", sig)
-			cmd.Process.Signal(sig)
+			m.cmd.Process.Signal(sig)
 		case err = <-vmchan:
-			exitchannel <- err
+			exitCh <- err
 		}
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, exitchannel)
+	err = m.waitForSocket(3*time.Second, exitCh)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
-		return exitchannel, err
+		return exitCh, err
 	}
 
 	m.logger.Debugf("returning from startVMM()")
-	return exitchannel, nil
+	return exitCh, nil
 }
 
 //StopVMM stops the current VMM.

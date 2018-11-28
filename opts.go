@@ -14,19 +14,39 @@
 package firecracker
 
 import (
+	"os/exec"
+
 	"github.com/sirupsen/logrus"
 )
 
+// Opt represents a functional option to help
+// modify functionality of a Machine.
 type Opt func(*Machine)
 
+// WithClient will use the client in place rather
+// than the client constructed during bootstrapping of
+// the machine. This option is useful for mocking out
+// tests.
 func WithClient(client Firecracker) Opt {
 	return func(machine *Machine) {
 		machine.client = client
 	}
 }
 
+// WithLogger will allow for the Machine to use
+// the provided logger.
 func WithLogger(logger *logrus.Entry) Opt {
 	return func(machine *Machine) {
 		machine.logger = logger
+	}
+}
+
+// WithProcessRunner will allow for a specific command
+// to be run instead of the default firecracker command.
+// For example, this could be used to instead call the
+// jailer instead of firecracker directly.
+func WithProcessRunner(cmd *exec.Cmd) Opt {
+	return func(machine *Machine) {
+		machine.cmd = cmd
 	}
 }
