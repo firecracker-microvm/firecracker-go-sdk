@@ -28,22 +28,37 @@ import (
 )
 
 const (
-	firecrackerBinaryPath        = "./firecracker"
+	firecrackerBinaryPath        = "firecracker"
 	firecrackerBinaryOverrideEnv = "FC_TEST_BIN"
 
 	defaultTuntapName = "fc-test-tap0"
 	tuntapOverrideEnv = "FC_TEST_TAP"
+
+	testDataPathEnv = "FC_TEST_DATA_PATH"
 )
+
+var testDataPath = "./testdata"
 
 var skipTuntap bool
 
 func init() {
 	flag.BoolVar(&skipTuntap, "test.skip-tuntap", false, "Disables tests that require a tuntap device")
+
+	if val := os.Getenv(testDataPathEnv); val != "" {
+		testDataPath = val
+	}
 }
 
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
-	m := NewMachine(Config{Debug: true})
+	m, err := NewMachine(Config{
+		Debug:             true,
+		disableValidation: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
 	if m == nil {
 		t.Errorf("NewMachine did not create a Machine")
 	}
@@ -67,8 +82,13 @@ func TestMicroVMExecution(t *testing.T) {
 		CPUTemplate: cpuTemplate,
 		MemInMiB:    memSz,
 		Debug:       true,
+		disableValidation: true,
 	}
-	m := NewMachine(cfg)
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("unexpectd error: %v", err)
+	}
+
 	ctx := context.Background()
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
@@ -101,8 +121,13 @@ func TestStartVMM(t *testing.T) {
 	cfg := Config{
 		SocketPath: filepath.Join("fc-start-vmm-test.sock"),
 		BinPath:    getFirecrackerBinaryPath(),
+		disableValidation: true,
 	}
-	m := NewMachine(cfg)
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
 	timeout, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 	errchan, err := m.startVMM(timeout)
@@ -124,7 +149,7 @@ func getFirecrackerBinaryPath() string {
 	if val := os.Getenv(firecrackerBinaryOverrideEnv); val != "" {
 		return val
 	}
-	return firecrackerBinaryPath
+	return filepath.Join(testDataPath, firecrackerBinaryPath)
 }
 
 func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
@@ -148,7 +173,7 @@ func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine,
 }
 
 func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine) {
-	err := m.createBootSource(ctx, "./vmlinux", "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
+	err := m.createBootSource(ctx, filepath.Join(testDataPath, "./vmlinux"), "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
 	}
@@ -179,7 +204,7 @@ func getTapName() string {
 }
 
 func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
-	drive := BlockDevice{HostPath: "root-drive.img", Mode: "ro"}
+	drive := BlockDevice{HostPath: filepath.Join(testDataPath, "root-drive.img"), Mode: "ro"}
 	err := m.attachRootDrive(ctx, drive)
 	if err != nil {
 		t.Errorf("attaching root drive failed: %s", err)
@@ -187,7 +212,7 @@ func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
-	drive := BlockDevice{HostPath: "drive-2.img", Mode: "ro"}
+	drive := BlockDevice{HostPath: filepath.Join(testDataPath, "drive-2.img"), Mode: "ro"}
 	err := m.attachDrive(ctx, drive, 2, false)
 	if err != nil {
 		t.Errorf("attaching secondary drive failed: %s", err)

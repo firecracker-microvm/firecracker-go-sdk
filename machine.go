@@ -82,6 +82,31 @@ type Config struct {
 	Console           string
 	Debug             bool
 	machineCfg        models.MachineConfiguration
+
+	// Allows for easier mock testing
+	disableValidation bool
+}
+
+// Validate will ensure that the required fields are set and that
+// the fields are valid values.
+func (cfg *Config) Validate() error {
+	if cfg.disableValidation {
+		return nil
+	}
+
+	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
+		return fmt.Errorf("Failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
+	}
+	if _, err := os.Stat(cfg.RootDrive.HostPath); err != nil {
+		return fmt.Errorf("Failed to stat host path, %q: %v", cfg.RootDrive.HostPath, err)
+	}
+
+	// Check the non-existence of some files:
+	if _, err := os.Stat(cfg.SocketPath); err == nil {
+		return fmt.Errorf("Socket %s already exists", cfg.SocketPath)
+	}
+
+	return nil
 }
 
 // Machine is the main object for manipulating firecracker VMs
@@ -136,7 +161,11 @@ func (m Machine) LogLevel() string {
 }
 
 // NewMachine initializes a new Machine instance
-func NewMachine(cfg Config, opts ...Opt) *Machine {
+func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	m := &Machine{}
 
 	for _, opt := range opts {
@@ -173,7 +202,7 @@ func NewMachine(cfg Config, opts ...Opt) *Machine {
 		m.binPath = fcExecutable
 	}
 
-	return m
+	return m, nil
 }
 
 // Init starts the VMM and attaches drives and network interfaces.
