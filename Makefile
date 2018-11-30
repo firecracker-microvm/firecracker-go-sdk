@@ -18,10 +18,10 @@ EXTRAGOARGS:=
 
 all: build
 
-build clean test:
+generate build clean test:
 	go $@ $(EXTRAGOARGS)
 	for d in $(SUBDIRS); do \
 		cd $$d && go $@ $(EXTRAGOARGS); \
 	done
 
-.PHONY: all clean build test
+.PHONY: all generate clean build test

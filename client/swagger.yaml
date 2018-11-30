@@ -257,8 +257,10 @@ paths:
           schema:
             type: object
       responses:
+        201:
+          description: MMDS data store created
         204:
-          description: MMDS data store created/updated.
+          description: MMDS data store updated.
         400:
           description: MMDS data store cannot be created due to bad input.
           schema:
@@ -393,7 +395,7 @@ definitions:
 
   Error:
     properties:
-      faultMessage:
+      fault_message:
         type: string
         description: A description of the error condition
 

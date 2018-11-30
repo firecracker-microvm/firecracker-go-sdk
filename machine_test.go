@@ -108,7 +108,9 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
+	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+
 	// Let the VMM start and stabilize...
 	time.Sleep(5 * time.Second)
 	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
@@ -305,3 +307,12 @@ func TestWaitForSocket(t *testing.T) {
 		t.Error("waitForSocket did not properly detect program exit")
 	}
 }
+
+func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
+	metadata := map[string]string{"key": "value"}
+	err := m.SetMetadata(ctx, metadata)
+	if err != nil {
+		t.Errorf("failed to set metadata: %s", err)
+	}
+}
+

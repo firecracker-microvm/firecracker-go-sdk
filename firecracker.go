@@ -132,6 +132,14 @@ func (f *FirecrackerClient) CreateSyncAction(ctx context.Context, info *models.I
 	return f.client.Operations.CreateSyncAction(params)
 }
 
+func (f *FirecrackerClient) PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsCreated, *ops.PutMmdsNoContent, error) {
+	params := ops.NewPutMmdsParams()
+	params.SetContext(ctx)
+	params.SetBody(metadata)
+
+	return f.client.Operations.PutMmds(params)
+}
+
 func (f *FirecrackerClient) GetMachineConfig() (*ops.GetMachineConfigOK, error) {
 	p := ops.NewGetMachineConfigParams()
 	p.SetTimeout(firecrackerRequestTimeout)
