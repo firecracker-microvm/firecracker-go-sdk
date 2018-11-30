@@ -13,17 +13,18 @@ You need some external resources in order to run the tests, as described below:
 1. A firecracker binary (tested with 0.10.1), but any recent version should
    work.  Must either be installed as `./firecracker` or the path must be
    specified through the `FC_TEST_BIN` environment variable.
-2. Access to hardware virtualization via `/dev/kvm` (ensure you have mode
+2. Access to hardware virtualization via `/dev/kvm` and `/dev/vhost-vsock` (ensure you have mode
    `+rw`!)
 3. An uncompressed Linux kernel binary that can boot in Firecracker VM (Must be
-   installed as `./vmlinux`)
+   installed as `./testdata/vmlinux`)
 4. A tap device owned by your userid (Must be either named `fc-test-tap0` or
    have the name specified with the `FC_TEST_TAP` environment variable; try
    `sudo ip tuntap add fc-test-tap0 mode tap user $UID` to create `fc-test-tap0`
    if you need to create one)
-5. A root filesystem image installed (Must be named `root-drive.img`; can be
+5. A root filesystem image installed (Must be named `testdata/root-drive.img`)
+6. A secondary device image (Must be named `testdata/drive-2.img`; can be
    empty, create it something like
-   `dd if=/dev/zero of=drive-2.img bs=1k count=102400`)
+   `dd if=/dev/zero of=testdata/drive-2.img bs=1k count=102400`)
 
 With all of those set up, `make test EXTRAGOARGS=-v` should create a Firecracker
 process and run the Linux kernel in a MicroVM.

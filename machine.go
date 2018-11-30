@@ -58,6 +58,7 @@ type Firecracker interface {
 	PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive) (*ops.PutGuestDriveByIDNoContent, error)
 	PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
 	CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo) (*ops.CreateSyncActionNoContent, error)
+	PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsCreated, *ops.PutMmdsNoContent, error)
 	GetMachineConfig() (*ops.GetMachineConfigOK, error)
 }
 
@@ -129,6 +130,7 @@ func (m *Machine) Logger() *log.Entry {
 type NetworkInterface struct {
 	MacAddress  string
 	HostDevName string
+	AllowMDDS   bool
 }
 
 // BlockDevice represents a host block device mapped to the firecracker VM.
@@ -433,10 +435,11 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	m.logger.Printf("Attaching NIC %s (hwaddr %s) at index %s", iface.HostDevName, iface.MacAddress, ifaceID)
 
 	ifaceCfg := models.NetworkInterface{
-		IfaceID:     &ifaceID,
-		GuestMac:    iface.MacAddress,
-		HostDevName: iface.HostDevName,
-		State:       models.DeviceStateAttached,
+		IfaceID:           &ifaceID,
+		GuestMac:          iface.MacAddress,
+		HostDevName:       iface.HostDevName,
+		State:             models.DeviceStateAttached,
+		AllowMmdsRequests: iface.AllowMDDS,
 	}
 
 	resp, err := m.client.PutGuestNetworkInterfaceByID(ctx, ifaceID, &ifaceCfg)
@@ -518,14 +521,30 @@ func (m *Machine) startInstance(ctx context.Context) error {
 		ActionType: models.InstanceActionInfoActionTypeInstanceStart,
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	resp, err := m.client.CreateSyncAction(ctx, &info)
 	if err == nil {
 		m.logger.Printf("startInstance successful: %s", resp.Error())
 	} else {
-		m.logger.Printf("Error starting instance: %s", err)
+		m.logger.Errorf("Starting instance: %s", err)
+	}
+	return err
+}
+
+// SetMetadata sets the machine's metadata for MDDS
+func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
+	respcreated, respnocontent, err := m.client.PutMmds(ctx, metadata)
+
+	if err == nil {
+		var message string
+		if respcreated != nil {
+			message = respcreated.Error()
+		}
+		if respnocontent != nil {
+			message = respnocontent.Error()
+		}
+		m.logger.Printf("SetMetadata successful: %s", message)
+	} else {
+		m.logger.Errorf("Setting metadata: %s", err)
 	}
 	return err
 }

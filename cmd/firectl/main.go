@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -107,6 +108,7 @@ func main() {
 		FcCPUCount         int64    `long:"ncpus" short:"c" description:"Number of CPUs" default:"1"`
 		FcCPUTemplate      string   `long:"cpu-template" description:"Firecracker CPU Template (C3 or T2)"`
 		FcMemSz            int64    `long:"memory" short:"m" description:"VM memory, in MiB" default:"512"`
+		FcMetadata         string   `long:"metadata" description:"Firecracker Meatadata for MMDS (json)"`
 		Debug              bool     `long:"debug" short:"d" description:"Enable debug output"`
 		Help               bool     `long:"help" short:"h" description:"Show usage"`
 	}
@@ -131,6 +133,13 @@ func main() {
 		logger.SetLevel(log.DebugLevel)
 	}
 
+	var metadata interface{}
+	if opts.FcMetadata != "" {
+		if err := json.Unmarshal([]byte(opts.FcMetadata), &metadata); err != nil {
+			log.Fatalf("Unable to parse metadata as json: %s", err)
+		}
+	}
+
 	var NICs []firecracker.NetworkInterface
 
 	if len(opts.FcNicConfig) > 0 {
@@ -139,10 +148,12 @@ func main() {
 			log.Fatalf("Unable to parse NIC config: %s", err)
 		} else {
 			log.Printf("Adding tap device %s", tapDev)
+			allowMDDS := metadata != nil
 			NICs = []firecracker.NetworkInterface{
 				firecracker.NetworkInterface{
 					MacAddress:  tapMacAddr,
 					HostDevName: tapDev,
+					AllowMDDS:   allowMDDS,
 				},
 			}
 		}
@@ -192,8 +203,17 @@ func main() {
 	errchan, err := m.Init(ctx)
 	if err != nil {
 		log.Fatalf("Firecracker Init returned error %s", err)
-	} else {
-		m.StartInstance(vmmCtx)
+	}
+
+	if metadata != nil {
+		err := m.SetMetadata(vmmCtx, metadata)
+		if err != nil {
+			log.Fatalf("Firecracker SetMetadata returned error %s", err)
+		}
+	}
+	err = m.StartInstance(vmmCtx)
+	if err != nil {
+		log.Fatalf("Firecracker StartInstance returned error %s", err)
 	}
 
 	// wait for the VMM to exit

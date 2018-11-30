@@ -140,6 +140,20 @@ func (mr *MockFirecrackerMockRecorder) CreateSyncAction(ctx, info interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncAction", reflect.TypeOf((*MockFirecracker)(nil).CreateSyncAction), ctx, info)
 }
 
+// PutMmds mocks base method
+func (m *MockFirecracker) PutMmds(ctx context.Context, metadata interface{}) (*operations.PutMmdsCreated, *operations.PutMmdsNoContent, error) {
+	ret := m.ctrl.Call(m, "PutMmds", ctx, metadata)
+	ret0, _ := ret[0].(*operations.PutMmdsCreated)
+	ret1, _ := ret[1].(*operations.PutMmdsNoContent)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// PutMmds indicates an expected call of PutMmds
+func (mr *MockFirecrackerMockRecorder) PutMmds(ctx, metadata interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutMmds", reflect.TypeOf((*MockFirecracker)(nil).PutMmds), ctx, metadata)
+}
+
 // GetMachineConfig mocks base method
 func (m *MockFirecracker) GetMachineConfig() (*operations.GetMachineConfigOK, error) {
 	ret := m.ctrl.Call(m, "GetMachineConfig")
@@ -152,3 +166,4 @@ func (m *MockFirecracker) GetMachineConfig() (*operations.GetMachineConfigOK, er
 func (mr *MockFirecrackerMockRecorder) GetMachineConfig() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMachineConfig", reflect.TypeOf((*MockFirecracker)(nil).GetMachineConfig))
 }
+
