@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/golang/mock/gomock"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -120,12 +122,13 @@ func TestMicroVMExecution(t *testing.T) {
 	defer vmmCancel()
 	exitchannel := make(chan error)
 	go func() {
-		exitCh, err := m.startVMM(vmmCtx)
+		var err error
+		err = m.startVMM(vmmCtx)
 		if err != nil {
 			close(exitchannel)
 			t.Fatalf("Failed to start VMM: %v", err)
 		}
-		exitchannel <- <-exitCh
+		exitchannel <- <-m.ErrCh
 		close(exitchannel)
 	}()
 	time.Sleep(2 * time.Second)
@@ -148,7 +151,7 @@ func TestMicroVMExecution(t *testing.T) {
 		// if we've already exited, there's no use waiting for the timer
 	}
 	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-	<-exitchannel
+	<-m.ErrCh
 }
 
 func TestStartVMM(t *testing.T) {
@@ -171,7 +174,7 @@ func TestStartVMM(t *testing.T) {
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
-	errchan, err := m.startVMM(timeout)
+	err = m.startVMM(timeout)
 	if err != nil {
 		t.Errorf("startVMM failed: %s", err)
 	} else {
@@ -180,7 +183,7 @@ func TestStartVMM(t *testing.T) {
 			if timeout.Err() == context.DeadlineExceeded {
 				t.Log("firecracker ran for 250ms")
 			} else {
-				t.Errorf("startVMM returned %s", <-errchan)
+				t.Errorf("startVMM returned %s", <-m.ErrCh)
 			}
 		}
 	}
@@ -251,7 +254,7 @@ func getTapName() string {
 
 func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 	drive := BlockDevice{HostPath: filepath.Join(testDataPath, "root-drive.img"), Mode: "ro"}
-	err := m.attachRootDrive(ctx, drive)
+	err := m.attachDrives(ctx, 0, drive)
 	if err != nil {
 		t.Errorf("attaching root drive failed: %s", err)
 	}
@@ -465,5 +468,41 @@ func TestLogFiles(t *testing.T) {
 
 	if _, err := os.Stat(stderrPath); os.IsNotExist(err) {
 		t.Errorf("expected log file to be present")
+	}
+}
+
+func TestCaptureFifoToFile(t *testing.T) {
+	fifoPath := filepath.Join(testDataPath, "fifo")
+
+	if err := syscall.Mkfifo(fifoPath, 0700); err != nil {
+		t.Fatalf("Unexpected error during syscall.Mkfifo call: %v", err)
+	}
+	defer os.Remove(fifoPath)
+
+	f, err := os.OpenFile(fifoPath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatalf("Failed to open file, %q: %v", fifoPath, err)
+	}
+
+	f.Write([]byte("Hello world!"))
+	defer f.Close()
+
+	go func() {
+		t := time.NewTicker(250 * time.Millisecond)
+		select {
+		case <-t.C:
+			f.Close()
+		}
+	}()
+
+	if err := captureFifoToFile(log.NewEntry(log.New()), fifoPath); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	fifoLogPath := fifoPath + ".log"
+	defer os.Remove(fifoLogPath)
+
+	if _, err := os.Stat(fifoLogPath); err != nil {
+		t.Errorf("Failed to stat file: %v", err)
 	}
 }

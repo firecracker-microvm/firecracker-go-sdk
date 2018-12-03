@@ -117,6 +117,7 @@ type options struct {
 	FcLogFifo          string   `long:"vmm-log-fifo" description:"FIFO for firecracker logs"`
 	FcLogLevel         string   `long:"log-level" description:"vmm log level" default:"Debug"`
 	FcMetricsFifo      string   `long:"metrics-fifo" description:"FIFO for firecracker metrics"`
+	FcCaptureFifoLogs  bool     `long:"capture-fifo-logs" description:"pipes fifo and metric fifo's contents to files"`
 	FcDisableHt        bool     `long:"disable-hyperthreading" short:"t" description:"Disable CPU Hyperthreading"`
 	FcCPUCount         int64    `long:"ncpus" short:"c" description:"Number of CPUs" default:"1"`
 	FcCPUTemplate      string   `long:"cpu-template" description:"Firecracker CPU Template (C3 or T2)"`
@@ -189,22 +190,23 @@ func main() {
 	}
 
 	fcCfg := firecracker.Config{
-		SocketPath:        "./firecracker.sock",
-		LogFifo:           opts.FcLogFifo,
-		LogLevel:          opts.FcLogLevel,
-		MetricsFifo:       opts.FcMetricsFifo,
-		KernelImagePath:   opts.FcKernelImage,
-		KernelArgs:        opts.FcKernelCmdLine,
-		RootDrive:         rootDrive,
-		RootPartitionUUID: opts.FcRootPartUUID,
-		AdditionalDrives:  blockDevices,
-		NetworkInterfaces: NICs,
-		VsockDevices:      vsocks,
-		CPUCount:          opts.FcCPUCount,
-		CPUTemplate:       firecracker.CPUTemplate(opts.FcCPUTemplate),
-		HtEnabled:         !opts.FcDisableHt,
-		MemInMiB:          opts.FcMemSz,
-		Debug:             opts.Debug,
+		SocketPath:            "./firecracker.sock",
+		LogFifo:               opts.FcLogFifo,
+		LogLevel:              opts.FcLogLevel,
+		MetricsFifo:           opts.FcMetricsFifo,
+		CaptureFifoLogsToFile: opts.FcCaptureFifoLogs,
+		KernelImagePath:       opts.FcKernelImage,
+		KernelArgs:            opts.FcKernelCmdLine,
+		RootDrive:             rootDrive,
+		RootPartitionUUID:     opts.FcRootPartUUID,
+		AdditionalDrives:      blockDevices,
+		NetworkInterfaces:     NICs,
+		VsockDevices:          vsocks,
+		CPUCount:              opts.FcCPUCount,
+		CPUTemplate:           firecracker.CPUTemplate(opts.FcCPUTemplate),
+		HtEnabled:             !opts.FcDisableHt,
+		MemInMiB:              opts.FcMemSz,
+		Debug:                 opts.Debug,
 	}
 
 	if len(os.Args) == 1 {
@@ -252,8 +254,7 @@ func main() {
 		log.Fatalf("Failed creating machine: %s", err)
 	}
 
-	errCh, err := m.Init(vmmCtx)
-	if err != nil {
+	if err := m.Init(vmmCtx); err != nil {
 		log.Fatalf("Firecracker Init returned error %s", err)
 	}
 
@@ -269,7 +270,7 @@ func main() {
 	}
 
 	// wait for the VMM to exit
-	if err := <-errCh; err != nil {
+	if err := <-m.ErrCh; err != nil {
 		log.Fatalf("startVMM returned error %s", err)
 	}
 	log.Printf("startVMM was happy")

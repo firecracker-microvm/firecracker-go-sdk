@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -112,6 +113,11 @@ type Config struct {
 	// to the microVM.
 	NetworkInterfaces []NetworkInterface
 
+	// CaptureFifoLogsToFile will copy the contents from the given fifo
+	// pipe and write it to a file with the path of <LogFifo>.log and
+	// <MetricsFifo>.log
+	CaptureFifoLogsToFile bool
+
 	// VsockDevices specifies the vsock devices that should be made available to
 	// the microVM.
 	VsockDevices []VsockDevice
@@ -154,6 +160,8 @@ type Machine struct {
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
+	ErrCh         chan error
+	Handlers      HandlerList
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -215,19 +223,16 @@ func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 	}
 
 	m := &Machine{}
+	logger := log.New()
+
+	if cfg.Debug {
+		logger.SetLevel(log.DebugLevel)
+	}
+
+	m.logger = log.NewEntry(logger)
 
 	for _, opt := range opts {
 		opt(m)
-	}
-
-	if m.logger == nil {
-		logger := log.New()
-
-		if cfg.Debug {
-			logger.SetLevel(log.DebugLevel)
-		}
-
-		m.logger = log.NewEntry(logger)
 	}
 
 	if m.client == nil {
@@ -244,11 +249,12 @@ func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 		CPUTemplate: models.CPUTemplate(cfg.CPUTemplate),
 	}
 
+	m.Handlers = defaultHandlerList
 	return m, nil
 }
 
 // Init starts the VMM and attaches drives and network interfaces.
-func (m *Machine) Init(ctx context.Context) (<-chan error, error) {
+func (m *Machine) Init(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Init()")
 
 	if m.cmd == nil {
@@ -257,74 +263,58 @@ func (m *Machine) Init(ctx context.Context) (<-chan error, error) {
 			Build(ctx)
 	}
 
-	errCh, err := m.startVMM(ctx)
-	if err != nil {
-		return errCh, err
-	}
-
-	if err := m.setupLogging(ctx); err != nil {
-		m.logger.Warnf("setupLogging() returned %s. Continuing anyway.", err)
-	} else {
-		m.logger.Debugf("back from setupLogging")
-	}
-
-	if err = m.createMachine(ctx); err != nil {
+	if err := m.Handlers.Run(ctx, m); err != nil {
 		m.stopVMM()
-		return errCh, err
-	}
-	m.logger.Debug("createMachine returned")
-
-	if err = m.createBootSource(ctx, m.cfg.KernelImagePath, m.cfg.KernelArgs); err != nil {
-		m.stopVMM()
-		return errCh, err
-	}
-	m.logger.Debug("createBootSource returned")
-
-	if err = m.attachDrive(ctx, m.cfg.RootDrive, 1, true); err != nil {
-		m.stopVMM()
-		return errCh, err
-	}
-	m.logger.Debug("Root drive attachment complete")
-
-	for id, dev := range m.cfg.AdditionalDrives {
-		// id must be increased by 2 because firecracker uses 1-indexed arrays and the root drive occupies position 1.
-		err = m.attachDrive(ctx, dev, id+2, false)
-		if err != nil {
-			m.logger.Errorf("While attaching secondary drive %s, got error %s", dev.HostPath, err)
-			m.stopVMM()
-			return errCh, err
-		}
-		m.logger.Debugf("attachDrive returned for %s", dev.HostPath)
-	}
-	for id, iface := range m.cfg.NetworkInterfaces {
-		err = m.createNetworkInterface(ctx, iface, id+1)
-		if err != nil {
-			m.stopVMM()
-			return errCh, err
-		}
-		m.logger.Debugf("createNetworkInterface returned for %s", iface.HostDevName)
-	}
-	for _, dev := range m.cfg.VsockDevices {
-		err = m.addVsock(ctx, dev)
-		if err != nil {
-			m.stopVMM()
-			return errCh, err
-		}
+		return err
 	}
 
 	m.logger.Debugf("returning from Machine.Init(), RootDrive=%s", m.cfg.RootDrive.HostPath)
-	return errCh, nil
+	return nil
+}
+
+func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
+	for _, dev := range m.cfg.VsockDevices {
+		if err := m.addVsock(ctx, dev); err != nil {
+			m.stopVMM()
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...NetworkInterface) error {
+	for id, iface := range ifaces {
+		if err := m.createNetworkInterface(ctx, iface, id+1); err != nil {
+			return err
+		}
+		m.logger.Debugf("createNetworkInterface returned for %s", iface.HostDevName)
+	}
+
+	return nil
+}
+
+func (m *Machine) attachDrives(ctx context.Context, rootIndex int, drives ...BlockDevice) error {
+	for id, dev := range drives {
+		if err := m.attachDrive(ctx, dev, id+1, id == rootIndex); err != nil {
+			m.logger.Errorf("While attaching secondary drive %s, got error %s", dev.HostPath, err)
+			return err
+		}
+		m.logger.Debugf("attachDrive returned for %s", dev.HostPath)
+	}
+
+	return nil
 }
 
 // startVMM starts the firecracker vmm process and configures logging.
-func (m *Machine) startVMM(ctx context.Context) (<-chan error, error) {
+func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
 
-	exitCh := make(chan error)
+	m.ErrCh = make(chan error, 1)
+
 	err := m.cmd.Start()
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
-		return exitCh, err
+		return err
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.cfg.SocketPath)
 
@@ -338,7 +328,7 @@ func (m *Machine) startVMM(ctx context.Context) (<-chan error, error) {
 		os.Remove(m.cfg.SocketPath)
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
-		exitCh <- err
+		m.ErrCh <- err
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
@@ -356,20 +346,20 @@ func (m *Machine) startVMM(ctx context.Context) (<-chan error, error) {
 			m.logger.Printf("Caught signal %s", sig)
 			m.cmd.Process.Signal(sig)
 		case err = <-vmchan:
-			exitCh <- err
+			m.ErrCh <- err
 		}
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, exitCh)
+	err = m.waitForSocket(3*time.Second, m.ErrCh)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
-		return exitCh, err
+		return err
 	}
 
 	m.logger.Debugf("returning from startVMM()")
-	return exitCh, nil
+	return nil
 }
 
 //StopVMM stops the current VMM.
@@ -407,8 +397,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		return nil
 	}
 
-	err := createFifos(m.cfg.LogFifo, m.cfg.MetricsFifo)
-	if err != nil {
+	if err := createFifos(m.cfg.LogFifo, m.cfg.MetricsFifo); err != nil {
 		m.logger.Errorf("Unable to set up logging: %s", err)
 		return err
 	}
@@ -427,8 +416,60 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	if err == nil {
 		m.logger.Printf("Configured VMM logging to %s, metrics to %s: %s",
 			m.cfg.LogFifo, m.cfg.MetricsFifo, resp.Error())
+
+		captureFifoLogsToFile(m.logger, m.cfg.LogFifo, m.cfg.MetricsFifo)
 	}
+
 	return err
+}
+
+// captureFifoLogsToFile will open the fifo pipes and write their contents
+// to files.
+func captureFifoLogsToFile(logger *log.Entry, fifoPath, metricsFifoPath string) error {
+	if err := captureFifoToFile(logger, fifoPath); err != nil {
+		return err
+	}
+
+	if err := captureFifoToFile(logger, metricsFifoPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func captureFifoToFile(logger *log.Entry, fifoPath string) error {
+	// create the fifo pipe which will be used
+	// to write its contents to a file.
+	fifoPipe, err := os.OpenFile(fifoPath, os.O_RDONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
+	}
+
+	fifoLogFileName := fifoPath + ".log"
+	fifo, err := createFifoFileLogs(fifoLogFileName)
+	if err != nil {
+		return fmt.Errorf("Failed to create %q: %v", fifoLogFileName, err)
+	}
+
+	logger.Printf("Capturing %q to %q", fifoPath, fifoLogFileName)
+
+	// Uses a go routine to do a non-blocking io.Copy. The fifo
+	// file should be closed when the appication has finished, since
+	// the forked firecracker application will be closed resulting
+	// in the pipe to return an io.EOF
+	go func() {
+		defer fifo.Close()
+
+		if _, err := io.Copy(fifo, fifoPipe); err != nil {
+			logger.Warnf("io.Copy failed to copy contents of fifo pipe: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+func createFifoFileLogs(fifoPath string) (*os.File, error) {
+	return os.OpenFile(fifoPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 }
 
 func (m *Machine) createMachine(ctx context.Context) error {
@@ -521,10 +562,6 @@ func (m *Machine) attachDrive(ctx context.Context, dev BlockDevice, index int, r
 		m.logger.Errorf("Attach drive failed: %s: %s", dev.HostPath, err)
 	}
 	return err
-}
-
-func (m *Machine) attachRootDrive(ctx context.Context, dev BlockDevice) error {
-	return m.attachDrive(ctx, dev, 1, true)
 }
 
 // addVsock adds a vsock to the instance
