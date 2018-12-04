@@ -141,12 +141,11 @@ func (mr *MockFirecrackerMockRecorder) CreateSyncAction(ctx, info interface{}) *
 }
 
 // PutMmds mocks base method
-func (m *MockFirecracker) PutMmds(ctx context.Context, metadata interface{}) (*operations.PutMmdsCreated, *operations.PutMmdsNoContent, error) {
+func (m *MockFirecracker) PutMmds(ctx context.Context, metadata interface{}) (*operations.PutMmdsNoContent, error) {
 	ret := m.ctrl.Call(m, "PutMmds", ctx, metadata)
-	ret0, _ := ret[0].(*operations.PutMmdsCreated)
-	ret1, _ := ret[1].(*operations.PutMmdsNoContent)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*operations.PutMmdsNoContent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PutMmds indicates an expected call of PutMmds

@@ -4,7 +4,7 @@ info:
   description: RESTful public-facing API.
                The API is accessible through HTTP calls on specific URLs carrying JSON modeled data.
                The transport medium is a Unix Domain Socket.
-  version: 0.10.1
+  version: 0.11.0
   termsOfService: ""
   contact:
     email: "compute-capsule@amazon.com"
@@ -257,10 +257,8 @@ paths:
           schema:
             type: object
       responses:
-        201:
-          description: MMDS data store created
         204:
-          description: MMDS data store updated.
+          description: MMDS data store created/updated.
         400:
           description: MMDS data store cannot be created due to bad input.
           schema:
@@ -359,14 +357,6 @@ definitions:
       - C3
       - T2
 
-  DeviceState:
-    type: string
-    description:
-      The valid states for a Device. So far, a device can only be in the Attached mode.
-      Future valid values will be Detaching and Detached.
-    enum:
-      - Attached
-
   Drive:
     type: object
     required:
@@ -395,7 +385,7 @@ definitions:
 
   Error:
     properties:
-      fault_message:
+      faultMessage:
         type: string
         description: A description of the error condition
 
@@ -497,8 +487,6 @@ definitions:
         $ref: "#/definitions/RateLimiter"
       tx_rate_limiter:
         $ref: "#/definitions/RateLimiter"
-      state:
-        $ref: "#/definitions/DeviceState"
 
   PartialDrive:
     type: object
