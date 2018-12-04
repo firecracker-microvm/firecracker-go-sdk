@@ -18,11 +18,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 )
@@ -43,28 +47,37 @@ const (
 	executableMask = 0111
 )
 
-func parseBlockDevices(entries []string) ([]firecracker.BlockDevice, error) {
-	var devices []firecracker.BlockDevice
-	for _, entry := range entries {
-		var path string
+func parseBlockDevices(entries []string) ([]models.Drive, error) {
+	devices := []models.Drive{}
+
+	for i, entry := range entries {
+		path := ""
+		readOnly := true
+
 		if strings.HasSuffix(entry, ":rw") {
+			readOnly = false
 			path = strings.TrimSuffix(entry, ":rw")
 		} else if strings.HasSuffix(entry, ":ro") {
 			path = strings.TrimSuffix(entry, ":ro")
 		} else {
 			msg := fmt.Sprintf("Invalid drive specification. Must have :rw or :ro suffix")
-			return []firecracker.BlockDevice{}, errors.New(msg)
+			return nil, errors.New(msg)
 		}
+
 		if path == "" {
 			return nil, errors.New("Invalid drive specification")
 		}
-		_, err := os.Stat(path)
-		if err != nil {
+
+		if _, err := os.Stat(path); err != nil {
 			return nil, err
 		}
-		e := firecracker.BlockDevice{
-			HostPath: path,
-			Mode:     "rw",
+
+		e := models.Drive{
+			// i + 2 represents the drive ID. We will reserve 1 for root.
+			DriveID:      firecracker.String(strconv.Itoa(i + 2)),
+			PathOnHost:   firecracker.String(path),
+			IsReadOnly:   firecracker.Bool(readOnly),
+			IsRootDevice: firecracker.Bool(false),
 		}
 		devices = append(devices, e)
 	}
@@ -105,6 +118,76 @@ func parseVsocks(devices []string) ([]firecracker.VsockDevice, error) {
 	return result, nil
 }
 
+func createFifoFileLogs(fifoPath string) (*os.File, error) {
+	return os.OpenFile(fifoPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+}
+
+// handleFifos will see if any fifos need to be generated and if a fifo log
+// file should be created.
+func handleFifos(opts *options) (io.Writer, []func() error, error) {
+	// these booleans are used to check whether or not the fifo queue or metrics
+	// fifo queue needs to be generated. If any which need to be generated, then
+	// we know we need to create a temporary directory. Otherwise, a temporary
+	// directory does not need to be created.
+	generateFifoFilename := false
+	generateMetricFifoFilename := false
+	cleanupFns := []func() error{}
+	var err error
+
+	var fifo io.WriteCloser
+	if len(opts.FcFifoLogFile) > 0 {
+		if len(opts.FcLogFifo) > 0 {
+			return nil, cleanupFns, fmt.Errorf("vmm-log-fifo and firecracker-log cannot be used together")
+		}
+
+		generateFifoFilename = true
+		// if a fifo log file was specified via the CLI then we need to check if
+		// metric fifo was also specified. If not, we will then generate that fifo
+		if len(opts.FcMetricsFifo) == 0 {
+			generateMetricFifoFilename = true
+		}
+
+		if fifo, err = createFifoFileLogs(opts.FcFifoLogFile); err != nil {
+			return fifo, cleanupFns, fmt.Errorf("Failed to create fifo log file: %v", err)
+		}
+
+		cleanupFns = append(cleanupFns, func() error {
+			return fifo.Close()
+		})
+	} else if len(opts.FcLogFifo) > 0 || len(opts.FcMetricsFifo) > 0 {
+		// this checks to see if either one of the fifos was set. If at least one
+		// has been set we check to see if any of the others were not set. If one
+		// isn't set, we will generate the proper file path.
+		if len(opts.FcLogFifo) == 0 {
+			generateFifoFilename = true
+		}
+
+		if len(opts.FcMetricsFifo) == 0 {
+			generateMetricFifoFilename = true
+		}
+	}
+
+	if generateFifoFilename || generateMetricFifoFilename {
+		dir, err := ioutil.TempDir(os.TempDir(), "fcfifo")
+		if err != nil {
+			return fifo, cleanupFns, fmt.Errorf("Fail to create temporary directory: %v", err)
+		}
+
+		cleanupFns = append(cleanupFns, func() error {
+			return os.RemoveAll(dir)
+		})
+		if generateFifoFilename {
+			opts.FcLogFifo = filepath.Join(dir, "fc_fifo")
+		}
+
+		if generateMetricFifoFilename {
+			opts.FcMetricsFifo = filepath.Join(dir, "fc_metrics_fifo")
+		}
+	}
+
+	return fifo, cleanupFns, nil
+}
+
 type options struct {
 	FcBinary           string   `long:"firecracker-binary" description:"Path to firecracker binary"`
 	FcKernelImage      string   `long:"kernel" description:"Path to the kernel image" default:"./vmlinux"`
@@ -117,12 +200,12 @@ type options struct {
 	FcLogFifo          string   `long:"vmm-log-fifo" description:"FIFO for firecracker logs"`
 	FcLogLevel         string   `long:"log-level" description:"vmm log level" default:"Debug"`
 	FcMetricsFifo      string   `long:"metrics-fifo" description:"FIFO for firecracker metrics"`
-	FcCaptureFifoLogs  bool     `long:"capture-fifo-logs" description:"pipes fifo and metric fifo's contents to files"`
 	FcDisableHt        bool     `long:"disable-hyperthreading" short:"t" description:"Disable CPU Hyperthreading"`
 	FcCPUCount         int64    `long:"ncpus" short:"c" description:"Number of CPUs" default:"1"`
 	FcCPUTemplate      string   `long:"cpu-template" description:"Firecracker CPU Template (C3 or T2)"`
 	FcMemSz            int64    `long:"memory" short:"m" description:"VM memory, in MiB" default:"512"`
 	FcMetadata         string   `long:"metadata" description:"Firecracker Meatadata for MMDS (json)"`
+	FcFifoLogFile      string   `long:"firecracker-log" short:"l" description:"pipes the fifo contents to the specified file"`
 	Debug              bool     `long:"debug" short:"d" description:"Enable debug output"`
 	Help               bool     `long:"help" short:"h" description:"Show usage"`
 }
@@ -165,7 +248,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to parse NIC config: %s", err)
 		} else {
-			log.Printf("Adding tap device %s", tapDev)
+			log.Error("Adding tap device %s", tapDev)
 			allowMDDS := metadata != nil
 			NICs = []firecracker.NetworkInterface{
 				firecracker.NetworkInterface{
@@ -177,36 +260,57 @@ func main() {
 		}
 	}
 
-	rootDrive := firecracker.BlockDevice{HostPath: opts.FcRootDrivePath, Mode: "rw"}
-
 	blockDevices, err := parseBlockDevices(opts.FcAdditionalDrives)
 	if err != nil {
 		log.Fatalf("Invalid block device specification: %s", err)
 	}
+
+	rootDrive := models.Drive{
+		DriveID:      firecracker.String("1"),
+		PathOnHost:   &opts.FcRootDrivePath,
+		IsRootDevice: firecracker.Bool(true),
+		IsReadOnly:   firecracker.Bool(false),
+		Partuuid:     opts.FcRootPartUUID,
+	}
+	blockDevices = append(blockDevices, rootDrive)
 
 	vsocks, err := parseVsocks(opts.FcVsockDevices)
 	if err != nil {
 		log.Fatalf("Invalid vsock specification: %s", err)
 	}
 
+	fifo, cleanFns, err := handleFifos(&opts)
+	// we call cleanup first due to errors returning at different points which
+	// may result in a file handle being opened.
+	defer func() {
+		for _, fn := range cleanFns {
+			if err := fn(); err != nil {
+				log.WithError(err).Error("Failed to cleanup")
+			}
+		}
+	}()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
 	fcCfg := firecracker.Config{
-		SocketPath:            "./firecracker.sock",
-		LogFifo:               opts.FcLogFifo,
-		LogLevel:              opts.FcLogLevel,
-		MetricsFifo:           opts.FcMetricsFifo,
-		CaptureFifoLogsToFile: opts.FcCaptureFifoLogs,
-		KernelImagePath:       opts.FcKernelImage,
-		KernelArgs:            opts.FcKernelCmdLine,
-		RootDrive:             rootDrive,
-		RootPartitionUUID:     opts.FcRootPartUUID,
-		AdditionalDrives:      blockDevices,
-		NetworkInterfaces:     NICs,
-		VsockDevices:          vsocks,
-		CPUCount:              opts.FcCPUCount,
-		CPUTemplate:           firecracker.CPUTemplate(opts.FcCPUTemplate),
-		HtEnabled:             !opts.FcDisableHt,
-		MemInMiB:              opts.FcMemSz,
-		Debug:                 opts.Debug,
+		SocketPath:        "./firecracker.sock",
+		LogFifo:           opts.FcLogFifo,
+		LogLevel:          opts.FcLogLevel,
+		MetricsFifo:       opts.FcMetricsFifo,
+		FifoLogWriter:     fifo,
+		KernelImagePath:   opts.FcKernelImage,
+		KernelArgs:        opts.FcKernelCmdLine,
+		Drives:            blockDevices,
+		NetworkInterfaces: NICs,
+		VsockDevices:      vsocks,
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   opts.FcCPUCount,
+			CPUTemplate: models.CPUTemplate(opts.FcCPUTemplate),
+			HtEnabled:   !opts.FcDisableHt,
+			MemSizeMib:  opts.FcMemSz,
+		},
+		Debug: opts.Debug,
 	}
 
 	if len(os.Args) == 1 {
@@ -249,29 +353,23 @@ func main() {
 		machineOpts = append(machineOpts, firecracker.WithProcessRunner(cmd))
 	}
 
-	m, err := firecracker.NewMachine(fcCfg, machineOpts...)
+	m, err := firecracker.NewMachine(vmmCtx, fcCfg, machineOpts...)
 	if err != nil {
 		log.Fatalf("Failed creating machine: %s", err)
 	}
 
-	if err := m.Init(vmmCtx); err != nil {
-		log.Fatalf("Firecracker Init returned error %s", err)
-	}
-
 	if metadata != nil {
-		err := m.SetMetadata(vmmCtx, metadata)
-		if err != nil {
-			log.Fatalf("Firecracker SetMetadata returned error %s", err)
-		}
+		m.EnableMetadata(metadata)
 	}
 
-	if err := m.StartInstance(vmmCtx); err != nil {
-		log.Fatalf("Failed to start instance: %v", err)
+	if err := m.Start(vmmCtx); err != nil {
+		log.Fatalf("Failed to start machine: %v", err)
 	}
+	defer m.StopVMM()
 
 	// wait for the VMM to exit
-	if err := <-m.ErrCh; err != nil {
-		log.Fatalf("startVMM returned error %s", err)
+	if err := m.Wait(vmmCtx); err != nil {
+		log.Fatalf("Wait returned an error %s", err)
 	}
-	log.Printf("startVMM was happy")
+	log.Printf("Start machine was happy")
 }

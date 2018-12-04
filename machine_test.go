@@ -61,6 +61,7 @@ func init() {
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
 	m, err := NewMachine(
+		context.Background(),
 		Config{
 			Debug:             true,
 			DisableValidation: true,
@@ -76,7 +77,7 @@ func TestNewMachine(t *testing.T) {
 
 func TestMicroVMExecution(t *testing.T) {
 	var nCpus int64 = 2
-	cpuTemplate := CPUTemplate(CPUTemplateT2)
+	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 	socketPath := filepath.Join(testDataPath, "firecracker.sock")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
@@ -96,13 +97,15 @@ func TestMicroVMExecution(t *testing.T) {
 	}
 
 	cfg := Config{
-		SocketPath:        socketPath,
-		LogFifo:           logFifo,
-		MetricsFifo:       metricsFifo,
-		LogLevel:          "Debug",
-		CPUCount:          nCpus,
-		CPUTemplate:       cpuTemplate,
-		MemInMiB:          memSz,
+		SocketPath:  socketPath,
+		LogFifo:     logFifo,
+		MetricsFifo: metricsFifo,
+		LogLevel:    "Debug",
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   nCpus,
+			CPUTemplate: cpuTemplate,
+			MemSizeMib:  memSz,
+		},
 		Debug:             true,
 		DisableValidation: true,
 	}
@@ -113,7 +116,7 @@ func TestMicroVMExecution(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err := NewMachine(cfg, WithProcessRunner(cmd))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	if err != nil {
 		t.Fatalf("unexpectd error: %v", err)
 	}
@@ -122,13 +125,13 @@ func TestMicroVMExecution(t *testing.T) {
 	defer vmmCancel()
 	exitchannel := make(chan error)
 	go func() {
-		var err error
-		err = m.startVMM(vmmCtx)
-		if err != nil {
+		if err := m.startVMM(vmmCtx); err != nil {
 			close(exitchannel)
 			t.Fatalf("Failed to start VMM: %v", err)
 		}
-		exitchannel <- <-m.ErrCh
+		defer m.StopVMM()
+
+		exitchannel <- m.Wait(vmmCtx)
 		close(exitchannel)
 	}()
 	time.Sleep(2 * time.Second)
@@ -151,7 +154,7 @@ func TestMicroVMExecution(t *testing.T) {
 		// if we've already exited, there's no use waiting for the timer
 	}
 	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-	<-m.ErrCh
+	m.Wait(vmmCtx)
 }
 
 func TestStartVMM(t *testing.T) {
@@ -166,7 +169,7 @@ func TestStartVMM(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(cfg, WithProcessRunner(cmd))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,12 +181,14 @@ func TestStartVMM(t *testing.T) {
 	if err != nil {
 		t.Errorf("startVMM failed: %s", err)
 	} else {
+		defer m.StopVMM()
+
 		select {
 		case <-timeout.Done():
 			if timeout.Err() == context.DeadlineExceeded {
 				t.Log("firecracker ran for 250ms")
 			} else {
-				t.Errorf("startVMM returned %s", <-m.ErrCh)
+				t.Errorf("startVMM returned %s", m.Wait(ctx))
 			}
 		}
 	}
@@ -206,13 +211,13 @@ func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine, expectedValues Config) {
-	if m.machineConfig.VcpuCount != expectedValues.CPUCount {
+	if m.machineConfig.VcpuCount != expectedValues.MachineCfg.VcpuCount {
 		t.Errorf("Got unexpected number of VCPUs: Expected: %d, Actual: %d",
-			expectedValues.CPUCount, m.machineConfig.VcpuCount)
+			expectedValues.MachineCfg.VcpuCount, m.cfg.MachineCfg.VcpuCount)
 	}
-	if m.machineConfig.MemSizeMib != expectedValues.MemInMiB {
+	if m.machineConfig.MemSizeMib != expectedValues.MachineCfg.MemSizeMib {
 		t.Errorf("Got unexpected value for machine memory: expected: %d, Got %d",
-			expectedValues.MemInMiB, m.machineConfig.MemSizeMib)
+			expectedValues.MachineCfg.MemSizeMib, m.cfg.MachineCfg.MemSizeMib)
 	}
 }
 
@@ -253,16 +258,26 @@ func getTapName() string {
 }
 
 func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
-	drive := BlockDevice{HostPath: filepath.Join(testDataPath, "root-drive.img"), Mode: "ro"}
-	err := m.attachDrives(ctx, 0, drive)
+	drive := models.Drive{
+		DriveID:      String("0"),
+		IsRootDevice: Bool(true),
+		IsReadOnly:   Bool(true),
+		PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+	}
+	err := m.attachDrives(ctx, drive)
 	if err != nil {
 		t.Errorf("attaching root drive failed: %s", err)
 	}
 }
 
 func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
-	drive := BlockDevice{HostPath: filepath.Join(testDataPath, "drive-2.img"), Mode: "ro"}
-	err := m.attachDrive(ctx, drive, 2, false)
+	drive := models.Drive{
+		DriveID:      String("2"),
+		IsRootDevice: Bool(false),
+		IsReadOnly:   Bool(true),
+		PathOnHost:   String(filepath.Join(testDataPath, "drive-2.img")),
+	}
+	err := m.attachDrive(ctx, drive)
 	if err != nil {
 		t.Errorf("attaching secondary drive failed: %s", err)
 	}
@@ -384,9 +399,13 @@ func TestLogFiles(t *testing.T) {
 	cfg := Config{
 		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
-		RootDrive: BlockDevice{
-			HostPath: filepath.Join(testDataPath, "root-drive.img"),
-			Mode:     "rw",
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      String("0"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+			},
 		},
 		DisableValidation: true,
 	}
@@ -447,7 +466,9 @@ func TestLogFiles(t *testing.T) {
 	cmd := exec.Command("ls")
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	m, err := NewMachine(cfg,
+	m, err := NewMachine(
+		ctx,
+		cfg,
 		WithClient(client),
 		WithProcessRunner(cmd),
 	)
@@ -456,8 +477,7 @@ func TestLogFiles(t *testing.T) {
 	}
 	defer m.StopVMM()
 
-	_, err = m.Init(ctx)
-	if err != nil {
+	if err := m.Handlers.FcInit.Run(ctx, m); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -495,11 +515,16 @@ func TestCaptureFifoToFile(t *testing.T) {
 		}
 	}()
 
-	if err := captureFifoToFile(log.NewEntry(log.New()), fifoPath); err != nil {
+	fifoLogPath := fifoPath + ".log"
+	fifo, err := os.OpenFile(fifoLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("Failed to create fifo file: %v", err)
+	}
+
+	if err := captureFifoToFile(log.NewEntry(log.New()), fifoPath, fifo); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	fifoLogPath := fifoPath + ".log"
 	defer os.Remove(fifoLogPath)
 
 	if _, err := os.Stat(fifoLogPath); err != nil {

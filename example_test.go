@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 func ExampleWithProcessRunner_logging() {
@@ -13,11 +14,17 @@ func ExampleWithProcessRunner_logging() {
 	cfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: "/path/to/kernel",
-		RootDrive: firecracker.BlockDevice{
-			HostPath: "/path/to/root/drive",
-			Mode:     "rw",
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      firecracker.String("1"),
+				IsRootDevice: firecracker.Bool(true),
+				IsReadOnly:   firecracker.Bool(false),
+				PathOnHost:   firecracker.String("/path/to/root/drive"),
+			},
 		},
-		CPUCount: 1,
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount: 1,
+		},
 	}
 
 	// stdout will be directed to this file
@@ -44,22 +51,19 @@ func ExampleWithProcessRunner_logging() {
 		WithStderr(stderr).
 		Build(ctx)
 
-	m, err := firecracker.NewMachine(cfg, firecracker.WithProcessRunner(cmd))
+	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(cmd))
 	if err != nil {
 		panic(fmt.Errorf("failed to create new machine: %v", err))
 	}
 
 	defer os.Remove(cfg.SocketPath)
 
-	ch, err := m.Init(ctx)
-	if err != nil {
+	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
 	}
 
-	if err := m.StartInstance(ctx); err != nil {
-		panic(fmt.Errorf("Failed to start instance: %v", err))
-	}
-
 	// wait for VMM to execute
-	<-ch
+	if err := m.Wait(ctx); err != nil {
+		panic(err)
+	}
 }

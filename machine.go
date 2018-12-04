@@ -34,17 +34,8 @@ const (
 	userAgent = "firecracker-go-sdk"
 )
 
-// CPUTemplate defines a set of CPU features that are exposed by Firecracker
-type CPUTemplate models.CPUTemplate
-
-// CPUTemplates known by Firecracker. These are passed through directly from the model.
-const (
-	CPUTemplateT2 = models.CPUTemplateT2
-	CPUTemplateC3 = models.CPUTemplateC3
-)
-
-// Firecracker is an interface that can be used to mock out a Firecracker agent
-// for testing purposes.
+// Firecracker is an interface that can be used to mock
+// out an Firecracker agent for testing purposes.
 type Firecracker interface {
 	PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error)
 	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration) (*ops.PutMachineConfigurationNoContent, error)
@@ -83,48 +74,27 @@ type Config struct {
 	// the kernel.
 	KernelArgs string
 
-	// CPUCount defines the number of CPU threads that should be available to
-	// the micro-VM.
-	CPUCount int64
-
-	// HtEnabled defines whether hyper-threading should be enabled for the
+	// Drives specifies BlockDevices that should be made available to the
 	// microVM.
-	HtEnabled bool
-
-	// CPUTemplate defines the Firecracker CPU template to use.  Valid values
-	// are CPUTemplateT2 and CPUTemplateC3,
-	CPUTemplate CPUTemplate
-
-	// MemInMiB defines the amount of memory that should be made available to
-	// the microVM.
-	MemInMiB int64
-
-	// RootDrive specifies the BlockDevice that contains the root filesystem.
-	RootDrive BlockDevice
-
-	// RootPartitionUUID defines the UUID that specifies the root partition.
-	RootPartitionUUID string
-
-	// AdditionalDrives specifies additional BlockDevices that should be made
-	// available to the microVM.
-	AdditionalDrives []BlockDevice
+	Drives []models.Drive
 
 	// NetworkInterfaces specifies the tap devices that should be made available
 	// to the microVM.
 	NetworkInterfaces []NetworkInterface
 
-	// CaptureFifoLogsToFile will copy the contents from the given fifo
-	// pipe and write it to a file with the path of <LogFifo>.log and
-	// <MetricsFifo>.log
-	CaptureFifoLogsToFile bool
+	// FifoLogWriter is an io.Writer that is used to redirect the contents of the
+	// fifo log to the writer.
+	FifoLogWriter io.Writer
 
 	// VsockDevices specifies the vsock devices that should be made available to
 	// the microVM.
 	VsockDevices []VsockDevice
 
 	// Debug enables debug-level logging for the SDK.
-	Debug      bool
-	machineCfg models.MachineConfiguration
+	Debug bool
+
+	// MachineCfg represents the firecracker microVM process configuration
+	MachineCfg models.MachineConfiguration
 
 	// DisableValidation allows for easier mock testing by disabling the
 	// validation of configuration performed by the SDK.
@@ -141,8 +111,17 @@ func (cfg *Config) Validate() error {
 	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
 		return fmt.Errorf("failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
 	}
-	if _, err := os.Stat(cfg.RootDrive.HostPath); err != nil {
-		return fmt.Errorf("failed to stat host path, %q: %v", cfg.RootDrive.HostPath, err)
+
+	rootPath := ""
+	for _, drive := range cfg.Drives {
+		if BoolValue(drive.IsRootDevice) {
+			rootPath = StringValue(drive.PathOnHost)
+			break
+		}
+	}
+
+	if _, err := os.Stat(rootPath); err != nil {
+		return fmt.Errorf("failed to stat host path, %q: %v", rootPath, err)
 	}
 
 	// Check the non-existence of some files:
@@ -160,8 +139,12 @@ type Machine struct {
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
-	ErrCh         chan error
-	Handlers      HandlerList
+
+	// Metadata is the associated metadata that will be sent to the firecracker
+	// process
+	Metadata interface{}
+	errCh    chan error
+	Handlers Handlers
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -178,15 +161,6 @@ type NetworkInterface struct {
 	HostDevName string
 	// AllowMMDS makes the Firecracker MMDS available on this network interface.
 	AllowMDDS bool
-}
-
-// BlockDevice represents a host block device mapped to the Firecracker microVM.
-type BlockDevice struct {
-	// HostPath defines the filesystem path of the block device on the host.
-	HostPath string
-	// Mode defines whether the device is writable.  Valid values are "ro" and
-	// "rw".
-	Mode string
 }
 
 // VsockDevice represents a vsock connection between the host and the guest
@@ -217,7 +191,7 @@ func (m Machine) LogLevel() string {
 
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
-func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
+func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -230,6 +204,10 @@ func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 	}
 
 	m.logger = log.NewEntry(logger)
+	m.cmd = defaultFirecrackerVMMCommandBuilder.
+		WithSocketPath(cfg.SocketPath).
+		Build(ctx)
+	m.Handlers = defaultHandlers
 
 	for _, opt := range opts {
 		opt(m)
@@ -239,43 +217,37 @@ func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 		m.client = NewFirecrackerClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
-	m.logger.Debug("Called NewMachine()")
-
 	m.cfg = cfg
-	m.cfg.machineCfg = models.MachineConfiguration{
-		VcpuCount:   cfg.CPUCount,
-		MemSizeMib:  cfg.MemInMiB,
-		HtEnabled:   cfg.HtEnabled,
-		CPUTemplate: models.CPUTemplate(cfg.CPUTemplate),
-	}
 
-	m.Handlers = defaultHandlerList
+	m.logger.Debug("Called NewMachine()")
 	return m, nil
 }
 
-// Init starts the VMM and attaches drives and network interfaces.
-func (m *Machine) Init(ctx context.Context) error {
-	m.logger.Debug("Called Machine.Init()")
-
-	if m.cmd == nil {
-		m.cmd = defaultFirecrackerVMMCommandBuilder.
-			WithSocketPath(m.cfg.SocketPath).
-			Build(ctx)
-	}
-
+// Start will iterate through the handler list and call each handler. If an
+// error occurred during handler execution, that error will be returned. If the
+// handlers succeed, then this will start the VMM instance.
+func (m *Machine) Start(ctx context.Context) error {
+	m.logger.Debug("Called Machine.Start()")
 	if err := m.Handlers.Run(ctx, m); err != nil {
-		m.stopVMM()
 		return err
 	}
 
-	m.logger.Debugf("returning from Machine.Init(), RootDrive=%s", m.cfg.RootDrive.HostPath)
-	return nil
+	return m.StartInstance(ctx)
+}
+
+// Wait will wait until the firecracker process has finished
+func (m *Machine) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-m.errCh:
+		return err
+	}
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
 	for _, dev := range m.cfg.VsockDevices {
 		if err := m.addVsock(ctx, dev); err != nil {
-			m.stopVMM()
 			return err
 		}
 	}
@@ -293,13 +265,13 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 	return nil
 }
 
-func (m *Machine) attachDrives(ctx context.Context, rootIndex int, drives ...BlockDevice) error {
-	for id, dev := range drives {
-		if err := m.attachDrive(ctx, dev, id+1, id == rootIndex); err != nil {
-			m.logger.Errorf("While attaching secondary drive %s, got error %s", dev.HostPath, err)
+func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) error {
+	for _, dev := range drives {
+		if err := m.attachDrive(ctx, dev); err != nil {
+			m.logger.Errorf("While attaching drive %s, got error %s", StringValue(dev.PathOnHost), err)
 			return err
 		}
-		m.logger.Debugf("attachDrive returned for %s", dev.HostPath)
+		m.logger.Debugf("attachDrive returned for %s", StringValue(dev.PathOnHost))
 	}
 
 	return nil
@@ -309,7 +281,7 @@ func (m *Machine) attachDrives(ctx context.Context, rootIndex int, drives ...Blo
 func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
 
-	m.ErrCh = make(chan error, 1)
+	m.errCh = make(chan error)
 
 	err := m.cmd.Start()
 	if err != nil {
@@ -328,7 +300,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		os.Remove(m.cfg.SocketPath)
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
-		m.ErrCh <- err
+		m.errCh <- err
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
@@ -346,12 +318,12 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			m.logger.Printf("Caught signal %s", sig)
 			m.cmd.Process.Signal(sig)
 		case err = <-vmchan:
-			m.ErrCh <- err
+			m.errCh <- err
 		}
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, m.ErrCh)
+	err = m.waitForSocket(3*time.Second, m.errCh)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
@@ -381,13 +353,15 @@ func (m *Machine) stopVMM() error {
 // createFifos sets up the firecracker logging and metrics FIFOs
 func createFifos(logFifo, metricsFifo string) error {
 	log.Debugf("Creating FIFO %s", logFifo)
-	err := syscall.Mkfifo(logFifo, 0700)
-	if err != nil {
-		return err
+	if err := syscall.Mkfifo(logFifo, 0700); err != nil {
+		return fmt.Errorf("Failed to create log fifo: %v", err)
 	}
-	log.Debugf("Creating FIFO %s", metricsFifo)
-	err = syscall.Mkfifo(metricsFifo, 0700)
-	return err
+
+	log.Debugf("Creating metric FIFO %s", metricsFifo)
+	if err := syscall.Mkfifo(metricsFifo, 0700); err != nil {
+		return fmt.Errorf("Failed to create metric fifo: %v", err)
+	}
+	return nil
 }
 
 func (m *Machine) setupLogging(ctx context.Context) error {
@@ -412,32 +386,26 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		ShowLogOrigin: false,
 	}
 
-	resp, err := m.client.PutLogger(ctx, &l)
-	if err == nil {
-		m.logger.Printf("Configured VMM logging to %s, metrics to %s: %s",
-			m.cfg.LogFifo, m.cfg.MetricsFifo, resp.Error())
-
-		captureFifoLogsToFile(m.logger, m.cfg.LogFifo, m.cfg.MetricsFifo)
-	}
-
-	return err
-}
-
-// captureFifoLogsToFile will open the fifo pipes and write their contents
-// to files.
-func captureFifoLogsToFile(logger *log.Entry, fifoPath, metricsFifoPath string) error {
-	if err := captureFifoToFile(logger, fifoPath); err != nil {
+	_, err := m.client.PutLogger(ctx, &l)
+	if err != nil {
 		return err
 	}
 
-	if err := captureFifoToFile(logger, metricsFifoPath); err != nil {
-		return err
+	m.logger.Debugf("Configured VMM logging to %s, metrics to %s",
+		m.cfg.LogFifo,
+		m.cfg.MetricsFifo,
+	)
+
+	if m.cfg.FifoLogWriter != nil {
+		if err := captureFifoToFile(m.logger, m.cfg.LogFifo, m.cfg.FifoLogWriter); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func captureFifoToFile(logger *log.Entry, fifoPath string) error {
+func captureFifoToFile(logger *log.Entry, fifoPath string, fifo io.Writer) error {
 	// create the fifo pipe which will be used
 	// to write its contents to a file.
 	fifoPipe, err := os.OpenFile(fifoPath, os.O_RDONLY, 0600)
@@ -445,20 +413,18 @@ func captureFifoToFile(logger *log.Entry, fifoPath string) error {
 		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
 	}
 
-	fifoLogFileName := fifoPath + ".log"
-	fifo, err := createFifoFileLogs(fifoLogFileName)
-	if err != nil {
-		return fmt.Errorf("Failed to create %q: %v", fifoLogFileName, err)
+	if err := syscall.Unlink(fifoPath); err != nil {
+		logger.Warnf("Failed to unlink %s", fifoPath)
 	}
 
-	logger.Printf("Capturing %q to %q", fifoPath, fifoLogFileName)
+	logger.Debugf("Capturing %q to writer", fifoPath)
 
 	// Uses a go routine to do a non-blocking io.Copy. The fifo
 	// file should be closed when the appication has finished, since
 	// the forked firecracker application will be closed resulting
 	// in the pipe to return an io.EOF
 	go func() {
-		defer fifo.Close()
+		defer fifoPipe.Close()
 
 		if _, err := io.Copy(fifo, fifoPipe); err != nil {
 			logger.Warnf("io.Copy failed to copy contents of fifo pipe: %v", err)
@@ -468,12 +434,8 @@ func captureFifoToFile(logger *log.Entry, fifoPath string) error {
 	return nil
 }
 
-func createFifoFileLogs(fifoPath string) (*os.File, error) {
-	return os.OpenFile(fifoPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-}
-
 func (m *Machine) createMachine(ctx context.Context) error {
-	resp, err := m.client.PutMachineConfiguration(ctx, &m.cfg.machineCfg)
+	resp, err := m.client.PutMachineConfiguration(ctx, &m.cfg.MachineCfg)
 	if err != nil {
 		m.logger.Errorf("PutMachineConfiguration returned %s", resp.Error())
 		return err
@@ -522,44 +484,21 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 }
 
 // attachDrive attaches a secondary block device
-func (m *Machine) attachDrive(ctx context.Context, dev BlockDevice, index int, root bool) error {
+func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 	var err error
+	hostPath := StringValue(dev.PathOnHost)
 
-	_, err = os.Stat(dev.HostPath)
+	_, err = os.Stat(hostPath)
 	if err != nil {
 		return err
 	}
 
-	readOnly := true
-
-	switch dev.Mode {
-	case "ro":
-		readOnly = true
-	case "rw":
-		readOnly = false
-	default:
-		return errors.New("invalid drive permissions")
-	}
-
-	driveID := strconv.Itoa(index)
-	d := models.Drive{
-		DriveID:      &driveID,
-		PathOnHost:   &dev.HostPath,
-		IsRootDevice: &root,
-		IsReadOnly:   &readOnly,
-	}
-
-	if len(m.cfg.RootPartitionUUID) > 0 && root {
-		d.Partuuid = m.cfg.RootPartitionUUID
-	}
-
-	log.Infof("Attaching drive %s, mode %s, slot %s, root %t.", dev.HostPath, dev.Mode, driveID, root)
-
-	respNoContent, err := m.client.PutGuestDriveByID(ctx, driveID, &d)
+	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
+	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
-		m.logger.Printf("Attached drive %s: %s", dev.HostPath, respNoContent.Error())
+		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
 	} else {
-		m.logger.Errorf("Attach drive failed: %s: %s", dev.HostPath, err)
+		m.logger.Errorf("Attach drive failed: %s: %s", hostPath, err)
 	}
 	return err
 }
@@ -595,6 +534,11 @@ func (m *Machine) startInstance(ctx context.Context) error {
 		m.logger.Errorf("Starting instance: %s", err)
 	}
 	return err
+}
+
+// EnableMetadata will append or replace the metadata handler.
+func (m *Machine) EnableMetadata(metadata interface{}) {
+	m.Handlers.FcInit = m.Handlers.FcInit.Swappend(NewSetMetadataHandler(metadata))
 }
 
 // SetMetadata sets the machine's metadata for MDDS
