@@ -81,6 +81,14 @@ func TestMicroVMExecution(t *testing.T) {
 		os.Remove(metricsFifo)
 	}()
 
+	vmlinuxPath := filepath.Join(testDataPath, "./vmlinux")
+	if _, err := os.Stat(vmlinuxPath); err != nil {
+		t.Fatalf("Cannot find vmlinux file: %s\n"+
+			`Verify that you have a vmlinux file at "%s" or set the `+
+			"`%s` environment variable to the correct location.",
+			err, vmlinuxPath, testDataPathEnv)
+	}
+
 	cfg := Config{
 		SocketPath:        socketPath,
 		LogFifo:           logFifo,
@@ -118,7 +126,7 @@ func TestMicroVMExecution(t *testing.T) {
 
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
 	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
-	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m) })
+	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
 	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
 	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
@@ -193,8 +201,13 @@ func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine,
 	}
 }
 
-func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine) {
-	err := m.createBootSource(ctx, filepath.Join(testDataPath, "./vmlinux"), "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
+func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine, vmlinuxPath string) {
+	// panic=0: This option disables reboot-on-panic behavior for the kernel. We
+	//          use this option as we might run the tests without a real root
+	//          filesystem available to the guest.
+	// Kernel command-line options can be found in the kernel source tree at
+	// Documentation/admin-guide/kernel-parameters.txt.
+	err := m.createBootSource(ctx, vmlinuxPath, "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
 	}
