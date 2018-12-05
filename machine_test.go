@@ -192,7 +192,12 @@ func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine,
 }
 
 func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine) {
-	err := m.createBootSource(ctx, filepath.Join(testDataPath, "./vmlinux"), "ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules")
+	// panic=0: This option disables reboot-on-panic behavior for the kernel. We
+	//          use this option as we might run the tests without a real root
+	//          filesystem available to the guest.
+	// Kernel command-line options can be found in the kernel source tree at
+	// Documentation/admin-guide/kernel-parameters.txt.
+	err := m.createBootSource(ctx, filepath.Join(testDataPath, "./vmlinux"), "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
 	}
