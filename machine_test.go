@@ -21,9 +21,11 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/golang/mock/gomock"
 )
@@ -252,7 +254,15 @@ func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 func testStartInstance(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.startInstance(ctx)
 	if err != nil {
-		t.Errorf("startInstance failed: %s", err)
+		if syncErr, ok := err.(*operations.CreateSyncActionDefault); ok &&
+			strings.HasPrefix(syncErr.Payload.FaultMessage, "Cannot create vsock device") {
+				t.Errorf(`startInstance: %s
+Do you have permission to interact with /dev/vhost-vsock?
+Grant yourself permission with `+"`sudo setfacl -m u:${USER}:rw /dev/vhost-vsock`", syncErr.Payload.FaultMessage)
+			}
+		} else {
+			t.Errorf("startInstance failed: %s", err)
+		}
 	}
 }
 
