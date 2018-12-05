@@ -247,7 +247,15 @@ func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 	}
 	err := m.addVsock(ctx, dev)
 	if err != nil {
-		t.Errorf("attaching vsock failed: %s", err)
+		if badRequest, ok := err.(*operations.PutGuestVsockByIDBadRequest); ok &&
+			strings.HasPrefix(badRequest.Payload.FaultMessage, "Invalid request method and/or path") {
+			t.Errorf(`attaching vsock failed: %s
+Does your Firecracker binary have vsock support?
+Build one with vsock support by running `+"`cargo build --release --features vsock` from within the Firecracker repository.",
+				badRequest.Payload.FaultMessage)
+		} else {
+			t.Errorf("attaching vsock failed: %s", err)
+		}
 	}
 }
 
@@ -256,13 +264,12 @@ func testStartInstance(ctx context.Context, t *testing.T, m *Machine) {
 	if err != nil {
 		if syncErr, ok := err.(*operations.CreateSyncActionDefault); ok &&
 			strings.HasPrefix(syncErr.Payload.FaultMessage, "Cannot create vsock device") {
-				t.Errorf(`startInstance: %s
+			t.Errorf(`startInstance: %s
 Do you have permission to interact with /dev/vhost-vsock?
 Grant yourself permission with `+"`sudo setfacl -m u:${USER}:rw /dev/vhost-vsock`", syncErr.Payload.FaultMessage)
-			}
-		} else {
-			t.Errorf("startInstance failed: %s", err)
 		}
+	} else {
+		t.Errorf("startInstance failed: %s", err)
 	}
 }
 
