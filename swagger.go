@@ -12,7 +12,11 @@
 // permissions and limitations under the License.
 
 //go:generate find ./client ! -name swagger.yaml -type f -delete
-//go:generate docker run --rm -v $PWD:/work -w /work quay.io/goswagger/swagger generate model -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER
-//go:generate docker run --rm -v $PWD:/work -w /work quay.io/goswagger/swagger generate client -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER
+
+// --skip-validation is used in the command-lines below to remove the network dependency that the swagger generator has
+// in attempting to validate that the email address specified in the yaml file is valid.
+
+//go:generate docker run --rm --net=none -v $PWD:/work -w /work quay.io/goswagger/swagger generate model -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER --skip-validation
+//go:generate docker run --rm --net=none -v $PWD:/work -w /work quay.io/goswagger/swagger generate client -f ./client/swagger.yaml --model-package=client/models --client-package=client --copyright-file=COPYRIGHT_HEADER --skip-validation
 
 package firecracker
