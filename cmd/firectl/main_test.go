@@ -147,6 +147,8 @@ func TestLogFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer m.StopVMM()
+
 	_, err = m.Init(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
