@@ -280,9 +280,9 @@ func testStartInstance(ctx context.Context, t *testing.T, m *Machine) {
 			t.Errorf(`startInstance: %s
 Do you have permission to interact with /dev/vhost-vsock?
 Grant yourself permission with `+"`sudo setfacl -m u:${USER}:rw /dev/vhost-vsock`", syncErr.Payload.FaultMessage)
+		} else {
+			t.Errorf("startInstance failed: %s", err)
 		}
-	} else {
-		t.Errorf("startInstance failed: %s", err)
 	}
 }
 
