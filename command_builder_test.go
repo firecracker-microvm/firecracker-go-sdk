@@ -29,16 +29,11 @@ func TestVMCommandBuilder(t *testing.T) {
 func testVMCommandBuilderImmutable(t *testing.T) {
 	b := VMCommandBuilder{}
 	b.WithSocketPath("foo").
-		WithBin("bar").
 		WithArgs([]string{"baz", "qux"}).
 		AddArgs("moo", "cow")
 
 	if e, a := []string(nil), b.SocketPath(); !reflect.DeepEqual(e, a) {
 		t.Errorf("expected immutable builder, but socket path was set: %q", a)
-	}
-
-	if e, a := "", b.Bin(); e != a {
-		t.Errorf("bin had been set with %q, but should have been empty", a)
 	}
 
 	if e, a := ([]string)(nil), b.Args(); !reflect.DeepEqual(e, a) {

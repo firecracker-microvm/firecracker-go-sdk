@@ -89,15 +89,18 @@ type Config struct {
 	// DisableValidation allows for easier mock testing by disabling the
 	// validation of configuration performed by the SDK.
 	DisableValidation bool
+
+	// DisableJailer will disable the jailer and run the firecracker VMM process
+	// normally.
+	DisableJailer bool
+
+	// JailerCfg is configuration specific for the jailer process.
+	JailerCfg JailerConfig
 }
 
 // Validate will ensure that the required fields are set and that
 // the fields are valid values.
 func (cfg *Config) Validate() error {
-	if cfg.DisableValidation {
-		return nil
-	}
-
 	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
 		return fmt.Errorf("failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
 	}
@@ -192,25 +195,23 @@ func (m *Machine) LogLevel() string {
 
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
-func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-
-	m := &Machine{
-		exitCh: make(chan struct{}),
-	}
+func NewMachine(ctx context.Context, cfg Config, opts ...Opt) *Machine {
+	m := &Machine{}
 	logger := log.New()
 
 	if cfg.Debug {
 		logger.SetLevel(log.DebugLevel)
 	}
 
-	m.logger = log.NewEntry(logger)
-	m.cmd = defaultFirecrackerVMMCommandBuilder.
-		WithSocketPath(cfg.SocketPath).
-		Build(ctx)
 	m.Handlers = defaultHandlers
+	m.logger = log.NewEntry(logger)
+	if cfg.DisableJailer {
+		m.cmd = defaultFirecrackerVMMCommandBuilder.
+			WithSocketPath(m.cfg.SocketPath).
+			Build(ctx)
+	} else {
+		jail(ctx, m, cfg)
+	}
 
 	for _, opt := range opts {
 		opt(m)
@@ -223,7 +224,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	m.cfg = cfg
 
 	m.logger.Debug("Called NewMachine()")
-	return m, nil
+	return m
 }
 
 // Start will iterate through the handler list and call each handler. If an

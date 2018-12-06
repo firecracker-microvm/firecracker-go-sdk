@@ -45,11 +45,7 @@ func ExampleWithProcessRunner_logging() {
 		WithStderr(stderr).
 		Build(ctx)
 
-	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(cmd))
-	if err != nil {
-		panic(fmt.Errorf("failed to create new machine: %v", err))
-	}
-
+	m := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(cmd))
 	defer os.Remove(cfg.SocketPath)
 
 	if err := m.Start(ctx); err != nil {
@@ -211,4 +207,45 @@ func ExampleNetworkInterface_rateLimiting() {
 	if err := m.Wait(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func ExampleJailer_withBuilder() {
+	ctx := context.Background()
+	// Creates a jailer command using the JailerCommandBuilder.
+	b := firecracker.JailerCommandBuilder{}.
+		WithID("my-test-id").
+		WithUID(123).
+		WithGID(100).
+		WithNumaNode(0).
+		WithExecFile("/usr/local/bin/firecracker").
+		WithChrootBaseDir("/tmp").
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr)
+
+	const socketPath = "/tmp/firecracker/my-test-id/api.socket"
+	cfg := firecracker.Config{
+		SocketPath:      socketPath,
+		KernelImagePath: "./vmlinux",
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      firecracker.String("1"),
+				IsRootDevice: firecracker.Bool(true),
+				IsReadOnly:   firecracker.Bool(false),
+				PathOnHost:   firecracker.String("/path/to/root/drive"),
+			},
+		},
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount: 1,
+		},
+		DisableValidation: true,
+	}
+
+	// Passes the custom jailer command into the constructor
+	m := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	if err := m.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	tCtx, _ := context.WithTimeout(ctx, time.Minute)
+	m.Wait(tCtx)
 }

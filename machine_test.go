@@ -58,19 +58,96 @@ func init() {
 
 // Ensure that we can create a new machine
 func TestNewMachine(t *testing.T) {
-	m, err := NewMachine(
+	m := NewMachine(
 		context.Background(),
 		Config{
-			Debug:             true,
-			DisableValidation: true,
+			Debug: true,
 		})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	if m == nil {
 		t.Errorf("NewMachine did not create a Machine")
 	}
+}
+
+func TestJailerMicroVMExecution(t *testing.T) {
+	var nCpus int64 = 2
+	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
+	var memSz int64 = 256
+
+	socketPath := filepath.Join(testDataPath, "api.socket")
+	logFifo := filepath.Join(testDataPath, "firecracker.log")
+	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
+	defer func() {
+		os.Remove(socketPath)
+		os.Remove(logFifo)
+		os.Remove(metricsFifo)
+	}()
+
+	cfg := Config{
+		SocketPath:  socketPath,
+		LogFifo:     logFifo,
+		MetricsFifo: metricsFifo,
+		LogLevel:    "Debug",
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   nCpus,
+			CPUTemplate: cpuTemplate,
+			MemSizeMib:  memSz,
+		},
+		Debug: true,
+		JailerCfg: JailerConfig{
+			GID:           Int(100),
+			UID:           Int(123),
+			NumaNode:      Int(0),
+			ID:            String("test-id"),
+			ChrootBaseDir: testDataPath,
+			ExecFile:      String(getFirecrackerBinaryPath()),
+		},
+	}
+
+	vmlinuxPath := filepath.Join(testDataPath, "./vmlinux")
+	if _, err := os.Stat(vmlinuxPath); err != nil {
+		t.Fatalf("Cannot find vmlinux file: %s\n"+
+			`Verify that you have a vmlinux file at "%s" or set the `+
+			"`%s` environment variable to the correct location.",
+			err, vmlinuxPath, testDataPathEnv)
+	}
+
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(socketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
+	m := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
+
+	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer vmmCancel()
+	go func() {
+		var err error
+		err = m.startVMM(vmmCtx)
+		if err != nil {
+			t.Fatalf("Failed to start VMM: %v", err)
+		}
+	}()
+	time.Sleep(2 * time.Second)
+
+	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
+	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
+	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
+	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
+	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
+	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
+	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
+	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+
+	// Let the VMM start and stabilize...
+	time.Sleep(5 * time.Second)
+	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
+	m.Wait(ctx)
 }
 
 func TestMicroVMExecution(t *testing.T) {
@@ -104,6 +181,7 @@ func TestMicroVMExecution(t *testing.T) {
 		},
 		Debug:             true,
 		DisableValidation: true,
+		DisableJailer:     true,
 	}
 
 	ctx := context.Background()
@@ -112,10 +190,8 @@ func TestMicroVMExecution(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
-	if err != nil {
-		t.Fatalf("unexpectd error: %v", err)
-	}
+	m := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
@@ -163,23 +239,21 @@ func TestStartVMM(t *testing.T) {
 	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
-		SocketPath:        socketPath,
-		DisableValidation: true,
+		SocketPath:    socketPath,
+		DisableJailer: true,
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	m := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	defer m.StopVMM()
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
-	err = m.startVMM(timeout)
+	err := m.startVMM(timeout)
 	if err != nil {
 		t.Fatalf("startVMM failed: %s", err)
 	}
@@ -470,6 +544,7 @@ func TestLogFiles(t *testing.T) {
 			},
 		},
 		DisableValidation: true,
+		DisableJailer:     true,
 	}
 
 	opClient := fctesting.MockClient{
@@ -504,7 +579,7 @@ func TestLogFiles(t *testing.T) {
 	cmd := exec.Command("ls")
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	m, err := NewMachine(
+	m := NewMachine(
 		ctx,
 		cfg,
 		WithClient(client),

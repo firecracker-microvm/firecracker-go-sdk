@@ -1,7 +1,21 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"). You may
+// not use this file except in compliance with the License. A copy of the
+// License is located at
+//
+//	http://aws.amazon.com/apache2.0/
+//
+// or in the "license" file accompanying this file. This file is distributed
+// on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+// express or implied. See the License for the specific language governing
+// permissions and limitations under the License.
+
 package firecracker
 
 import (
 	"context"
+	"fmt"
 )
 
 // Handler name constants
@@ -102,9 +116,38 @@ var defaultValidationHandlerList = HandlerList{}.Append(
 	Handler{
 		Name: ValidateCfgHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			// ensure that the configuration is valid for the
-			// FcInit handlers.
+			// ensure that the configuration is valid for the FcInit handlers.
 			return m.cfg.Validate()
+		},
+	},
+	Handler{
+		Name: "validate.JailerCfg",
+		Fn: func(ctx context.Context, m *Machine) error {
+			if m.cfg.DisableJailer {
+				return nil
+			}
+
+			if m.cfg.JailerCfg.ExecFile == nil {
+				return fmt.Errorf("exec file must be specified when using jailer mode")
+			}
+
+			if m.cfg.JailerCfg.GID == nil {
+				return fmt.Errorf("GID must be specified when using jailer mode")
+			}
+
+			if m.cfg.JailerCfg.UID == nil {
+				return fmt.Errorf("UID must be specified when using jailer mode")
+			}
+
+			if m.cfg.JailerCfg.ID == nil {
+				return fmt.Errorf("ID must be specified when using jailer mode")
+			}
+
+			if m.cfg.JailerCfg.NumaNode == nil {
+				return fmt.Errorf("ID must be specified when using jailer mode")
+			}
+
+			return nil
 		},
 	},
 )
@@ -140,9 +183,12 @@ type Handlers struct {
 // Run will execute all handlers in the Handlers object by flattening the lists
 // into a single list and running.
 func (h Handlers) Run(ctx context.Context, m *Machine) error {
-	l := HandlerList{}.Append(
-		h.Validation.list...,
-	).Append(
+	l := HandlerList{}
+	if !m.cfg.DisableValidation {
+		l = l.Append(h.Validation.list...)
+	}
+
+	l = l.Append(
 		h.FcInit.list...,
 	)
 
@@ -160,6 +206,21 @@ func (l HandlerList) Append(handlers ...Handler) HandlerList {
 	l.list = append(l.list, handlers...)
 
 	return l
+}
+
+// AppendAfter will append a given handler after the specified handler.
+func (l HandlerList) AppendAfter(name string, handler Handler) HandlerList {
+	newList := HandlerList{}
+	for _, h := range l.list {
+		if h.Name == name {
+			newList = newList.Append(h, handler)
+			continue
+		}
+
+		newList = newList.Append(h)
+	}
+
+	return newList
 }
 
 // Len return the length of the given handler list

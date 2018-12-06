@@ -44,3 +44,17 @@ func Int64Value(v *int64) int64 {
 
 	return *v
 }
+
+// IntValue .
+func IntValue(v *int) int {
+	if v == nil {
+		return 0
+	}
+
+	return *v
+}
+
+// Int .
+func Int(v int) *int {
+	return &v
+}
