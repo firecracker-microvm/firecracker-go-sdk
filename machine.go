@@ -89,6 +89,13 @@ type Config struct {
 	// DisableValidation allows for easier mock testing by disabling the
 	// validation of configuration performed by the SDK.
 	DisableValidation bool
+
+	// EnableJailer will enable the jailer. By enabling the jailer, root level
+	// permissions are required.
+	EnableJailer bool
+
+	// JailerCfg is configuration specific for the jailer process.
+	JailerCfg JailerConfig
 }
 
 // Validate will ensure that the required fields are set and that
@@ -156,7 +163,7 @@ type NetworkInterface struct {
 	// HostDevName defines the file path of the tap device on the host.
 	HostDevName string
 	// AllowMMDS makes the Firecracker MMDS available on this network interface.
-	AllowMMDS bool
+	AllowMDDS bool
 
 	// InRateLimiter limits the incoming bytes.
 	InRateLimiter *models.RateLimiter
@@ -193,10 +200,6 @@ func (m *Machine) LogLevel() string {
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
@@ -206,11 +209,19 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		logger.SetLevel(log.DebugLevel)
 	}
 
-	m.logger = log.NewEntry(logger)
-	m.cmd = defaultFirecrackerVMMCommandBuilder.
-		WithSocketPath(cfg.SocketPath).
-		Build(ctx)
 	m.Handlers = defaultHandlers
+	m.logger = log.NewEntry(logger)
+	if cfg.EnableJailer {
+		m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
+		if err := jail(ctx, m, &cfg); err != nil {
+			return nil, err
+		}
+	} else {
+		m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
+		m.cmd = defaultFirecrackerVMMCommandBuilder.
+			WithSocketPath(m.cfg.SocketPath).
+			Build(ctx)
+	}
 
 	for _, opt := range opts {
 		opt(m)
@@ -490,7 +501,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		IfaceID:           &ifaceID,
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
-		AllowMmdsRequests: iface.AllowMMDS,
+		AllowMmdsRequests: iface.AllowMDDS,
 	}
 
 	if iface.InRateLimiter != nil {
@@ -511,18 +522,9 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
-	var err error
 	hostPath := StringValue(dev.PathOnHost)
-
-	_, err = os.Stat(hostPath)
-	if err != nil {
-		return err
-	}
-
-	driveID := StringValue(dev.DriveID)
-	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, driveID, BoolValue(dev.IsRootDevice))
-
-	respNoContent, err := m.client.PutGuestDriveByID(ctx, driveID, &dev)
+	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
+	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
 		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
 	} else {
@@ -573,18 +575,6 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	}
 
 	m.logger.Printf("SetMetadata successful")
-	return nil
-}
-
-// UpdateGuestDrive will modify the current guest drive of ID index with the new
-// parameters of the partialDrive.
-func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) error {
-	if _, err := m.client.PatchGuestDriveByID(ctx, driveID, pathOnHost, opts...); err != nil {
-		m.logger.Errorf("PatchGuestDrive failed: %v", err)
-		return err
-	}
-
-	m.logger.Printf("PatchGuestDrive successful")
 	return nil
 }
 

@@ -20,8 +20,10 @@ import (
 	"os/exec"
 )
 
+const defaultFcBin = "firecracker"
+
 var defaultFirecrackerVMMCommandBuilder = VMCommandBuilder{}.
-	WithBin("firecracker").
+	WithBin(defaultFcBin).
 	WithStdin(os.Stdin).
 	WithStdout(os.Stdout).
 	WithStderr(os.Stderr)
@@ -55,8 +57,13 @@ func (b VMCommandBuilder) AddArgs(args ...string) VMCommandBuilder {
 	return b
 }
 
-// Bin return the bin that was set
+// Bin returns the bin that was set. If bin had not been set, then the default
+// will be returned.
 func (b VMCommandBuilder) Bin() string {
+	if len(b.bin) == 0 {
+		return defaultFcBin
+	}
+
 	return b.bin
 }
 
