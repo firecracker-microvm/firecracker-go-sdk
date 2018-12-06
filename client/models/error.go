@@ -29,7 +29,7 @@ import (
 type Error struct {
 
 	// A description of the error condition
-	FaultMessage string `json:"faultMessage,omitempty"`
+	FaultMessage string `json:"fault_message,omitempty"`
 }
 
 // Validate validates this error
