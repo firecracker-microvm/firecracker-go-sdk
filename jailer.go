@@ -15,7 +15,6 @@ package firecracker
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -25,31 +24,35 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
-// SecCompLevelValue represents a secure computing level type.
-type SecCompLevelValue int
+const (
+	defaultJailerPath = "/srv/jailer/firecracker"
+)
+
+// SeccompLevelValue represents a secure computing level type.
+type SeccompLevelValue int
 
 // secure computing levels
 const (
-	// SecCompLevelDisable is the default value.
-	SecCompLevelDisable = SecCompLevelValue(0)
-	// SecCompLevelBasic prohibits syscalls not whitelisted by Firecracker.
-	SecCompLevelBasic = SecCompLevelValue(1)
-	// SecCompLevelAdvanced adds further checks on some of the parameters of the
+	// SeccompLevelDisable is the default value.
+	SeccompLevelDisable SeccompLevelValue = iota
+	// SeccompLevelBasic prohibits syscalls not whitelisted by Firecracker.
+	SeccompLevelBasic
+	// SeccompLevelAdvanced adds further checks on some of the parameters of the
 	// allowed syscalls.
-	SecCompLevelAdvanced = SecCompLevelValue(2)
+	SeccompLevelAdvanced
 )
 
 // JailerConfig is jailer specific configuration needed to execute the jailer.
 type JailerConfig struct {
 	GID           *int
 	UID           *int
-	ID            *string
+	ID            string
 	NumaNode      *int
-	ExecFile      *string
+	ExecFile      string
 	ChrootBaseDir string
 	NetNS         string
 	Daemonize     bool
-	SecCompLevel  SecCompLevelValue
+	SeccompLevel  SeccompLevelValue
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -65,7 +68,7 @@ type JailerCommandBuilder struct {
 	chrootBaseDir string
 	netNS         string
 	daemonize     bool
-	secCompLevel  SecCompLevelValue
+	seccompLevel  SeccompLevelValue
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -90,7 +93,7 @@ func (b JailerCommandBuilder) Args() []string {
 		args = append(args, b.NetNS()...)
 	}
 
-	args = append(args, b.SecCompLevel()...)
+	args = append(args, b.SeccompLevel()...)
 
 	if b.daemonize {
 		args = append(args, "--daemonize")
@@ -209,20 +212,20 @@ func (b JailerCommandBuilder) WithDaemonize(daemonize bool) JailerCommandBuilder
 	return b
 }
 
-// SecCompLevel will return the command arguments regarding secure computing
+// SeccompLevel will return the command arguments regarding secure computing
 // level.
-func (b JailerCommandBuilder) SecCompLevel() []string {
+func (b JailerCommandBuilder) SeccompLevel() []string {
 	return []string{
 		"--seccomp-level",
-		strconv.Itoa(int(b.secCompLevel)),
+		strconv.Itoa(int(b.seccompLevel)),
 	}
 }
 
-// WithSecCompLevel will set the provided level to the builder. This represents
+// WithSeccompLevel will set the provided level to the builder. This represents
 // the seccomp filters that should be installed and how restrictive they should
 // be.
-func (b JailerCommandBuilder) WithSecCompLevel(level SecCompLevelValue) JailerCommandBuilder {
-	b.secCompLevel = level
+func (b JailerCommandBuilder) WithSeccompLevel(level SeccompLevelValue) JailerCommandBuilder {
+	b.seccompLevel = level
 	return b
 }
 
@@ -273,8 +276,6 @@ func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 		b.Args()...,
 	)
 
-	fmt.Println("COMMAND", cmd.Args)
-
 	if stdin := b.Stdin(); stdin != nil {
 		cmd.Stdin = stdin
 	}
@@ -292,38 +293,32 @@ func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 
 // Jail will set up proper handlers and remove configuuration validation due to
 // stating of files
-func jail(ctx context.Context, m *Machine, cfg Config) {
-	m.Handlers.Validation = m.Handlers.Validation.Remove(ValidateCfgHandlerName)
+func jail(ctx context.Context, m *Machine, cfg *Config) {
+	rootfs := ""
+	if len(cfg.JailerCfg.ChrootBaseDir) > 0 {
+		rootfs = filepath.Join(cfg.JailerCfg.ChrootBaseDir, "firecracker", cfg.JailerCfg.ID)
+	} else {
+		rootfs = filepath.Join(defaultJailerPath, cfg.JailerCfg.ID)
+	}
 
-	id := StringValue(cfg.JailerCfg.ID)
-	b := JailerCommandBuilder{}.
-		WithID(id).
+	cfg.SocketPath = filepath.Join(rootfs, "api.socket")
+	m.cmd = JailerCommandBuilder{}.
+		WithID(cfg.JailerCfg.ID).
 		WithUID(IntValue(cfg.JailerCfg.UID)).
 		WithGID(IntValue(cfg.JailerCfg.GID)).
 		WithNumaNode(IntValue(cfg.JailerCfg.NumaNode)).
-		WithExecFile(StringValue(cfg.JailerCfg.ExecFile)).
+		WithExecFile(cfg.JailerCfg.ExecFile).
+		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
-		WithSecCompLevel(cfg.JailerCfg.SecCompLevel).
+		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
 		WithStdout(os.Stdout).
-		WithStderr(os.Stderr)
+		WithStderr(os.Stderr).
+		Build(ctx)
 
-	rootfs := ""
-	if len(cfg.JailerCfg.ChrootBaseDir) > 0 {
-		rootfs = filepath.Join(cfg.JailerCfg.ChrootBaseDir, "firecracker", id)
-		b = b.WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir)
-	} else {
-		const defaultJailerPath = "/srv/jailer/firecracker"
-		rootfs = filepath.Join(defaultJailerPath, id)
-	}
-
-	if len(cfg.JailerCfg.NetNS) > 0 {
-		b = b.WithNetNS(cfg.JailerCfg.NetNS)
-	}
-
-	m.cmd = b.Build(ctx)
-	// TODO: hmm, do we actually want to overwrite the socket path?
-	m.cfg.SocketPath = filepath.Join(rootfs, "api.socket")
-
+	// ValidateCfgHandlerName handler needs to be removed due to checking for
+	// non-existant drive paths and socket path. Since the jailer uses relative
+	// links according to its rootfs then the user would also need those files
+	// relative to running this.
 	m.Handlers.Validation = m.Handlers.Validation.Remove(ValidateCfgHandlerName)
 	m.Handlers.FcInit = m.Handlers.FcInit.AppendAfter(CreateMachineHandlerName, Handler{
 		Name: "fcinit.CopyFilesToRootFS",
@@ -331,7 +326,7 @@ func jail(ctx context.Context, m *Machine, cfg Config) {
 
 			// copy kernel image to root fs
 			kernelImageFileName := filepath.Base(m.cfg.KernelImagePath)
-			if err := copyFileToRootFS(
+			if err := linkFileToRootFS(
 				m.cfg.JailerCfg,
 				filepath.Join(rootfs, "root", kernelImageFileName),
 				m.cfg.KernelImagePath,
@@ -352,7 +347,7 @@ func jail(ctx context.Context, m *Machine, cfg Config) {
 			rootHostPath := StringValue(rootDrive.PathOnHost)
 			// copy root drive to root fs
 			rootdriveFileName := filepath.Base(rootHostPath)
-			if err := copyFileToRootFS(
+			if err := linkFileToRootFS(
 				m.cfg.JailerCfg,
 				filepath.Join(rootfs, "root", rootdriveFileName),
 				rootHostPath,
@@ -367,7 +362,7 @@ func jail(ctx context.Context, m *Machine, cfg Config) {
 	})
 }
 
-func copyFileToRootFS(cfg JailerConfig, dst, src string) error {
+func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
 	if err := os.Link(src, dst); err != nil {
 		return err
 	}

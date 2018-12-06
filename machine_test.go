@@ -100,9 +100,9 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			GID:           Int(100),
 			UID:           Int(123),
 			NumaNode:      Int(0),
-			ID:            String("test-id"),
+			ID:            "test-id",
 			ChrootBaseDir: testDataPath,
-			ExecFile:      String(getFirecrackerBinaryPath()),
+			ExecFile:      getFirecrackerBinaryPath(),
 		},
 	}
 

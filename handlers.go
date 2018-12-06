@@ -127,8 +127,12 @@ var defaultValidationHandlerList = HandlerList{}.Append(
 				return nil
 			}
 
-			if m.cfg.JailerCfg.ExecFile == nil {
+			if len(m.cfg.JailerCfg.ExecFile) == 0 {
 				return fmt.Errorf("exec file must be specified when using jailer mode")
+			}
+
+			if len(m.cfg.JailerCfg.ID) == 0 {
+				return fmt.Errorf("id must be specified when using jailer mode")
 			}
 
 			if m.cfg.JailerCfg.GID == nil {
@@ -137,10 +141,6 @@ var defaultValidationHandlerList = HandlerList{}.Append(
 
 			if m.cfg.JailerCfg.UID == nil {
 				return fmt.Errorf("UID must be specified when using jailer mode")
-			}
-
-			if m.cfg.JailerCfg.ID == nil {
-				return fmt.Errorf("ID must be specified when using jailer mode")
 			}
 
 			if m.cfg.JailerCfg.NumaNode == nil {

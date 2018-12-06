@@ -19,6 +19,13 @@ func ExampleWithProcessRunner_logging() {
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount: 1,
 		},
+		JailerCfg: firecracker.JailerConfig{
+			GID:      firecracker.Int(100),
+			UID:      firecracker.Int(100),
+			ID:       "my-micro-vm",
+			NumaNode: firecracker.Int(0),
+			ExecFile: "/path/to/firecracker",
+		},
 	}
 
 	// stdout will be directed to this file

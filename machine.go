@@ -101,6 +101,10 @@ type Config struct {
 // Validate will ensure that the required fields are set and that
 // the fields are valid values.
 func (cfg *Config) Validate() error {
+	if cfg.DisableValidation {
+		return nil
+	}
+
 	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
 		return fmt.Errorf("failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
 	}
@@ -210,7 +214,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) *Machine {
 			WithSocketPath(m.cfg.SocketPath).
 			Build(ctx)
 	} else {
-		jail(ctx, m, cfg)
+		jail(ctx, m, &cfg)
 	}
 
 	for _, opt := range opts {
