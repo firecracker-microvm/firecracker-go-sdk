@@ -19,13 +19,17 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
+	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/golang/mock/gomock"
 )
@@ -361,5 +365,98 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.SetMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
+	}
+}
+
+func TestLogFiles(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cfg := Config{
+		Debug:           true,
+		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
+		RootDrive: BlockDevice{
+			HostPath: filepath.Join(testDataPath, "root-drive.img"),
+			Mode:     "rw",
+		},
+		DisableValidation: true,
+	}
+
+	client := fctesting.NewMockFirecracker(ctrl)
+	ctx := context.Background()
+	client.
+		EXPECT().
+		PutMachineConfiguration(
+			ctx,
+			gomock.Any(),
+		).
+		AnyTimes().
+		Return(&ops.PutMachineConfigurationNoContent{}, nil)
+
+	client.
+		EXPECT().
+		PutGuestBootSource(
+			ctx,
+			gomock.Any(),
+		).
+		AnyTimes().
+		Return(&ops.PutGuestBootSourceNoContent{}, nil)
+
+	client.
+		EXPECT().
+		PutGuestDriveByID(
+			ctx,
+			gomock.Any(),
+			gomock.Any(),
+		).
+		AnyTimes().
+		Return(&ops.PutGuestDriveByIDNoContent{}, nil)
+
+	client.EXPECT().GetMachineConfig().AnyTimes().Return(&ops.GetMachineConfigOK{
+		Payload: &models.MachineConfiguration{},
+	}, nil)
+
+	stdoutPath := filepath.Join(testDataPath, "stdout.log")
+	stderrPath := filepath.Join(testDataPath, "stderr.log")
+	stdout, err := os.Create(stdoutPath)
+	stderr, err := os.Create(stderrPath)
+
+	fd, err := net.Listen("unix", cfg.SocketPath)
+	if err != nil {
+		t.Fatalf("unexpected error during creation of unix socket: %v", err)
+	}
+
+	defer func() {
+		fd.Close()
+	}()
+
+	defer func() {
+		os.Remove(stdoutPath)
+		os.Remove(stderrPath)
+	}()
+
+	cmd := exec.Command("ls")
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	m, err := NewMachine(cfg,
+		WithClient(client),
+		WithProcessRunner(cmd),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer m.StopVMM()
+
+	_, err = m.Init(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(stdoutPath); os.IsNotExist(err) {
+		t.Errorf("expected log file to be present")
+
+	}
+
+	if _, err := os.Stat(stderrPath); os.IsNotExist(err) {
+		t.Errorf("expected log file to be present")
 	}
 }

@@ -74,7 +74,6 @@ type Config struct {
 	AdditionalDrives  []BlockDevice
 	NetworkInterfaces []NetworkInterface
 	VsockDevices      []VsockDevice
-	Console           string
 	Debug             bool
 	machineCfg        models.MachineConfiguration
 

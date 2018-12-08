@@ -16,11 +16,15 @@ package firecracker
 import (
 	"context"
 	"io"
+	"os"
 	"os/exec"
 )
 
 var defaultFirecrackerVMMCommandBuilder = VMCommandBuilder{}.
-	WithBin("firecracker")
+	WithBin("firecracker").
+	WithStdin(os.Stdin).
+	WithStdout(os.Stdout).
+	WithStderr(os.Stderr)
 
 // VMCommandBuilder is a command builder that builds a command specific
 // to the firecracker command using exec.Command.

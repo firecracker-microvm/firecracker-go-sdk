@@ -19,12 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
-	"github.com/hashicorp/go-multierror"
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,6 +37,10 @@ const (
 	consoleFile = "file"
 	// consoleNone indicates that the machine's console IO should be discarded
 	consoleNone = "none"
+
+	// executableMask is the mask needed to check whether or not a file's
+	// permissions are executable.
+	executableMask = 0111
 )
 
 func parseBlockDevices(entries []string) ([]firecracker.BlockDevice, error) {
@@ -104,27 +106,24 @@ func parseVsocks(devices []string) ([]firecracker.VsockDevice, error) {
 }
 
 type options struct {
-	FcBinary            string   `long:"firecracker-binary" description:"Path to firecracker binary"`
-	FcConsole           string   `long:"firecracker-console" description:"Console type (stdio|file|xterm|none)" default:"stdio"`
-	FcKernelImage       string   `long:"kernel" description:"Path to the kernel image" default:"./vmlinux"`
-	FcKernelCmdLine     string   `long:"kernel-opts" description:"Kernel commandline" default:"ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"`
-	FcRootDrivePath     string   `long:"root-drive" description:"Path to root disk image"`
-	FcRootPartUUID      string   `long:"root-partition" description:"Root partition UUID"`
-	FcAdditionalDrives  []string `long:"add-drive" description:"Path to additional drive, suffixed with :ro or :rw, can be specified multiple times"`
-	FcNicConfig         string   `long:"tap-device" description:"NIC info, specified as DEVICE/MAC"`
-	FcVsockDevices      []string `long:"vsock-device" description:"Vsock interface, specified as PATH:CID. Multiple OK"`
-	FcLogFifo           string   `long:"vmm-log-fifo" description:"FIFO for firecracker logs"`
-	FcLogLevel          string   `long:"log-level" description:"vmm log level" default:"Debug"`
-	FcLogStdoutFilePath string   `long:"log-stdout-file" description:"Specifies where stdout logs should be placed"`
-	FcLogStderrFilePath string   `long:"log-stderr-file" description:"Specifies where stderr logs should be placed"`
-	FcMetricsFifo       string   `long:"metrics-fifo" description:"FIFO for firecracker metrics"`
-	FcDisableHt         bool     `long:"disable-hyperthreading" short:"t" description:"Disable CPU Hyperthreading"`
-	FcCPUCount          int64    `long:"ncpus" short:"c" description:"Number of CPUs" default:"1"`
-	FcCPUTemplate       string   `long:"cpu-template" description:"Firecracker CPU Template (C3 or T2)"`
-	FcMemSz             int64    `long:"memory" short:"m" description:"VM memory, in MiB" default:"512"`
-	FcMetadata          string   `long:"metadata" description:"Firecracker Meatadata for MMDS (json)"`
-	Debug               bool     `long:"debug" short:"d" description:"Enable debug output"`
-	Help                bool     `long:"help" short:"h" description:"Show usage"`
+	FcBinary           string   `long:"firecracker-binary" description:"Path to firecracker binary"`
+	FcKernelImage      string   `long:"kernel" description:"Path to the kernel image" default:"./vmlinux"`
+	FcKernelCmdLine    string   `long:"kernel-opts" description:"Kernel commandline" default:"ro console=ttyS0 noapic reboot=k panic=1 pci=off nomodules"`
+	FcRootDrivePath    string   `long:"root-drive" description:"Path to root disk image"`
+	FcRootPartUUID     string   `long:"root-partition" description:"Root partition UUID"`
+	FcAdditionalDrives []string `long:"add-drive" description:"Path to additional drive, suffixed with :ro or :rw, can be specified multiple times"`
+	FcNicConfig        string   `long:"tap-device" description:"NIC info, specified as DEVICE/MAC"`
+	FcVsockDevices     []string `long:"vsock-device" description:"Vsock interface, specified as PATH:CID. Multiple OK"`
+	FcLogFifo          string   `long:"vmm-log-fifo" description:"FIFO for firecracker logs"`
+	FcLogLevel         string   `long:"log-level" description:"vmm log level" default:"Debug"`
+	FcMetricsFifo      string   `long:"metrics-fifo" description:"FIFO for firecracker metrics"`
+	FcDisableHt        bool     `long:"disable-hyperthreading" short:"t" description:"Disable CPU Hyperthreading"`
+	FcCPUCount         int64    `long:"ncpus" short:"c" description:"Number of CPUs" default:"1"`
+	FcCPUTemplate      string   `long:"cpu-template" description:"Firecracker CPU Template (C3 or T2)"`
+	FcMemSz            int64    `long:"memory" short:"m" description:"VM memory, in MiB" default:"512"`
+	FcMetadata         string   `long:"metadata" description:"Firecracker Meatadata for MMDS (json)"`
+	Debug              bool     `long:"debug" short:"d" description:"Enable debug output"`
+	Help               bool     `long:"help" short:"h" description:"Show usage"`
 }
 
 func main() {
@@ -201,7 +200,6 @@ func main() {
 		AdditionalDrives:  blockDevices,
 		NetworkInterfaces: NICs,
 		VsockDevices:      vsocks,
-		Console:           opts.FcConsole,
 		CPUCount:          opts.FcCPUCount,
 		CPUTemplate:       firecracker.CPUTemplate(opts.FcCPUTemplate),
 		HtEnabled:         !opts.FcDisableHt,
@@ -218,16 +216,38 @@ func main() {
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
 	defer vmmCancel()
 
-	cmd, cleanup, err := buildCommand(vmmCtx, fcCfg.SocketPath, opts)
-	if err != nil {
-		log.Fatalf("Failed to build command: %v", err)
-	}
-	defer cleanup()
-
-	m, err := firecracker.NewMachine(fcCfg,
+	machineOpts := []firecracker.Opt{
 		firecracker.WithLogger(log.NewEntry(logger)),
-		firecracker.WithProcessRunner(cmd),
-	)
+	}
+
+	if len(opts.FcBinary) != 0 {
+		finfo, err := os.Stat(opts.FcBinary)
+		if os.IsNotExist(err) {
+			log.Fatalf("Binary, %q, does not exist: %v", opts.FcBinary, err)
+		}
+
+		if err != nil {
+			log.Fatalf("Failed to stat binary, %q: %v", opts.FcBinary, err)
+		}
+
+		if finfo.IsDir() {
+			log.Fatalf("Binary, %q, is a directory", opts.FcBinary)
+		} else if finfo.Mode()&executableMask == 0 {
+			log.Fatalf("Binary, %q, is not executable. Check permissions of binary", opts.FcBinary)
+		}
+
+		cmd := firecracker.VMCommandBuilder{}.
+			WithBin(opts.FcBinary).
+			WithSocketPath(fcCfg.SocketPath).
+			WithStdin(os.Stdin).
+			WithStdout(os.Stdout).
+			WithStderr(os.Stderr).
+			Build(ctx)
+
+		machineOpts = append(machineOpts, firecracker.WithProcessRunner(cmd))
+	}
+
+	m, err := firecracker.NewMachine(fcCfg, machineOpts...)
 	if err != nil {
 		log.Fatalf("Failed creating machine: %s", err)
 	}
@@ -253,66 +273,4 @@ func main() {
 		log.Fatalf("startVMM returned error %s", err)
 	}
 	log.Printf("startVMM was happy")
-}
-
-func buildCommand(ctx context.Context, socketPath string, opts options) (*exec.Cmd, func() error, error) {
-	var cmd *exec.Cmd
-	b := firecracker.VMCommandBuilder{}
-
-	fn := func() error {
-		return nil
-	}
-
-	switch opts.FcConsole {
-	case consoleXterm:
-		cmd = b.WithBin(terminalProgram).
-			AddArgs("-e", opts.FcBinary, "--api-sock", socketPath).
-			Build(ctx)
-	case consoleStdio:
-		cmd = b.WithBin(opts.FcBinary).
-			WithSocketPath(socketPath).
-			WithStdin(os.Stdin).
-			WithStdout(os.Stdout).
-			WithStderr(os.Stderr).
-			Build(ctx)
-	case consoleFile:
-		stdout, err := generateLogFile(opts.FcLogStdoutFilePath)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		stderr, err := generateLogFile(opts.FcLogStderrFilePath)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		fn = func() error {
-			var merr *multierror.Error
-			if err := stdout.Close(); err != nil {
-				merr = multierror.Append(merr, err)
-			}
-
-			if err := stderr.Close(); err != nil {
-				merr = multierror.Append(merr, err)
-			}
-
-			return merr.ErrorOrNil()
-		}
-
-		cmd = b.WithBin(opts.FcBinary).
-			WithSocketPath(socketPath).
-			WithStdout(stdout).
-			WithStderr(stderr).
-			Build(ctx)
-	default:
-		cmd = b.WithBin(opts.FcBinary).
-			WithSocketPath(socketPath).
-			Build(ctx)
-	}
-
-	return cmd, fn, nil
-}
-
-func generateLogFile(filename string) (*os.File, error) {
-	return os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 }
