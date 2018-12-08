@@ -22,8 +22,8 @@ import (
 var defaultFirecrackerVMMCommandBuilder = VMCommandBuilder{}.
 	WithBin("firecracker")
 
-// VMCommandBuilder is a command builder that builds a command specific
-// to the firecracker command using exec.Command.
+// VMCommandBuilder is a utility for building an exec.Cmd that represents how to
+// start the Firecracker VMM.
 type VMCommandBuilder struct {
 	bin        string
 	args       []string

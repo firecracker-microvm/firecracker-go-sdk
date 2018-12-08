@@ -42,8 +42,8 @@ const (
 	CPUTemplateC3 = models.CPUTemplateC3
 )
 
-// Firecracker is an interface that can be used to mock
-// out an Firecracker agent for testing purposes.
+// Firecracker is an interface that can be used to mock out a Firecracker agent
+// for testing purposes.
 type Firecracker interface {
 	PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error)
 	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration) (*ops.PutMachineConfigurationNoContent, error)
@@ -58,27 +58,74 @@ type Firecracker interface {
 
 // Config is a collection of user-configurable VMM settings
 type Config struct {
+	// SocketPath defines the file path where the Firecracker control socket
+	// should be created.
 	SocketPath string
 
-	LogFifo           string
-	LogLevel          string
-	MetricsFifo       string
-	KernelImagePath   string
-	KernelArgs        string
-	CPUCount          int64
-	HtEnabled         bool
-	CPUTemplate       CPUTemplate
-	MemInMiB          int64
-	RootDrive         BlockDevice
-	RootPartitionUUID string
-	AdditionalDrives  []BlockDevice
-	NetworkInterfaces []NetworkInterface
-	VsockDevices      []VsockDevice
-	Console           string
-	Debug             bool
-	machineCfg        models.MachineConfiguration
+	// LogFifo defines the file path where the Firecracker log named-pipe should
+	// be located.
+	LogFifo string
 
-	// Allows for easier mock testing
+	// LogLevel defines the verbosity of Firecracker logging.  Valid values are
+	// "Error", "Warning", "Info", and "Debug", and are case-sensitive.
+	LogLevel string
+
+	// MetricsFifo defines the file path where the Firecracker metrics
+	// named-pipe should be located.
+	MetricsFifo string
+
+	// KernelImagePath defines the file path where the kernel image is located.
+	// The kernel image must be an uncompressed ELF image.
+	KernelImagePath string
+
+	// KernelArgs defines the command-line arguments that should be passed to
+	// the kernel.
+	KernelArgs string
+
+	// CPUCount defines the number of CPU threads that should be available to
+	// the micro-VM.
+	CPUCount int64
+
+	// HtEnabled defines whether hyper-threading should be enabled for the
+	// microVM.
+	HtEnabled bool
+
+	// CPUTemplate defines the Firecracker CPU template to use.  Valid values
+	// are CPUTemplateT2 and CPUTemplateC3,
+	CPUTemplate CPUTemplate
+
+	// MemInMiB defines the amount of memory that should be made available to
+	// the microVM.
+	MemInMiB int64
+
+	// RootDrive specifies the BlockDevice that contains the root filesystem.
+	RootDrive BlockDevice
+
+	// RootPartitionUUID defines the UUID that specifies the root partition.
+	RootPartitionUUID string
+
+	// AdditionalDrives specifies additional BlockDevices that should be made
+	// available to the microVM.
+	AdditionalDrives []BlockDevice
+
+	// NetworkInterfaces specifies the tap devices that should be made available
+	// to the microVM.
+	NetworkInterfaces []NetworkInterface
+
+	// VsockDevices specifies the vsock devices that should be made available to
+	// the microVM.
+	VsockDevices []VsockDevice
+
+	// Console is a deprecated field.
+	// Deprecated: This field should not be used and will be removed.
+	Console string
+
+	// Debug enables debug-level logging for the SDK.
+	Debug      bool
+	machineCfg models.MachineConfiguration
+
+	// DisableValidation allows for easier mock testing by disabling the
+	// validation of configuration performed by the SDK.
 	DisableValidation bool
 }
 
@@ -90,21 +137,21 @@ func (cfg *Config) Validate() error {
 	}
 
 	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
-		return fmt.Errorf("Failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
+		return fmt.Errorf("failed to stat kernal image path, %q: %v", cfg.KernelImagePath, err)
 	}
 	if _, err := os.Stat(cfg.RootDrive.HostPath); err != nil {
-		return fmt.Errorf("Failed to stat host path, %q: %v", cfg.RootDrive.HostPath, err)
+		return fmt.Errorf("failed to stat host path, %q: %v", cfg.RootDrive.HostPath, err)
 	}
 
 	// Check the non-existence of some files:
 	if _, err := os.Stat(cfg.SocketPath); err == nil {
-		return fmt.Errorf("Socket %s already exists", cfg.SocketPath)
+		return fmt.Errorf("socket %s already exists", cfg.SocketPath)
 	}
 
 	return nil
 }
 
-// Machine is the main object for manipulating firecracker VMs
+// Machine is the main object for manipulating Firecracker microVMs
 type Machine struct {
 	cfg           Config
 	client        Firecracker
@@ -115,32 +162,41 @@ type Machine struct {
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
 func (m *Machine) Logger() *log.Entry {
-	// return m.logger.WithField("subsystem", "firecracker-go-sdk")
-	return m.logger
+	return m.logger.WithField("subsystem", "firecracker-go-sdk")
 }
 
-// NetworkInterface represents a Firecracker VMs network interface.
+// NetworkInterface represents a Firecracker microVM's network interface.
 type NetworkInterface struct {
-	MacAddress  string
+	// MacAddress defines the MAC address that should be assigned to the network
+	// interface inside the microVM.
+	MacAddress string
+	// HostDevName defines the file path of the tap device on the host.
 	HostDevName string
-	AllowMDDS   bool
+	// AllowMMDS makes the Firecracker MMDS available on this network interface.
+	AllowMDDS bool
 }
 
-// BlockDevice represents a host block device mapped to the firecracker VM.
-// mode is either "ro" or "rw"
+// BlockDevice represents a host block device mapped to the Firecracker microVM.
 type BlockDevice struct {
+	// HostPath defines the filesystem path of the block device on the host.
 	HostPath string
-	Mode     string
+	// Mode defines whether the device is writable.  Valid values are "ro" and
+	// "rw".
+	Mode string
 }
 
-// VsockDevice represents a vsock connection between the
-// host and the guest VM.
+// VsockDevice represents a vsock connection between the host and the guest
+// microVM.
 type VsockDevice struct {
+	// Path defines the filesystem path of the vsock device on the host.
 	Path string
-	CID  uint32
+	// CID defines the 32-bit Context Identifier for the vsock device.  See
+	// the vsock(7) manual page for more information.
+	CID uint32
 }
 
-// SocketPath returns the filesystem path to the socket used for VMM communication
+// SocketPath returns the filesystem path to the socket used for VMM
+// communication
 func (m Machine) socketPath() string {
 	return m.cfg.SocketPath
 }
@@ -155,7 +211,8 @@ func (m Machine) LogLevel() string {
 	return m.cfg.LogLevel
 }
 
-// NewMachine initializes a new Machine instance
+// NewMachine initializes a new Machine instance and performs validation of the
+// provided Config.
 func NewMachine(cfg Config, opts ...Opt) (*Machine, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -288,7 +345,7 @@ func (m *Machine) startVMM(ctx context.Context) (<-chan error, error) {
 		exitCh <- err
 	}()
 
-	// Set up a signal hander and pass INT, QUIT, and TERM through to firecracker
+	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
 	vmchan := make(chan error)
 	sigchan := make(chan os.Signal)
 	signal.Notify(sigchan, os.Interrupt,
@@ -335,7 +392,7 @@ func (m *Machine) stopVMM() error {
 	return nil
 }
 
-// createFifos sets up the firecracker logging and metrics fifos
+// createFifos sets up the firecracker logging and metrics FIFOs
 func createFifos(logFifo, metricsFifo string) error {
 	log.Debugf("Creating FIFO %s", logFifo)
 	err := syscall.Mkfifo(logFifo, 0700)
@@ -489,7 +546,7 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	return nil
 }
 
-// StartInstance starts the firecracker VM
+// StartInstance starts the Firecracker microVM
 func (m *Machine) StartInstance(ctx context.Context) error {
 	return m.startInstance(ctx)
 }
