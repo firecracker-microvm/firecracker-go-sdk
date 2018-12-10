@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-openapi/strfmt"
+	"github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -30,10 +30,12 @@ import (
 
 const firecrackerRequestTimeout = 500 * time.Millisecond
 
+// FirecrackerClient is a client for interacting with the Firecracker API
 type FirecrackerClient struct {
 	client *client.Firecracker
 }
 
+// NewFirecrackerClient creates a FirecrackerClient
 func NewFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *FirecrackerClient {
 	httpClient := client.NewHTTPClient(strfmt.NewFormats())
 
