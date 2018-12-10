@@ -118,13 +118,15 @@ func TestMicroVMExecution(t *testing.T) {
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
-	var exitchannel <-chan error
+	exitchannel := make(chan error)
 	go func() {
-		var err error
-		exitchannel, err = m.startVMM(vmmCtx)
+		exitCh, err := m.startVMM(vmmCtx)
 		if err != nil {
+			close(exitchannel)
 			t.Fatalf("Failed to start VMM: %v", err)
 		}
+		exitchannel <- <-exitCh
+		close(exitchannel)
 	}()
 	time.Sleep(2 * time.Second)
 
@@ -139,7 +141,12 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
 
 	// Let the VMM start and stabilize...
-	time.Sleep(5 * time.Second)
+	timer := time.NewTimer(5 * time.Second)
+	select {
+	case <-timer.C:
+	case <-exitchannel:
+		// if we've already exited, there's no use waiting for the timer
+	}
 	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
 	<-exitchannel
 }
