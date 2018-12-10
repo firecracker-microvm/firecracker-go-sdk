@@ -11,10 +11,10 @@ will run tests in verbose mode.
 You need some external resources in order to run the tests, as described below:
 
 1. A firecracker binary (tested with 0.10.1), but any recent version should
-   work.  Must either be installed as `./firecracker` or the path must be
-   specified through the `FC_TEST_BIN` environment variable.
-2. Access to hardware virtualization via `/dev/kvm` and `/dev/vhost-vsock` (ensure you have mode
-   `+rw`!)
+   work.  Must either be installed as `./testdata/firecracker` or the path must
+   be specified through the `FC_TEST_BIN` environment variable.
+2. Access to hardware virtualization via `/dev/kvm` and `/dev/vhost-vsock`
+   (ensure you have mode `+rw`!)
 3. An uncompressed Linux kernel binary that can boot in Firecracker VM (Must be
    installed as `./testdata/vmlinux`)
 4. A tap device owned by your userid (Must be either named `fc-test-tap0` or
