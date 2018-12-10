@@ -162,7 +162,7 @@ type Machine struct {
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
 func (m *Machine) Logger() *log.Entry {
-	return m.logger.WithField("subsystem", "firecracker-go-sdk")
+	return m.logger.WithField("subsystem", userAgent)
 }
 
 // NetworkInterface represents a Firecracker microVM's network interface.
