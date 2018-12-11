@@ -378,7 +378,7 @@ func (m *Machine) StopVMM() error {
 }
 
 func (m *Machine) stopVMM() error {
-	if m.cmd != nil {
+	if m.cmd != nil && m.cmd.Process != nil {
 		log.Debug("stopVMM(): sending sigterm to firecracker")
 		return m.cmd.Process.Signal(syscall.SIGTERM)
 	}
