@@ -11,8 +11,6 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
-//go:generate mockgen -source=machine.go -destination=fctesting/machine_mock.go -package=fctesting
-
 package firecracker
 
 import (
@@ -32,7 +30,6 @@ import (
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
-	"github.com/golang/mock/gomock"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -133,7 +130,12 @@ func TestMicroVMExecution(t *testing.T) {
 		exitchannel <- m.Wait(vmmCtx)
 		close(exitchannel)
 	}()
-	time.Sleep(2 * time.Second)
+
+	deadlineCtx, deadlineCancel := context.WithTimeout(vmmCtx, 250*time.Millisecond)
+	defer deadlineCancel()
+	if err := waitForAliveVMM(deadlineCtx, m.client); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
 	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
@@ -380,14 +382,12 @@ func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func TestWaitForSocket(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	okClient := fctesting.NewMockFirecracker(ctrl)
-	okClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, nil)
-
-	errClient := fctesting.NewMockFirecracker(ctrl)
-	errClient.EXPECT().GetMachineConfig().AnyTimes().Return(nil, errors.New("http error"))
+	okClient := fctesting.MockClient{}
+	errClient := fctesting.MockClient{
+		GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
+			return nil, errors.New("http error")
+		},
+	}
 
 	// testWaitForSocket has three conditions that need testing:
 	// 1. The expected file is created within the deadline and
@@ -411,13 +411,13 @@ func TestWaitForSocket(t *testing.T) {
 	}()
 
 	// Socket file created, HTTP request succeeded
-	m.client = okClient
+	m.client = NewClient(filename, log.NewEntry(log.New()), true, WithOpsClient(&okClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
 		t.Errorf("waitForSocket returned unexpected error %s", err)
 	}
 
 	// Socket file exists, HTTP request failed
-	m.client = errClient
+	m.client = NewClient(filename, log.NewEntry(log.New()), true, WithOpsClient(&errClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
@@ -450,8 +450,6 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func TestLogFiles(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	cfg := Config{
 		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
@@ -466,39 +464,15 @@ func TestLogFiles(t *testing.T) {
 		DisableValidation: true,
 	}
 
-	client := fctesting.NewMockFirecracker(ctrl)
+	opClient := fctesting.MockClient{
+		GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
+			return &ops.GetMachineConfigOK{
+				Payload: &models.MachineConfiguration{},
+			}, nil
+		},
+	}
 	ctx := context.Background()
-	client.
-		EXPECT().
-		PutMachineConfiguration(
-			ctx,
-			gomock.Any(),
-		).
-		AnyTimes().
-		Return(&ops.PutMachineConfigurationNoContent{}, nil)
-
-	client.
-		EXPECT().
-		PutGuestBootSource(
-			ctx,
-			gomock.Any(),
-		).
-		AnyTimes().
-		Return(&ops.PutGuestBootSourceNoContent{}, nil)
-
-	client.
-		EXPECT().
-		PutGuestDriveByID(
-			ctx,
-			gomock.Any(),
-			gomock.Any(),
-		).
-		AnyTimes().
-		Return(&ops.PutGuestDriveByIDNoContent{}, nil)
-
-	client.EXPECT().GetMachineConfig().AnyTimes().Return(&ops.GetMachineConfigOK{
-		Payload: &models.MachineConfiguration{},
-	}, nil)
+	client := NewClient("socket-path", log.NewEntry(log.New()), true, WithOpsClient(&opClient))
 
 	stdoutPath := filepath.Join(testDataPath, "stdout.log")
 	stderrPath := filepath.Join(testDataPath, "stderr.log")

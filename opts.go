@@ -25,7 +25,7 @@ type Opt func(*Machine)
 // WithClient will use the client in place rather than the client constructed
 // during bootstrapping of the machine. This option is useful for mocking out
 // tests.
-func WithClient(client Firecracker) Opt {
+func WithClient(client *Client) Opt {
 	return func(machine *Machine) {
 		machine.client = client
 	}
