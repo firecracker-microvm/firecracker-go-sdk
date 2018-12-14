@@ -37,6 +37,14 @@ type Client struct {
 	formats   strfmt.Registry
 }
 
+// NewClient will return a new client with the given transport and formats
+func NewClient(transport runtime.ClientTransport, formats strfmt.Registry) *Client {
+	return &Client{
+		transport: transport,
+		formats:   formats,
+	}
+}
+
 /*
 GetMachineConfig gets the machine configuration of the VM
 
@@ -424,4 +432,22 @@ func (a *Client) PutMachineConfiguration(params *PutMachineConfigurationParams) 
 // SetTransport changes the transport on the client
 func (a *Client) SetTransport(transport runtime.ClientTransport) {
 	a.transport = transport
+}
+
+// ClientIface is an interface that can be used to mock out a Firecracker agent
+// for testing purposes.
+type ClientIface interface {
+	GetMachineConfig(params *GetMachineConfigParams) (*GetMachineConfigOK, error)
+	GetMmds(params *GetMmdsParams) (*GetMmdsOK, error)
+	PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error)
+	PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error)
+	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
+	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
+	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
+	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
+	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
+	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)
+	PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVsockByIDCreated, *PutGuestVsockByIDNoContent, error)
+	PutLogger(params *PutLoggerParams) (*PutLoggerNoContent, error)
+	PutMachineConfiguration(params *PutMachineConfigurationParams) (*PutMachineConfigurationNoContent, error)
 }
