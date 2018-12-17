@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -141,6 +142,66 @@ func ExampleDrivesBuilder_DriveOpt() {
 	if err != nil {
 		panic(fmt.Errorf("failed to create new machine: %v", err))
 	}
+
+	if err := m.Start(ctx); err != nil {
+		panic(fmt.Errorf("failed to initialize machine: %v", err))
+	}
+
+	// wait for VMM to execute
+	if err := m.Wait(ctx); err != nil {
+		panic(err)
+	}
+}
+
+func ExampleNetworkInterfaces_RateLimiting() {
+	// construct the limitations of the bandwidth for firecracker
+	bandwidthBuilder := firecracker.TokenBucketBuilder{}.
+		WithInitialSize(1024 * 1024).        // Initial token amount
+		WithBucketSize(1024 * 1024).         // Max number of tokens
+		WithRefillDuration(30 * time.Second) // Refill rate
+
+	// construct the limitations of the number of operations per duration for firecracker
+	opsBuilder := firecracker.TokenBucketBuilder{}.
+		WithInitialSize(5).
+		WithBucketSize(5).
+		WithRefillDuration(5 * time.Second)
+
+	// create the inbound rate limiter
+	inbound := firecracker.NewRateLimiter(bandwidthBuilder.Build(), opsBuilder.Build())
+
+	bandwidthBuilder = bandwidthBuilder.WithBucketSize(1024 * 1024 * 10)
+	opsBuilder = opsBuilder.
+		WithBucketSize(100).
+		WithInitialSize(100)
+	// create the outbound rate limiter
+	outbound := firecracker.NewRateLimiter(bandwidthBuilder.Build(), opsBuilder.Build())
+
+	networkIfaces := []firecracker.NetworkInterface{
+		{
+			MacAddress:     "01-23-45-67-89-AB-CD-EF",
+			HostDevName:    "tap-name",
+			InRateLimiter:  inbound,
+			OutRateLimiter: outbound,
+		},
+	}
+
+	cfg := firecracker.Config{
+		SocketPath:      "/path/to/socket",
+		KernelImagePath: "/path/to/kernel",
+		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount: 1,
+		},
+		NetworkInterfaces: networkIfaces,
+	}
+
+	ctx := context.Background()
+	m, err := firecracker.NewMachine(ctx, cfg)
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
+	defer os.Remove(cfg.SocketPath)
 
 	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
