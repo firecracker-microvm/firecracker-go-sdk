@@ -34,7 +34,7 @@ const (
 )
 
 // CPUTemplate defines a set of CPU features that are exposed by Firecracker
-type CPUTemplate = models.CPUTemplate
+type CPUTemplate models.CPUTemplate
 
 // CPUTemplates known by Firecracker. These are passed through directly from the model.
 const (
@@ -52,7 +52,7 @@ type Firecracker interface {
 	PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive) (*ops.PutGuestDriveByIDNoContent, error)
 	PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
 	CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo) (*ops.CreateSyncActionNoContent, error)
-	PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsCreated, *ops.PutMmdsNoContent, error)
+	PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsNoContent, error)
 	GetMachineConfig() (*ops.GetMachineConfigOK, error)
 }
 
@@ -469,7 +469,6 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		IfaceID:           &ifaceID,
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
-		State:             models.DeviceStateAttached,
 		AllowMmdsRequests: iface.AllowMDDS,
 	}
 
@@ -563,13 +562,10 @@ func (m *Machine) startInstance(ctx context.Context) error {
 
 // SetMetadata sets the machine's metadata for MDDS
 func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
-	respcreated, respnocontent, err := m.client.PutMmds(ctx, metadata)
+	respnocontent, err := m.client.PutMmds(ctx, metadata)
 
 	if err == nil {
 		var message string
-		if respcreated != nil {
-			message = respcreated.Error()
-		}
 		if respnocontent != nil {
 			message = respnocontent.Error()
 		}
