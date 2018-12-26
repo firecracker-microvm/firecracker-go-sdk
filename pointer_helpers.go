@@ -29,3 +29,18 @@ func StringValue(str *string) string {
 func String(str string) *string {
 	return &str
 }
+
+// Int64 will return a pointer value of the given parameter.
+func Int64(v int64) *int64 {
+	return &v
+}
+
+// Int64Value will return an int64 value. If the pointer is nil, then zero will
+// be returned.
+func Int64Value(v *int64) int64 {
+	if v == nil {
+		return 0
+	}
+
+	return *v
+}
