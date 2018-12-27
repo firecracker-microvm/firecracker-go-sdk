@@ -20,12 +20,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 const (
 	defaultJailerPath = "/srv/jailer/firecracker"
+	defaultJailerBin  = "jailer"
+
+	rootfsFolderName = "root"
 )
 
 // SeccompLevelValue represents a secure computing level type.
@@ -44,20 +45,50 @@ const (
 
 // JailerConfig is jailer specific configuration needed to execute the jailer.
 type JailerConfig struct {
-	GID           *int
-	UID           *int
-	ID            string
-	NumaNode      *int
-	ExecFile      string
+	// GID the jailer switches to as it execs the target binary.
+	GID *int
+
+	// UID the jailer switches to as it execs the target binary.
+	UID *int
+
+	// ID is the unique VM identification string, which may contain alphanumeric
+	// characters and hyphens. The maximum id length is currently 64 characters
+	ID string
+
+	// NumaNode represents the NUMA node the process gets assigned to.
+	NumaNode *int
+
+	// ExecFile is the path to the Firecracker binary that will be exec-ed by
+	// the jailer. The user can provide a path to any binary, but the interaction
+	// with the jailer is mostly Firecracker specific.
+	ExecFile string
+
+	// ChrootBaseDir represents the base folder where chroot jails are built. The
+	// default is /srv/jailer
 	ChrootBaseDir string
-	NetNS         string
-	Daemonize     bool
-	SeccompLevel  SeccompLevelValue
+
+	// NetNS represents the path to a network namespace handle. If present, the
+	// jailer will use this to join the associated network namespace
+	NetNS string
+
+	//  Daemonize is set to true, call setsid() and redirect STDIN, STDOUT, and
+	//  STDERR to /dev/null
+	Daemonize bool
+
+	// SeccompLevel specifies whether seccomp filters should be installed and how
+	// restrictive they should be. Possible values are:
+	//
+	//	0 : (default): disabled.
+	//	1 : basic filtering. This prohibits syscalls not whitelisted by Firecracker.
+	//	2 : advanced filtering. This adds further checks on some of the
+	//			parameters of the allowed syscalls.
+	SeccompLevel SeccompLevelValue
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
 // specify that a jailed firecracker executable wants to be run on the Machine.
 type JailerCommandBuilder struct {
+	bin      string
 	id       string
 	uid      int
 	gid      int
@@ -100,6 +131,21 @@ func (b JailerCommandBuilder) Args() []string {
 	}
 
 	return args
+}
+
+// Bin .
+func (b JailerCommandBuilder) Bin() string {
+	if len(b.bin) == 0 {
+		return defaultJailerBin
+	}
+
+	return b.bin
+}
+
+// WithBin .
+func (b JailerCommandBuilder) WithBin(bin string) JailerCommandBuilder {
+	b.bin = bin
+	return b
 }
 
 // ID will return the command arguments regarding the id.
@@ -272,7 +318,7 @@ func (b JailerCommandBuilder) WithStdin(stdin io.Reader) JailerCommandBuilder {
 func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 	cmd := exec.CommandContext(
 		ctx,
-		"jailer",
+		b.Bin(),
 		b.Args()...,
 	)
 
@@ -291,7 +337,7 @@ func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 	return cmd
 }
 
-// Jail will set up proper handlers and remove configuuration validation due to
+// Jail will set up proper handlers and remove configuration validation due to
 // stating of files
 func jail(ctx context.Context, m *Machine, cfg *Config) {
 	rootfs := ""
@@ -304,9 +350,9 @@ func jail(ctx context.Context, m *Machine, cfg *Config) {
 	cfg.SocketPath = filepath.Join(rootfs, "api.socket")
 	m.cmd = JailerCommandBuilder{}.
 		WithID(cfg.JailerCfg.ID).
-		WithUID(IntValue(cfg.JailerCfg.UID)).
-		WithGID(IntValue(cfg.JailerCfg.GID)).
-		WithNumaNode(IntValue(cfg.JailerCfg.NumaNode)).
+		WithUID(*cfg.JailerCfg.UID).
+		WithGID(*cfg.JailerCfg.GID).
+		WithNumaNode(*cfg.JailerCfg.NumaNode).
 		WithExecFile(cfg.JailerCfg.ExecFile).
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
@@ -315,51 +361,10 @@ func jail(ctx context.Context, m *Machine, cfg *Config) {
 		WithStderr(os.Stderr).
 		Build(ctx)
 
-	// ValidateCfgHandlerName handler needs to be removed due to checking for
-	// non-existant drive paths and socket path. Since the jailer uses relative
-	// links according to its rootfs then the user would also need those files
-	// relative to running this.
-	m.Handlers.Validation = m.Handlers.Validation.Remove(ValidateCfgHandlerName)
-	m.Handlers.FcInit = m.Handlers.FcInit.AppendAfter(CreateMachineHandlerName, Handler{
-		Name: "fcinit.CopyFilesToRootFS",
-		Fn: func(ctx context.Context, m *Machine) error {
-
-			// copy kernel image to root fs
-			kernelImageFileName := filepath.Base(m.cfg.KernelImagePath)
-			if err := linkFileToRootFS(
-				m.cfg.JailerCfg,
-				filepath.Join(rootfs, "root", kernelImageFileName),
-				m.cfg.KernelImagePath,
-			); err != nil {
-				return err
-			}
-
-			var rootDrive models.Drive
-			rootDriveIndex := 0
-			for i, drive := range m.cfg.Drives {
-				if BoolValue(drive.IsRootDevice) {
-					rootDrive = drive
-					rootDriveIndex = i
-					break
-				}
-			}
-
-			rootHostPath := StringValue(rootDrive.PathOnHost)
-			// copy root drive to root fs
-			rootdriveFileName := filepath.Base(rootHostPath)
-			if err := linkFileToRootFS(
-				m.cfg.JailerCfg,
-				filepath.Join(rootfs, "root", rootdriveFileName),
-				rootHostPath,
-			); err != nil {
-				return err
-			}
-
-			m.cfg.Drives[rootDriveIndex].PathOnHost = &rootdriveFileName
-			m.cfg.KernelImagePath = kernelImageFileName
-			return nil
-		},
-	})
+	m.Handlers.FcInit = m.Handlers.FcInit.AppendAfter(
+		CreateMachineHandlerName,
+		LinkFilesHandler(filepath.Join(rootfs, rootfsFolderName), filepath.Base(cfg.KernelImagePath)),
+	)
 }
 
 func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
@@ -367,5 +372,45 @@ func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
 		return err
 	}
 
-	return os.Chown(dst, IntValue(cfg.UID), IntValue(cfg.GID))
+	return os.Chown(dst, *cfg.UID, *cfg.GID)
+}
+
+// LinkFilesHandler creates a new link files handler that will link files to
+// the rootfs
+func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
+	return Handler{
+		Name: LinkFilesToRootFSHandlerName,
+		Fn: func(ctx context.Context, m *Machine) error {
+			// copy kernel image to root fs
+			if err := linkFileToRootFS(
+				m.cfg.JailerCfg,
+				filepath.Join(rootfs, kernelImageFileName),
+				m.cfg.KernelImagePath,
+			); err != nil {
+				return err
+			}
+
+			// copy all drives to the root fs
+			for i, drive := range m.cfg.Drives {
+				hostPath := StringValue(drive.PathOnHost)
+				driveFileName := filepath.Base(hostPath)
+
+				if err := linkFileToRootFS(
+					m.cfg.JailerCfg,
+					filepath.Join(rootfs, driveFileName),
+					hostPath,
+				); err != nil {
+					return err
+				}
+
+				m.cfg.Drives[i].PathOnHost = String(driveFileName)
+			}
+
+			m.cfg.KernelImagePath = kernelImageFileName
+			return nil
+		},
+	}
+}
+
+type jailerRootFSStrategy interface {
 }

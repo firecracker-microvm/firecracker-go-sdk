@@ -47,9 +47,11 @@ const (
 var testDataPath = "./testdata"
 
 var skipTuntap bool
+var rootDisabled bool
 
 func init() {
 	flag.BoolVar(&skipTuntap, "test.skip-tuntap", false, "Disables tests that require a tuntap device")
+	flag.BoolVar(&rootDisabled, "test.root-disable", false, "Disables tests that require root")
 
 	if val := os.Getenv(testDataPathEnv); val != "" {
 		testDataPath = val
@@ -62,6 +64,13 @@ func TestNewMachine(t *testing.T) {
 		context.Background(),
 		Config{
 			Debug: true,
+			JailerCfg: JailerConfig{
+				GID:      Int(100),
+				UID:      Int(100),
+				ID:       "my-micro-vm",
+				NumaNode: Int(0),
+				ExecFile: "/path/to/firecracker",
+			},
 		})
 
 	m.Handlers.Validation = m.Handlers.Validation.Clear()
@@ -72,11 +81,20 @@ func TestNewMachine(t *testing.T) {
 }
 
 func TestJailerMicroVMExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	if rootDisabled {
+		t.Skip("Running as root has been disabled")
+	}
+
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
-	socketPath := filepath.Join(testDataPath, "api.socket")
+	jailerTestPath := filepath.Join(testDataPath, "jailer")
+	socketPath := filepath.Join(jailerTestPath, "firecracker", "api.socket")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
 	defer func() {
@@ -85,23 +103,34 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		os.Remove(metricsFifo)
 	}()
 
+	os.MkdirAll(jailerTestPath, 0777)
+
 	cfg := Config{
-		SocketPath:  socketPath,
-		LogFifo:     logFifo,
-		MetricsFifo: metricsFifo,
-		LogLevel:    "Debug",
+		SocketPath:      socketPath,
+		LogFifo:         logFifo,
+		MetricsFifo:     metricsFifo,
+		LogLevel:        "Debug",
+		KernelImagePath: filepath.Join(testDataPath, "vmlinux"),
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   nCpus,
 			CPUTemplate: cpuTemplate,
 			MemSizeMib:  memSz,
 		},
 		Debug: true,
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      String("1"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+			},
+		},
 		JailerCfg: JailerConfig{
 			GID:           Int(100),
 			UID:           Int(123),
 			NumaNode:      Int(0),
 			ID:            "test-id",
-			ChrootBaseDir: testDataPath,
+			ChrootBaseDir: filepath.Join(testDataPath, "jailer"),
 			ExecFile:      getFirecrackerBinaryPath(),
 		},
 	}
@@ -115,39 +144,16 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	cmd := VMCommandBuilder{}.
-		WithSocketPath(socketPath).
-		WithBin(getFirecrackerBinaryPath()).
-		Build(ctx)
-
-	m := NewMachine(ctx, cfg, WithProcessRunner(cmd))
-	m.Handlers.Validation = m.Handlers.Validation.Clear()
+	m := NewMachine(ctx, cfg)
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
-	go func() {
-		var err error
-		err = m.startVMM(vmmCtx)
-		if err != nil {
-			t.Fatalf("Failed to start VMM: %v", err)
-		}
-	}()
-	time.Sleep(2 * time.Second)
 
-	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
-	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
-	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
-	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
-	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
-	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
-	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
-	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
-	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+	if err := m.Start(vmmCtx); err != nil {
+		t.Errorf("Failed to start VMM: %v", err)
+	}
 
-	// Let the VMM start and stabilize...
-	time.Sleep(5 * time.Second)
-	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
-	m.Wait(ctx)
+	m.StopVMM()
 }
 
 func TestMicroVMExecution(t *testing.T) {

@@ -45,7 +45,8 @@ func Int64Value(v *int64) int64 {
 	return *v
 }
 
-// IntValue .
+// IntValue will return an int value. If the pointer is nil, zero will be
+// returned.
 func IntValue(v *int) int {
 	if v == nil {
 		return 0
@@ -54,7 +55,7 @@ func IntValue(v *int) int {
 	return *v
 }
 
-// Int .
+// Int will return a pointer value of the given parameters.
 func Int(v int) *int {
 	return &v
 }

@@ -99,11 +99,7 @@ func ExampleDrivesBuilder() {
 	}
 
 	ctx := context.Background()
-	m, err := firecracker.NewMachine(ctx, cfg)
-	if err != nil {
-		panic(fmt.Errorf("failed to create new machine: %v", err))
-	}
-
+	m := firecracker.NewMachine(ctx, cfg)
 	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
 	}
@@ -141,11 +137,7 @@ func ExampleDrivesBuilder_driveOpt() {
 	}
 
 	ctx := context.Background()
-	m, err := firecracker.NewMachine(ctx, cfg)
-	if err != nil {
-		panic(fmt.Errorf("failed to create new machine: %v", err))
-	}
-
+	m := firecracker.NewMachine(ctx, cfg)
 	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
 	}
@@ -249,6 +241,9 @@ func ExampleJailer_withBuilder() {
 
 	// Passes the custom jailer command into the constructor
 	m := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	// This does not copy any of the files over to the rootfs since a process
+	// runner was specified. This examples assumes that the files have been
+	// properly mounted.
 	if err := m.Start(ctx); err != nil {
 		panic(err)
 	}

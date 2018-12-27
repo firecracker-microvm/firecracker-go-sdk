@@ -28,9 +28,66 @@ const (
 	CreateNetworkInterfacesHandlerName = "fcinit.CreateNetworkInterfaces"
 	AddVsocksHandlerName               = "fcinit.AddVsocks"
 	SetMetadataHandlerName             = "fcinit.SetMetadata"
+	LinkFilesToRootFSHandlerName       = "fcinit.LinkFilesToRootFS"
 
-	ValidateCfgHandlerName = "validate.Cfg"
+	ValidateCfgHandlerName       = "validate.Cfg"
+	ValidateJailerCfgHandlerName = "validate.JailerCfg"
 )
+
+// ConfigValidationHandler is used to validate that required fields are
+// present. This validator is to be used when the jailer is turned off.
+var ConfigValidationHandler = Handler{
+	Name: ValidateCfgHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		// ensure that the configuration is valid for the FcInit handlers.
+		return m.cfg.Validate()
+	},
+}
+
+// JailerConfigValidationHandler is used to validate that required fields are
+// present.
+var JailerConfigValidationHandler = Handler{
+	Name: ValidateJailerCfgHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		if m.cfg.DisableJailer {
+			return nil
+		}
+
+		hasRoot := false
+		for _, drive := range m.cfg.Drives {
+			if BoolValue(drive.IsRootDevice) {
+				hasRoot = true
+				break
+			}
+		}
+
+		if !hasRoot {
+			return fmt.Errorf("A root drive must be present in the drive list")
+		}
+
+		if len(m.cfg.JailerCfg.ExecFile) == 0 {
+			return fmt.Errorf("exec file must be specified when using jailer mode")
+		}
+
+		if len(m.cfg.JailerCfg.ID) == 0 {
+			return fmt.Errorf("id must be specified when using jailer mode")
+		}
+
+		if m.cfg.JailerCfg.GID == nil {
+			return fmt.Errorf("GID must be specified when using jailer mode")
+		}
+
+		if m.cfg.JailerCfg.UID == nil {
+			return fmt.Errorf("UID must be specified when using jailer mode")
+		}
+
+		if m.cfg.JailerCfg.NumaNode == nil {
+			return fmt.Errorf("ID must be specified when using jailer mode")
+		}
+
+		return nil
+	},
+}
 
 // StartVMMHandler is a named handler that will handle starting of the VMM.
 // This handler will also set the exit channel on completion.
@@ -112,46 +169,6 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 	}
 }
 
-var defaultValidationHandlerList = HandlerList{}.Append(
-	Handler{
-		Name: ValidateCfgHandlerName,
-		Fn: func(ctx context.Context, m *Machine) error {
-			// ensure that the configuration is valid for the FcInit handlers.
-			return m.cfg.Validate()
-		},
-	},
-	Handler{
-		Name: "validate.JailerCfg",
-		Fn: func(ctx context.Context, m *Machine) error {
-			if m.cfg.DisableJailer {
-				return nil
-			}
-
-			if len(m.cfg.JailerCfg.ExecFile) == 0 {
-				return fmt.Errorf("exec file must be specified when using jailer mode")
-			}
-
-			if len(m.cfg.JailerCfg.ID) == 0 {
-				return fmt.Errorf("id must be specified when using jailer mode")
-			}
-
-			if m.cfg.JailerCfg.GID == nil {
-				return fmt.Errorf("GID must be specified when using jailer mode")
-			}
-
-			if m.cfg.JailerCfg.UID == nil {
-				return fmt.Errorf("UID must be specified when using jailer mode")
-			}
-
-			if m.cfg.JailerCfg.NumaNode == nil {
-				return fmt.Errorf("ID must be specified when using jailer mode")
-			}
-
-			return nil
-		},
-	},
-)
-
 var defaultFcInitHandlerList = HandlerList{}.Append(
 	StartVMMHandler,
 	BootstrapLoggingHandler,
@@ -163,8 +180,7 @@ var defaultFcInitHandlerList = HandlerList{}.Append(
 )
 
 var defaultHandlers = Handlers{
-	Validation: defaultValidationHandlerList,
-	FcInit:     defaultFcInitHandlerList,
+	FcInit: defaultFcInitHandlerList,
 }
 
 // Handler represents a named handler that contains a name and a function which
@@ -290,6 +306,7 @@ func (l HandlerList) Run(ctx context.Context, m *Machine) error {
 	for _, handler := range l.list {
 		m.logger.Debugf("Running handler %s", handler.Name)
 		if err := handler.Fn(ctx, m); err != nil {
+			m.logger.Warnf("Failed handler %q: %v", handler.Name, err)
 			return err
 		}
 	}
