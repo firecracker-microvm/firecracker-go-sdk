@@ -16,7 +16,15 @@ EXTRAGOARGS:=
 
 all: build
 
-generate build clean test:
+test: all-tests
+
+unit-tests:
+	go test -short $(EXTRAGOARGS)
+
+all-tests:
+	go test $(EXTRAGOARGS)
+
+generate build clean:
 	go $@ $(EXTRAGOARGS)
 
-.PHONY: all generate clean build test
+.PHONY: all generate clean build test unit-tests all-tests
