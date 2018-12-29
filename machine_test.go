@@ -76,6 +76,10 @@ func TestNewMachine(t *testing.T) {
 }
 
 func TestMicroVMExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
