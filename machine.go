@@ -37,15 +37,15 @@ const (
 // Firecracker is an interface that can be used to mock
 // out an Firecracker agent for testing purposes.
 type Firecracker interface {
-	PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error)
-	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration) (*ops.PutMachineConfigurationNoContent, error)
-	PutGuestBootSource(ctx context.Context, source *models.BootSource) (*ops.PutGuestBootSourceNoContent, error)
-	PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.NetworkInterface) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
-	PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive) (*ops.PutGuestDriveByIDNoContent, error)
-	PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
-	CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo) (*ops.CreateSyncActionNoContent, error)
-	PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsNoContent, error)
-	GetMachineConfig() (*ops.GetMachineConfigOK, error)
+	PutLogger(ctx context.Context, logger *models.Logger, opts ...PutLoggerOpt) (*ops.PutLoggerNoContent, error)
+	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration, opts ...PutMachineConfigurationOpt) (*ops.PutMachineConfigurationNoContent, error)
+	PutGuestBootSource(ctx context.Context, source *models.BootSource, opts ...PutGuestBootSourceOpt) (*ops.PutGuestBootSourceNoContent, error)
+	PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.NetworkInterface, opts ...PutGuestNetworkInterfaceByIDOpt) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
+	PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive, opts ...PutGuestDriveByIDOpt) (*ops.PutGuestDriveByIDNoContent, error)
+	PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock, opts ...PutGuestVsockByIDOpt) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
+	CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo, opts ...CreateSyncActionOpt) (*ops.CreateSyncActionNoContent, error)
+	PutMmds(ctx context.Context, metadata interface{}, opts ...PutMmdsOpt) (*ops.PutMmdsNoContent, error)
+	GetMachineConfig(opts ...GetMachineConfigOpt) (*ops.GetMachineConfigOK, error)
 }
 
 // Config is a collection of user-configurable VMM settings
@@ -214,7 +214,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	if m.client == nil {
-		m.client = NewFirecrackerClient(cfg.SocketPath, m.logger, cfg.Debug)
+		m.client = NewClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
 	m.cfg = cfg
