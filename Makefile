@@ -19,10 +19,10 @@ all: build
 test: all-tests
 
 unit-tests:
-	go test -short $(EXTRAGOARGS)
+	go test -short ./... $(EXTRAGOARGS)
 
 all-tests:
-	go test $(EXTRAGOARGS)
+	go test ./... $(EXTRAGOARGS)
 
 generate build clean:
 	go $@ $(EXTRAGOARGS)

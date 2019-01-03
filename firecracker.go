@@ -15,17 +15,14 @@ package firecracker
 
 import (
 	"context"
-	"net"
-	"net/http"
+	"github.com/go-openapi/strfmt"
 	"time"
 
-	"github.com/go-openapi/strfmt"
 	"github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
-	httptransport "github.com/go-openapi/runtime/client"
 )
 
 const firecrackerRequestTimeout = 500 * time.Millisecond
@@ -37,33 +34,10 @@ type FirecrackerClient struct {
 
 // NewFirecrackerClient creates a FirecrackerClient
 func NewFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *FirecrackerClient {
-	httpClient := client.NewHTTPClient(strfmt.NewFormats())
+	unixTransport := client.NewUnixSocketTransport(socketPath, logger, debug)
+	firecracker := client.New(unixTransport, strfmt.NewFormats())
 
-	socketTransport := &http.Transport{
-		DialContext: func(ctx context.Context, network, path string) (net.Conn, error) {
-			addr, err := net.ResolveUnixAddr("unix", socketPath)
-			if err != nil {
-				return nil, err
-			}
-
-			return net.DialUnix("unix", nil, addr)
-		},
-	}
-
-	transport := httptransport.New(client.DefaultHost, client.DefaultBasePath, client.DefaultSchemes)
-	transport.Transport = socketTransport
-
-	if debug {
-		transport.SetDebug(debug)
-	}
-
-	if logger != nil {
-		transport.SetLogger(logger)
-	}
-
-	httpClient.SetTransport(transport)
-
-	return &FirecrackerClient{client: httpClient}
+	return &FirecrackerClient{client: firecracker}
 }
 
 func (f *FirecrackerClient) PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error) {
