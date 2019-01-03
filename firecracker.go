@@ -126,6 +126,14 @@ func (f *FirecrackerClient) PutGuestVsockByID(ctx context.Context, vsockID strin
 	return f.client.Operations.PutGuestVsockByID(params)
 }
 
+func (f *FirecrackerClient) PatchGuestDriveByID(ctx context.Context, driveID string, drive *models.PartialDrive) (*ops.PatchGuestDriveByIDNoContent, error) {
+	params := ops.NewPatchGuestDriveByIDParamsWithContext(ctx)
+	params.SetBody(drive)
+	params.SetDriveID(driveID)
+
+	return f.client.Operations.PatchGuestDriveByID(params)
+}
+
 func (f *FirecrackerClient) CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo) (*ops.CreateSyncActionNoContent, error) {
 	params := ops.NewCreateSyncActionParams()
 	params.SetContext(ctx)
