@@ -90,9 +90,9 @@ type Config struct {
 	// validation of configuration performed by the SDK.
 	DisableValidation bool
 
-	// DisableJailer will disable the jailer and run the firecracker VMM process
-	// normally.
-	DisableJailer bool
+	// EnableJailer will enable the jailer. By enabling the jailer, root level
+	// permissions are required.
+	EnableJailer bool
 
 	// JailerCfg is configuration specific for the jailer process.
 	JailerCfg JailerConfig
@@ -199,7 +199,7 @@ func (m *Machine) LogLevel() string {
 
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
-func NewMachine(ctx context.Context, cfg Config, opts ...Opt) *Machine {
+func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
 	m := &Machine{}
 	logger := log.New()
 
@@ -209,16 +209,16 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) *Machine {
 
 	m.Handlers = defaultHandlers
 	m.logger = log.NewEntry(logger)
-	if m.cmd == nil {
-		if cfg.DisableJailer {
-			m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
-			m.cmd = defaultFirecrackerVMMCommandBuilder.
-				WithSocketPath(m.cfg.SocketPath).
-				Build(ctx)
-		} else {
-			m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
-			jail(ctx, m, &cfg)
+	if cfg.EnableJailer {
+		m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
+		if err := jail(ctx, m, &cfg); err != nil {
+			return nil, err
 		}
+	} else {
+		m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
+		m.cmd = defaultFirecrackerVMMCommandBuilder.
+			WithSocketPath(m.cfg.SocketPath).
+			Build(ctx)
 	}
 
 	for _, opt := range opts {
@@ -232,7 +232,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) *Machine {
 	m.cfg = cfg
 
 	m.logger.Debug("Called NewMachine()")
-	return m
+	return m, nil
 }
 
 // Start will iterate through the handler list and call each handler. If an

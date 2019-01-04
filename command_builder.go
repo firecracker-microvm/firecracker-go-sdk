@@ -57,7 +57,7 @@ func (b VMCommandBuilder) AddArgs(args ...string) VMCommandBuilder {
 	return b
 }
 
-// Bin return the bin that was set. If bin had not been set, then the default
+// Bin returns the bin that was set. If bin had not been set, then the default
 // will be returned.
 func (b VMCommandBuilder) Bin() string {
 	if len(b.bin) == 0 {

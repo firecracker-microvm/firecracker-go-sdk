@@ -15,6 +15,7 @@ package firecracker
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -83,6 +84,9 @@ type JailerConfig struct {
 	//	2 : advanced filtering. This adds further checks on some of the
 	//			parameters of the allowed syscalls.
 	SeccompLevel SeccompLevelValue
+
+	// DevMapperStrategy will dictate how files are transfered to the root drive.
+	DevMapperStrategy HandlersAdaptor
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -106,25 +110,31 @@ type JailerCommandBuilder struct {
 	stderr io.Writer
 }
 
+// NewJailerCommandBuilder will return a new jailer command builder with the
+// proper default value initialized.
+func NewJailerCommandBuilder() JailerCommandBuilder {
+	return JailerCommandBuilder{}.WithBin(defaultJailerBin)
+}
+
 // Args returns the specified set of args to be used
 // in command construction.
 func (b JailerCommandBuilder) Args() []string {
 	args := []string{}
-	args = append(args, b.ID()...)
-	args = append(args, b.UID()...)
-	args = append(args, b.GID()...)
-	args = append(args, b.ExecFile()...)
-	args = append(args, b.NumaNode()...)
+	args = append(args, "--id", b.id)
+	args = append(args, "--uid", strconv.Itoa(b.uid))
+	args = append(args, "--gid", strconv.Itoa(b.gid))
+	args = append(args, "--exec-file", b.execFile)
+	args = append(args, "--node", strconv.Itoa(b.node))
 
 	if len(b.chrootBaseDir) > 0 {
-		args = append(args, b.ChrootBaseDir()...)
+		args = append(args, "--chroot-base-dir", b.chrootBaseDir)
 	}
 
 	if len(b.netNS) > 0 {
-		args = append(args, b.NetNS()...)
+		args = append(args, "--netns", b.netNS)
 	}
 
-	args = append(args, b.SeccompLevel()...)
+	args = append(args, "--seccomp-level", strconv.Itoa(int(b.seccompLevel)))
 
 	if b.daemonize {
 		args = append(args, "--daemonize")
@@ -133,27 +143,16 @@ func (b JailerCommandBuilder) Args() []string {
 	return args
 }
 
-// Bin .
+// Bin returns the jailer bin path. If bin path is empty, then the default path
+// will be returned.
 func (b JailerCommandBuilder) Bin() string {
-	if len(b.bin) == 0 {
-		return defaultJailerBin
-	}
-
 	return b.bin
 }
 
-// WithBin .
+// WithBin will set the specific bin path to the builder.
 func (b JailerCommandBuilder) WithBin(bin string) JailerCommandBuilder {
 	b.bin = bin
 	return b
-}
-
-// ID will return the command arguments regarding the id.
-func (b JailerCommandBuilder) ID() []string {
-	return []string{
-		"--id",
-		b.id,
-	}
 }
 
 // WithID will set the specified id to the builder.
@@ -162,40 +161,16 @@ func (b JailerCommandBuilder) WithID(id string) JailerCommandBuilder {
 	return b
 }
 
-// UID will return the command arguments regarding the uid.
-func (b JailerCommandBuilder) UID() []string {
-	return []string{
-		"--uid",
-		strconv.Itoa(b.uid),
-	}
-}
-
 // WithUID will set the specified uid to the builder.
 func (b JailerCommandBuilder) WithUID(uid int) JailerCommandBuilder {
 	b.uid = uid
 	return b
 }
 
-// GID will return the command arguments regarding the gid.
-func (b JailerCommandBuilder) GID() []string {
-	return []string{
-		"--gid",
-		strconv.Itoa(b.gid),
-	}
-}
-
 // WithGID will set the specified gid to the builder.
 func (b JailerCommandBuilder) WithGID(gid int) JailerCommandBuilder {
 	b.gid = gid
 	return b
-}
-
-// ExecFile will return the command arguments regarding the exec file.
-func (b JailerCommandBuilder) ExecFile() []string {
-	return []string{
-		"--exec-file",
-		b.execFile,
-	}
 }
 
 // WithExecFile will set the specified path to the builder. This represents a
@@ -205,14 +180,6 @@ func (b JailerCommandBuilder) WithExecFile(path string) JailerCommandBuilder {
 	return b
 }
 
-// NumaNode will return the command arguments regarding the numa node.
-func (b JailerCommandBuilder) NumaNode() []string {
-	return []string{
-		"--node",
-		strconv.Itoa(b.node),
-	}
-}
-
 // WithNumaNode uses the specfied node for the jailer. This represents the numa
 // node that the process will get assigned to.
 func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
@@ -220,28 +187,11 @@ func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
 	return b
 }
 
-// ChrootBaseDir will return the command arguments regarding the chroot base
-// directory.
-func (b JailerCommandBuilder) ChrootBaseDir() []string {
-	return []string{
-		"--chroot-base-dir",
-		b.chrootBaseDir,
-	}
-}
-
 // WithChrootBaseDir will set the given path as the chroot base directory. This
 // specifies where chroot jails are built and defaults to /srv/jailer.
 func (b JailerCommandBuilder) WithChrootBaseDir(path string) JailerCommandBuilder {
 	b.chrootBaseDir = path
 	return b
-}
-
-// NetNS will return the command arguments regarding the net namespace.
-func (b JailerCommandBuilder) NetNS() []string {
-	return []string{
-		"--netns",
-		b.netNS,
-	}
 }
 
 // WithNetNS will set the given path to the net namespace of the builder. This
@@ -256,15 +206,6 @@ func (b JailerCommandBuilder) WithNetNS(path string) JailerCommandBuilder {
 func (b JailerCommandBuilder) WithDaemonize(daemonize bool) JailerCommandBuilder {
 	b.daemonize = daemonize
 	return b
-}
-
-// SeccompLevel will return the command arguments regarding secure computing
-// level.
-func (b JailerCommandBuilder) SeccompLevel() []string {
-	return []string{
-		"--seccomp-level",
-		strconv.Itoa(int(b.seccompLevel)),
-	}
 }
 
 // WithSeccompLevel will set the provided level to the builder. This represents
@@ -339,7 +280,7 @@ func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 
 // Jail will set up proper handlers and remove configuration validation due to
 // stating of files
-func jail(ctx context.Context, m *Machine, cfg *Config) {
+func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	rootfs := ""
 	if len(cfg.JailerCfg.ChrootBaseDir) > 0 {
 		rootfs = filepath.Join(cfg.JailerCfg.ChrootBaseDir, "firecracker", cfg.JailerCfg.ID)
@@ -348,7 +289,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) {
 	}
 
 	cfg.SocketPath = filepath.Join(rootfs, "api.socket")
-	m.cmd = JailerCommandBuilder{}.
+	m.cmd = NewJailerCommandBuilder().
 		WithID(cfg.JailerCfg.ID).
 		WithUID(*cfg.JailerCfg.UID).
 		WithGID(*cfg.JailerCfg.GID).
@@ -361,10 +302,11 @@ func jail(ctx context.Context, m *Machine, cfg *Config) {
 		WithStderr(os.Stderr).
 		Build(ctx)
 
-	m.Handlers.FcInit = m.Handlers.FcInit.AppendAfter(
-		CreateMachineHandlerName,
-		LinkFilesHandler(filepath.Join(rootfs, rootfsFolderName), filepath.Base(cfg.KernelImagePath)),
-	)
+	if err := cfg.JailerCfg.DevMapperStrategy.AdaptHandlers(&m.Handlers); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
@@ -372,7 +314,7 @@ func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
 		return err
 	}
 
-	return os.Chown(dst, *cfg.UID, *cfg.GID)
+	return nil
 }
 
 // LinkFilesHandler creates a new link files handler that will link files to
@@ -412,5 +354,35 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 	}
 }
 
-type jailerRootFSStrategy interface {
+// NaiveDevMapperStrategy will simply hard link all files, drives and kernel
+// image, to the root drive.
+type NaiveDevMapperStrategy struct {
+	Rootfs          string
+	KernelImagePath string
+}
+
+// NewNaiveDevMapperStrategy returns a new NaivceDevMapperStrategy
+func NewNaiveDevMapperStrategy(rootfs, kernelImagePath string) NaiveDevMapperStrategy {
+	return NaiveDevMapperStrategy{
+		Rootfs:          rootfs,
+		KernelImagePath: kernelImagePath,
+	}
+}
+
+// ErrCreateMachineHandlerMissing occurs when the CreateMachineHandler is not
+// present in FcInit.
+var ErrCreateMachineHandlerMissing = fmt.Errorf("%s is missing from FcInit's list", CreateMachineHandlerName)
+
+// AdaptHandlers will inject the LinkFilesHandler into the handler list.
+func (s NaiveDevMapperStrategy) AdaptHandlers(handlers *Handlers) error {
+	if !handlers.FcInit.Has(CreateMachineHandlerName) {
+		return ErrCreateMachineHandlerMissing
+	}
+
+	handlers.FcInit = handlers.FcInit.AppendAfter(
+		CreateMachineHandlerName,
+		LinkFilesHandler(filepath.Join(s.Rootfs, rootfsFolderName), filepath.Base(s.KernelImagePath)),
+	)
+
+	return nil
 }

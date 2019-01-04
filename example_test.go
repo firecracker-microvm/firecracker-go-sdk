@@ -52,7 +52,11 @@ func ExampleWithProcessRunner_logging() {
 		WithStderr(stderr).
 		Build(ctx)
 
-	m := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(cmd))
+	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(cmd))
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
 	defer os.Remove(cfg.SocketPath)
 
 	if err := m.Start(ctx); err != nil {
@@ -99,7 +103,11 @@ func ExampleDrivesBuilder() {
 	}
 
 	ctx := context.Background()
-	m := firecracker.NewMachine(ctx, cfg)
+	m, err := firecracker.NewMachine(ctx, cfg)
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
 	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
 	}
@@ -137,7 +145,11 @@ func ExampleDrivesBuilder_driveOpt() {
 	}
 
 	ctx := context.Background()
-	m := firecracker.NewMachine(ctx, cfg)
+	m, err := firecracker.NewMachine(ctx, cfg)
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
 	if err := m.Start(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize machine: %v", err))
 	}
@@ -211,7 +223,7 @@ func ExampleNetworkInterface_rateLimiting() {
 func ExampleJailer_withBuilder() {
 	ctx := context.Background()
 	// Creates a jailer command using the JailerCommandBuilder.
-	b := firecracker.JailerCommandBuilder{}.
+	b := firecracker.NewJailerCommandBuilder().
 		WithID("my-test-id").
 		WithUID(123).
 		WithGID(100).
@@ -240,7 +252,11 @@ func ExampleJailer_withBuilder() {
 	}
 
 	// Passes the custom jailer command into the constructor
-	m := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
 	// This does not copy any of the files over to the rootfs since a process
 	// runner was specified. This examples assumes that the files have been
 	// properly mounted.

@@ -34,6 +34,11 @@ const (
 	ValidateJailerCfgHandlerName = "validate.JailerCfg"
 )
 
+// HandlersAdaptor is an interface used to modify a given set of handlers.
+type HandlersAdaptor interface {
+	AdaptHandlers(*Handlers) error
+}
+
 // ConfigValidationHandler is used to validate that required fields are
 // present. This validator is to be used when the jailer is turned off.
 var ConfigValidationHandler = Handler{
@@ -49,7 +54,7 @@ var ConfigValidationHandler = Handler{
 var JailerConfigValidationHandler = Handler{
 	Name: ValidateJailerCfgHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		if m.cfg.DisableJailer {
+		if !m.cfg.EnableJailer {
 			return nil
 		}
 
@@ -63,6 +68,10 @@ var JailerConfigValidationHandler = Handler{
 
 		if !hasRoot {
 			return fmt.Errorf("A root drive must be present in the drive list")
+		}
+
+		if m.cfg.JailerCfg.DevMapperStrategy == nil {
+			return fmt.Errorf("DevMapperStrategy cannot be nil")
 		}
 
 		if len(m.cfg.JailerCfg.ExecFile) == 0 {
