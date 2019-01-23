@@ -134,17 +134,18 @@ func (cfg *Config) Validate() error {
 
 // Machine is the main object for manipulating Firecracker microVMs
 type Machine struct {
+	// Metadata is the associated metadata that will be sent to the firecracker
+	// process
+	Metadata interface{}
+	// Handlers holds the set of handlers that are run for validation and start
+	Handlers Handlers
+
 	cfg           Config
 	client        Firecracker
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
-
-	// Metadata is the associated metadata that will be sent to the firecracker
-	// process
-	Metadata interface{}
-	errCh    chan error
-	Handlers Handlers
+	errCh         chan error
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
