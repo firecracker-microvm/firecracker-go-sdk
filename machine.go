@@ -581,33 +581,25 @@ func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) erro
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	done := make(chan error)
 	ticker := time.NewTicker(10 * time.Millisecond)
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				done <- ctx.Err()
-				return
-			case err := <-exitchan:
-				done <- err
-				return
-			case <-ticker.C:
-				if _, err := os.Stat(m.cfg.SocketPath); err != nil {
-					continue
-				}
-
-				// Send test HTTP request to make sure socket is available
-				if _, err := m.client.GetMachineConfig(); err != nil {
-					continue
-				}
-
-				done <- nil
-				return
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-exitchan:
+			return err
+		case <-ticker.C:
+			if _, err := os.Stat(m.cfg.SocketPath); err != nil {
+				continue
 			}
-		}
-	}()
 
-	return <-done
+			// Send test HTTP request to make sure socket is available
+			if _, err := m.client.GetMachineConfig(); err != nil {
+				continue
+			}
+
+			return nil
+		}
+	}
 }
