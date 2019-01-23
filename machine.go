@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +34,8 @@ import (
 const (
 	userAgent = "firecracker-go-sdk"
 )
+
+var ErrAlreadyStarted = errors.New("firecracker: machine already started")
 
 // Firecracker is an interface that can be used to mock
 // out an Firecracker agent for testing purposes.
@@ -146,6 +149,7 @@ type Machine struct {
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
 	errCh         chan error
+	startOnce     sync.Once
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -227,13 +231,24 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // Start will iterate through the handler list and call each handler. If an
 // error occurred during handler execution, that error will be returned. If the
 // handlers succeed, then this will start the VMM instance.
+// Start may only be called once per Machine.  Subsequent calls will return
+// ErrAlreadyStarted.
 func (m *Machine) Start(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Start()")
+	alreadyStarted := true
+	m.startOnce.Do(func() {
+		m.logger.Debug("Marking Machine as Started")
+		alreadyStarted = false
+	})
+	if alreadyStarted {
+		return ErrAlreadyStarted
+	}
+
 	if err := m.Handlers.Run(ctx, m); err != nil {
 		return err
 	}
 
-	return m.StartInstance(ctx)
+	return m.startInstance(ctx)
 }
 
 // Wait will wait until the firecracker process has finished
