@@ -518,11 +518,6 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	return nil
 }
 
-// StartInstance starts the Firecracker microVM
-func (m *Machine) StartInstance(ctx context.Context) error {
-	return m.startInstance(ctx)
-}
-
 func (m *Machine) startInstance(ctx context.Context) error {
 	info := models.InstanceActionInfo{
 		ActionType: models.InstanceActionInfoActionTypeInstanceStart,
