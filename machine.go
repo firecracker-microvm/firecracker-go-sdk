@@ -320,7 +320,6 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
-	vmchan := make(chan error)
 	sigchan := make(chan os.Signal)
 	signal.Notify(sigchan, os.Interrupt,
 		syscall.SIGQUIT,
@@ -329,13 +328,9 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		syscall.SIGABRT)
 	m.logger.Debugf("Setting up signal handler")
 	go func() {
-		select {
-		case sig := <-sigchan:
-			m.logger.Printf("Caught signal %s", sig)
-			m.cmd.Process.Signal(sig)
-		case err = <-vmchan:
-			m.errCh <- err
-		}
+		sig := <-sigchan
+		m.logger.Printf("Caught signal %s", sig)
+		m.cmd.Process.Signal(sig)
 	}()
 
 	// Wait for firecracker to initialize:
