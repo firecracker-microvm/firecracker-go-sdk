@@ -148,8 +148,12 @@ type Machine struct {
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
-	errCh         chan error
-	startOnce     sync.Once
+	// startOnce ensures that the machine can only be started once
+	startOnce sync.Once
+	// exitCh is a channel which gets closed when the VMM exits
+	exitCh chan struct{}
+	// err records any error executing the VMM
+	err error
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -201,7 +205,9 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		return nil, err
 	}
 
-	m := &Machine{}
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
 	logger := log.New()
 
 	if cfg.Debug {
@@ -251,13 +257,15 @@ func (m *Machine) Start(ctx context.Context) error {
 	return m.startInstance(ctx)
 }
 
-// Wait will wait until the firecracker process has finished
+// Wait will wait until the firecracker process has finished.  Wait is safe to
+// call concurrently, and will deliver the same error to all callers, subject to
+// each caller's context cancellation.
 func (m *Machine) Wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err := <-m.errCh:
-		return err
+	case <-m.exitCh:
+		return m.err
 	}
 }
 
@@ -297,11 +305,12 @@ func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) erro
 func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
 
-	m.errCh = make(chan error)
+	errCh := make(chan error)
 
 	err := m.cmd.Start()
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
+		close(m.exitCh)
 		return err
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.cfg.SocketPath)
@@ -316,7 +325,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		os.Remove(m.cfg.SocketPath)
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
-		m.errCh <- err
+		errCh <- err
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
@@ -334,12 +343,18 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, m.errCh)
+	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
+		close(m.exitCh)
 		return err
 	}
+	go func() {
+		err := <-errCh
+		m.err = err
+		close(m.exitCh)
+	}()
 
 	m.logger.Debugf("returning from startVMM()")
 	return nil
