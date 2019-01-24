@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +34,8 @@ import (
 const (
 	userAgent = "firecracker-go-sdk"
 )
+
+var ErrAlreadyStarted = errors.New("firecracker: machine already started")
 
 // Firecracker is an interface that can be used to mock
 // out an Firecracker agent for testing purposes.
@@ -134,17 +137,23 @@ func (cfg *Config) Validate() error {
 
 // Machine is the main object for manipulating Firecracker microVMs
 type Machine struct {
+	// Metadata is the associated metadata that will be sent to the firecracker
+	// process
+	Metadata interface{}
+	// Handlers holds the set of handlers that are run for validation and start
+	Handlers Handlers
+
 	cfg           Config
 	client        Firecracker
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
-
-	// Metadata is the associated metadata that will be sent to the firecracker
-	// process
-	Metadata interface{}
-	errCh    chan error
-	Handlers Handlers
+	// startOnce ensures that the machine can only be started once
+	startOnce sync.Once
+	// exitCh is a channel which gets closed when the VMM exits
+	exitCh chan struct{}
+	// err records any error executing the VMM
+	err error
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -196,7 +205,9 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		return nil, err
 	}
 
-	m := &Machine{}
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
 	logger := log.New()
 
 	if cfg.Debug {
@@ -226,22 +237,35 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // Start will iterate through the handler list and call each handler. If an
 // error occurred during handler execution, that error will be returned. If the
 // handlers succeed, then this will start the VMM instance.
+// Start may only be called once per Machine.  Subsequent calls will return
+// ErrAlreadyStarted.
 func (m *Machine) Start(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Start()")
+	alreadyStarted := true
+	m.startOnce.Do(func() {
+		m.logger.Debug("Marking Machine as Started")
+		alreadyStarted = false
+	})
+	if alreadyStarted {
+		return ErrAlreadyStarted
+	}
+
 	if err := m.Handlers.Run(ctx, m); err != nil {
 		return err
 	}
 
-	return m.StartInstance(ctx)
+	return m.startInstance(ctx)
 }
 
-// Wait will wait until the firecracker process has finished
+// Wait will wait until the firecracker process has finished.  Wait is safe to
+// call concurrently, and will deliver the same error to all callers, subject to
+// each caller's context cancellation.
 func (m *Machine) Wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err := <-m.errCh:
-		return err
+	case <-m.exitCh:
+		return m.err
 	}
 }
 
@@ -281,11 +305,12 @@ func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) erro
 func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
 
-	m.errCh = make(chan error)
+	errCh := make(chan error)
 
 	err := m.cmd.Start()
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
+		close(m.exitCh)
 		return err
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.cfg.SocketPath)
@@ -300,11 +325,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		os.Remove(m.cfg.SocketPath)
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
-		m.errCh <- err
+		errCh <- err
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
-	vmchan := make(chan error)
 	sigchan := make(chan os.Signal)
 	signal.Notify(sigchan, os.Interrupt,
 		syscall.SIGQUIT,
@@ -313,22 +337,24 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		syscall.SIGABRT)
 	m.logger.Debugf("Setting up signal handler")
 	go func() {
-		select {
-		case sig := <-sigchan:
-			m.logger.Printf("Caught signal %s", sig)
-			m.cmd.Process.Signal(sig)
-		case err = <-vmchan:
-			m.errCh <- err
-		}
+		sig := <-sigchan
+		m.logger.Printf("Caught signal %s", sig)
+		m.cmd.Process.Signal(sig)
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, m.errCh)
+	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
 		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
 		err = errors.New(msg)
+		close(m.exitCh)
 		return err
 	}
+	go func() {
+		err := <-errCh
+		m.err = err
+		close(m.exitCh)
+	}()
 
 	m.logger.Debugf("returning from startVMM()")
 	return nil
@@ -517,11 +543,6 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	return nil
 }
 
-// StartInstance starts the Firecracker microVM
-func (m *Machine) StartInstance(ctx context.Context) error {
-	return m.startInstance(ctx)
-}
-
 func (m *Machine) startInstance(ctx context.Context) error {
 	info := models.InstanceActionInfo{
 		ActionType: models.InstanceActionInfoActionTypeInstanceStart,
@@ -575,33 +596,25 @@ func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) erro
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	done := make(chan error)
 	ticker := time.NewTicker(10 * time.Millisecond)
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				done <- ctx.Err()
-				return
-			case err := <-exitchan:
-				done <- err
-				return
-			case <-ticker.C:
-				if _, err := os.Stat(m.cfg.SocketPath); err != nil {
-					continue
-				}
-
-				// Send test HTTP request to make sure socket is available
-				if _, err := m.client.GetMachineConfig(); err != nil {
-					continue
-				}
-
-				done <- nil
-				return
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-exitchan:
+			return err
+		case <-ticker.C:
+			if _, err := os.Stat(m.cfg.SocketPath); err != nil {
+				continue
 			}
-		}
-	}()
 
-	return <-done
+			// Send test HTTP request to make sure socket is available
+			if _, err := m.client.GetMachineConfig(); err != nil {
+				continue
+			}
+
+			return nil
+		}
+	}
 }

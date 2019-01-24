@@ -34,6 +34,7 @@ import (
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/golang/mock/gomock"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -92,13 +93,7 @@ func TestMicroVMExecution(t *testing.T) {
 		os.Remove(metricsFifo)
 	}()
 
-	vmlinuxPath := filepath.Join(testDataPath, "./vmlinux")
-	if _, err := os.Stat(vmlinuxPath); err != nil {
-		t.Fatalf("Cannot find vmlinux file: %s\n"+
-			`Verify that you have a vmlinux file at "%s" or set the `+
-			"`%s` environment variable to the correct location.",
-			err, vmlinuxPath, testDataPathEnv)
-	}
+	vmlinuxPath := getVmlinuxPath(t)
 
 	cfg := Config{
 		SocketPath:  socketPath,
@@ -183,19 +178,64 @@ func TestStartVMM(t *testing.T) {
 	defer cancel()
 	err = m.startVMM(timeout)
 	if err != nil {
-		t.Errorf("startVMM failed: %s", err)
-	} else {
-		defer m.StopVMM()
+		t.Fatalf("startVMM failed: %s", err)
+	}
+	defer m.StopVMM()
 
-		select {
-		case <-timeout.Done():
-			if timeout.Err() == context.DeadlineExceeded {
-				t.Log("firecracker ran for 250ms")
-			} else {
-				t.Errorf("startVMM returned %s", m.Wait(ctx))
-			}
+	select {
+	case <-timeout.Done():
+		if timeout.Err() == context.DeadlineExceeded {
+			t.Log("firecracker ran for 250ms")
+		} else {
+			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
 	}
+
+}
+
+func TestStartVMMOnce(t *testing.T) {
+	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	defer os.Remove(socketPath)
+
+	cfg := Config{
+		SocketPath:        socketPath,
+		DisableValidation: true,
+		KernelImagePath:   getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount: 1,
+		},
+	}
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer m.StopVMM()
+
+	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+	err = m.Start(timeout)
+	if err != nil {
+		t.Fatalf("startVMM failed: %s", err)
+	}
+	defer m.StopVMM()
+	err = m.Start(timeout)
+	assert.Error(t, err, "should return an error when Start is called multiple times")
+	assert.Equal(t, ErrAlreadyStarted, err, "should be ErrAlreadyStarted")
+
+	select {
+	case <-timeout.Done():
+		if timeout.Err() == context.DeadlineExceeded {
+			t.Log("firecracker ran for 250ms")
+		} else {
+			t.Errorf("startVMM returned %s", m.Wait(ctx))
+		}
+	}
+
 }
 
 func getFirecrackerBinaryPath() string {
@@ -203,6 +243,18 @@ func getFirecrackerBinaryPath() string {
 		return val
 	}
 	return filepath.Join(testDataPath, firecrackerBinaryPath)
+}
+
+func getVmlinuxPath(t *testing.T) string {
+	t.Helper()
+	vmlinuxPath := filepath.Join(testDataPath, "./vmlinux")
+	if _, err := os.Stat(vmlinuxPath); err != nil {
+		t.Fatalf("Cannot find vmlinux file: %s\n"+
+			`Verify that you have a vmlinux file at "%s" or set the `+
+			"`%s` environment variable to the correct location.",
+			err, vmlinuxPath, testDataPathEnv)
+	}
+	return vmlinuxPath
 }
 
 func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
