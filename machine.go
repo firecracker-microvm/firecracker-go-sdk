@@ -170,6 +170,11 @@ type NetworkInterface struct {
 	HostDevName string
 	// AllowMMDS makes the Firecracker MMDS available on this network interface.
 	AllowMDDS bool
+
+	// InRateLimiter limits the incoming bytes.
+	InRateLimiter *models.RateLimiter
+	// OutRateLimiter limits the outgoing bytes.
+	OutRateLimiter *models.RateLimiter
 }
 
 // VsockDevice represents a vsock connection between the host and the guest
@@ -499,6 +504,14 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
 		AllowMmdsRequests: iface.AllowMDDS,
+	}
+
+	if iface.InRateLimiter != nil {
+		ifaceCfg.RxRateLimiter = iface.InRateLimiter
+	}
+
+	if iface.OutRateLimiter != nil {
+		ifaceCfg.TxRateLimiter = iface.OutRateLimiter
 	}
 
 	resp, err := m.client.PutGuestNetworkInterfaceByID(ctx, ifaceID, &ifaceCfg)
