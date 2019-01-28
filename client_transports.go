@@ -1,4 +1,4 @@
-package client
+package firecracker
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 	"net"
 	"net/http"
 
+	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/sirupsen/logrus"
 
-	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client"
 )
 
 // NewUnixSocketTransport creates a new clientTransport configured at the specified Unix socketPath.
@@ -24,7 +25,7 @@ func NewUnixSocketTransport(socketPath string, logger *logrus.Entry, debug bool)
 		},
 	}
 
-	transport := httptransport.New(DefaultHost, DefaultBasePath, DefaultSchemes)
+	transport := httptransport.New(client.DefaultHost, client.DefaultBasePath, client.DefaultSchemes)
 	transport.Transport = socketTransport
 
 	if debug {

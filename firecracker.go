@@ -34,7 +34,7 @@ type FirecrackerClient struct {
 
 // NewFirecrackerClient creates a FirecrackerClient
 func NewFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *FirecrackerClient {
-	unixTransport := client.NewUnixSocketTransport(socketPath, logger, debug)
+	unixTransport := NewUnixSocketTransport(socketPath, logger, debug)
 	firecracker := client.New(unixTransport, strfmt.NewFormats())
 
 	return &FirecrackerClient{client: firecracker}
