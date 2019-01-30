@@ -27,7 +27,6 @@ import (
 	"time"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
-	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,21 +34,9 @@ const (
 	userAgent = "firecracker-go-sdk"
 )
 
+// ErrAlreadyStarted signifies that the Machine has already started and cannot
+// be started again.
 var ErrAlreadyStarted = errors.New("firecracker: machine already started")
-
-// Firecracker is an interface that can be used to mock
-// out an Firecracker agent for testing purposes.
-type Firecracker interface {
-	PutLogger(ctx context.Context, logger *models.Logger) (*ops.PutLoggerNoContent, error)
-	PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration) (*ops.PutMachineConfigurationNoContent, error)
-	PutGuestBootSource(ctx context.Context, source *models.BootSource) (*ops.PutGuestBootSourceNoContent, error)
-	PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.NetworkInterface) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
-	PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive) (*ops.PutGuestDriveByIDNoContent, error)
-	PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
-	CreateSyncAction(ctx context.Context, info *models.InstanceActionInfo) (*ops.CreateSyncActionNoContent, error)
-	PutMmds(ctx context.Context, metadata interface{}) (*ops.PutMmdsNoContent, error)
-	GetMachineConfig() (*ops.GetMachineConfigOK, error)
-}
 
 // Config is a collection of user-configurable VMM settings
 type Config struct {
@@ -144,7 +131,7 @@ type Machine struct {
 	Handlers Handlers
 
 	cfg           Config
-	client        Firecracker
+	client        *Client
 	cmd           *exec.Cmd
 	logger        *log.Entry
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
@@ -230,7 +217,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	if m.client == nil {
-		m.client = NewFirecrackerClient(cfg.SocketPath, m.logger, cfg.Debug)
+		m.client = NewClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
 	m.cfg = cfg
@@ -532,8 +519,10 @@ func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 		return err
 	}
 
-	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
-	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
+	driveID := StringValue(dev.DriveID)
+	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, driveID, BoolValue(dev.IsRootDevice))
+
+	respNoContent, err := m.client.PutGuestDriveByID(ctx, driveID, &dev)
 	if err == nil {
 		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
 	} else {
@@ -548,6 +537,7 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 		GuestCid: int64(dev.CID),
 		ID:       &dev.Path,
 	}
+
 	resp, _, err := m.client.PutGuestVsockByID(ctx, dev.Path, &vsockCfg)
 	if err != nil {
 		return err
@@ -577,18 +567,13 @@ func (m *Machine) EnableMetadata(metadata interface{}) {
 
 // SetMetadata sets the machine's metadata for MDDS
 func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
-	respnocontent, err := m.client.PutMmds(ctx, metadata)
-
-	if err == nil {
-		var message string
-		if respnocontent != nil {
-			message = respnocontent.Error()
-		}
-		m.logger.Printf("SetMetadata successful: %s", message)
-	} else {
+	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
 		m.logger.Errorf("Setting metadata: %s", err)
+		return err
 	}
-	return err
+
+	m.logger.Printf("SetMetadata successful")
+	return nil
 }
 
 // refreshMachineConfig synchronizes our cached representation of the machine configuration

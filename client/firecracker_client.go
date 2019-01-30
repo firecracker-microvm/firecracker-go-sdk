@@ -116,7 +116,7 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // Firecracker is a client for firecracker
 type Firecracker struct {
-	Operations *operations.Client
+	Operations operations.ClientIface
 
 	Transport runtime.ClientTransport
 }
@@ -125,6 +125,6 @@ type Firecracker struct {
 func (c *Firecracker) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 
-	c.Operations.SetTransport(transport)
+	c.Operations = operations.NewClient(transport, nil)
 
 }
