@@ -220,7 +220,7 @@ func ExampleNetworkInterface_rateLimiting() {
 	}
 }
 
-func ExampleJailer_withBuilder() {
+func ExampleJailerCommandBuilder() {
 	ctx := context.Background()
 	// Creates a jailer command using the JailerCommandBuilder.
 	b := firecracker.NewJailerCommandBuilder().
@@ -264,6 +264,7 @@ func ExampleJailer_withBuilder() {
 		panic(err)
 	}
 
-	tCtx, _ := context.WithTimeout(ctx, time.Minute)
+	tCtx, cancelFn := context.WithTimeout(ctx, time.Minute)
+	defer cancelFn()
 	m.Wait(tCtx)
 }

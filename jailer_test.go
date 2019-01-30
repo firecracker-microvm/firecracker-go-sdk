@@ -116,12 +116,12 @@ func TestJail(t *testing.T) {
 	}
 	cfg := &Config{
 		JailerCfg: JailerConfig{
-			ID:                "test-id",
-			UID:               Int(123),
-			GID:               Int(456),
-			NumaNode:          Int(0),
-			ExecFile:          "/path/to/firecracker",
-			DevMapperStrategy: NewNaiveDevMapperStrategy("path", "kernel-image-path"),
+			ID:             "test-id",
+			UID:            Int(123),
+			GID:            Int(456),
+			NumaNode:       Int(0),
+			ExecFile:       "/path/to/firecracker",
+			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
 		},
 	}
 	jail(context.Background(), m, cfg)

@@ -163,7 +163,7 @@ type NetworkInterface struct {
 	// HostDevName defines the file path of the tap device on the host.
 	HostDevName string
 	// AllowMMDS makes the Firecracker MMDS available on this network interface.
-	AllowMMDS bool
+	AllowMDDS bool
 
 	// InRateLimiter limits the incoming bytes.
 	InRateLimiter *models.RateLimiter
@@ -200,7 +200,9 @@ func (m *Machine) LogLevel() string {
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
-	m := &Machine{}
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
 	logger := log.New()
 
 	if cfg.Debug {
@@ -499,7 +501,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		IfaceID:           &ifaceID,
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
-		AllowMmdsRequests: iface.AllowMMDS,
+		AllowMmdsRequests: iface.AllowMDDS,
 	}
 
 	if iface.InRateLimiter != nil {
@@ -573,18 +575,6 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	}
 
 	m.logger.Printf("SetMetadata successful")
-	return nil
-}
-
-// UpdateGuestDrive will modify the current guest drive of ID index with the new
-// parameters of the partialDrive.
-func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) error {
-	if _, err := m.client.PatchGuestDriveByID(ctx, driveID, pathOnHost, opts...); err != nil {
-		m.logger.Errorf("PatchGuestDrive failed: %v", err)
-		return err
-	}
-
-	m.logger.Printf("PatchGuestDrive successful")
 	return nil
 }
 

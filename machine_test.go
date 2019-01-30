@@ -17,6 +17,8 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -45,6 +47,9 @@ const (
 	tuntapOverrideEnv = "FC_TEST_TAP"
 
 	testDataPathEnv = "FC_TEST_DATA_PATH"
+
+	sudoUID = "SUDO_UID"
+	sudoGID = "SUDO_GID"
 )
 
 var (
@@ -67,12 +72,12 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			Debug: true,
 			JailerCfg: JailerConfig{
-				GID:               Int(100),
-				UID:               Int(100),
-				ID:                "my-micro-vm",
-				NumaNode:          Int(0),
-				ExecFile:          "/path/to/firecracker",
-				DevMapperStrategy: NewNaiveDevMapperStrategy("path", "kernel-image-path"),
+				GID:            Int(100),
+				UID:            Int(100),
+				ID:             "my-micro-vm",
+				NumaNode:       Int(0),
+				ExecFile:       "/path/to/firecracker",
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
 			},
 		})
 	if err != nil {
@@ -95,24 +100,43 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	jailerUID := 123
 	jailerGID := 100
 	var err error
-	if v := os.Getenv("SUDO_UID"); v != "" {
+	if v := os.Getenv(sudoUID); v != "" {
 		if jailerUID, err = strconv.Atoi(v); err != nil {
-			t.Fatalf("Failed to parse 'SUDO_UID'")
+			t.Fatalf("Failed to parse %q", sudoUID)
 		}
 	}
 
-	if v := os.Getenv("SUDO_GID"); v != "" {
+	if v := os.Getenv(sudoGID); v != "" {
 		if jailerGID, err = strconv.Atoi(v); err != nil {
-			t.Fatalf("Failed to parse 'SUDO_GID'")
+			t.Fatalf("Failed to parse %q", sudoGID)
 		}
+	}
+
+	// uses temp directory due to testdata's path being too long which causes a
+	// SUN_LEN error.
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "jailer-test")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+
+	vmlinuxPath := filepath.Join(tmpDir, "vmlinux")
+	if err := copyFile(filepath.Join(testDataPath, "vmlinux"), vmlinuxPath, jailerUID, jailerGID); err != nil {
+		t.Fatalf("Failed to copy the vmlinux file: %v", err)
+	}
+
+	rootdrivePath := filepath.Join(tmpDir, "root-drive.img")
+	if err := copyFile(filepath.Join(testDataPath, "root-drive.img"), rootdrivePath, jailerUID, jailerGID); err != nil {
+		t.Fatalf("Failed to copy the root drive file: %v", err)
 	}
 
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
-	jailerTestPath := filepath.Join(testDataPath, "jailer-test")
-	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", "test-id")
+	// short names and directory to prevent SUN_LEN error
+	id := "b"
+	jailerTestPath := tmpDir
+	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", id)
 	os.MkdirAll(jailerTestPath, 0777)
 
 	socketPath := filepath.Join(jailerTestPath, "firecracker", "api.socket")
@@ -122,42 +146,41 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		os.Remove(socketPath)
 		os.Remove(logFifo)
 		os.Remove(metricsFifo)
-		os.RemoveAll(filepath.Join(jailerTestPath, "firecracker"))
+		os.RemoveAll(tmpDir)
 	}()
 
 	cfg := Config{
+		Debug:           true,
 		SocketPath:      socketPath,
 		LogFifo:         logFifo,
 		MetricsFifo:     metricsFifo,
 		LogLevel:        "Debug",
-		KernelImagePath: filepath.Join(testDataPath, "vmlinux"),
+		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   nCpus,
 			CPUTemplate: cpuTemplate,
 			MemSizeMib:  memSz,
 		},
-		Debug: true,
 		Drives: []models.Drive{
 			models.Drive{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
-				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+				PathOnHost:   String(rootdrivePath),
 			},
 		},
 		JailerCfg: JailerConfig{
-			GID:               Int(jailerGID),
-			UID:               Int(jailerUID),
-			NumaNode:          Int(0),
-			ID:                "test-id",
-			ChrootBaseDir:     jailerTestPath,
-			ExecFile:          getFirecrackerBinaryPath(),
-			DevMapperStrategy: NewNaiveDevMapperStrategy(jailerFullRootPath, filepath.Join(testDataPath, "vmlinux")),
+			GID:            Int(jailerGID),
+			UID:            Int(jailerUID),
+			NumaNode:       Int(0),
+			ID:             id,
+			ChrootBaseDir:  jailerTestPath,
+			ExecFile:       getFirecrackerBinaryPath(),
+			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
 		},
 		EnableJailer: true,
 	}
 
-	vmlinuxPath := filepath.Join(testDataPath, "vmlinux")
 	if _, err := os.Stat(vmlinuxPath); err != nil {
 		t.Fatalf("Cannot find vmlinux file: %s\n"+
 			`Verify that you have a vmlinux file at "%s" or set the `+
@@ -206,6 +229,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		WithID(cfg.JailerCfg.ID).
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithExecFile(cfg.JailerCfg.ExecFile).
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
 		Build(ctx)
 
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
@@ -297,7 +322,6 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
-	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(vmmCtx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
 
 	// Let the VMM start and stabilize...
@@ -442,13 +466,6 @@ func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine, vmlinux
 	err := m.createBootSource(ctx, vmlinuxPath, "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
-	}
-}
-
-func testUpdateGuestDrive(ctx context.Context, t *testing.T, m *Machine) {
-	path := filepath.Join(testDataPath, "drive-3.img")
-	if err := m.UpdateGuestDrive(ctx, "2", path); err != nil {
-		t.Errorf("unexpected error on swapping guest drive: %v", err)
 	}
 }
 
@@ -721,4 +738,28 @@ func TestCaptureFifoToFile(t *testing.T) {
 	if _, err := os.Stat(fifoLogPath); err != nil {
 		t.Errorf("Failed to stat file: %v", err)
 	}
+}
+
+func copyFile(src, dst string, uid, gid int) error {
+	srcFd, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFd.Close()
+
+	dstFd, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFd.Close()
+
+	if _, err = io.Copy(dstFd, srcFd); err != nil {
+		return err
+	}
+
+	if err := os.Chown(dst, uid, gid); err != nil {
+		return err
+	}
+
+	return nil
 }

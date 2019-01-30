@@ -1,4 +1,4 @@
-// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"). You may
 // not use this file except in compliance with the License. A copy of the
@@ -34,8 +34,8 @@ const (
 	ValidateJailerCfgHandlerName = "validate.JailerCfg"
 )
 
-// HandlersAdaptor is an interface used to modify a given set of handlers.
-type HandlersAdaptor interface {
+// HandlersAdapter is an interface used to modify a given set of handlers.
+type HandlersAdapter interface {
 	AdaptHandlers(*Handlers) error
 }
 
@@ -70,8 +70,8 @@ var JailerConfigValidationHandler = Handler{
 			return fmt.Errorf("A root drive must be present in the drive list")
 		}
 
-		if m.cfg.JailerCfg.DevMapperStrategy == nil {
-			return fmt.Errorf("DevMapperStrategy cannot be nil")
+		if m.cfg.JailerCfg.ChrootStrategy == nil {
+			return fmt.Errorf("ChrootStrategy cannot be nil")
 		}
 
 		if len(m.cfg.JailerCfg.ExecFile) == 0 {

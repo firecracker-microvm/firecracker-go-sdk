@@ -1,4 +1,4 @@
-// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"). You may
 // not use this file except in compliance with the License. A copy of the
@@ -14,28 +14,32 @@
 package fctesting
 
 import (
-	"flag"
 	"os"
 	"testing"
 )
 
+const rootDisableEnvName = "DISABLE_ROOT_TESTS"
+
 var rootDisabled bool
 
 func init() {
-	flag.BoolVar(&rootDisabled, "test.root-disable", false, "Disables tests that require root")
+	if v := os.Getenv(rootDisableEnvName); len(v) != 0 {
+		rootDisabled = true
+	}
 }
 
 // RequiresRoot will ensure that tests that require root access are actually
-// root. In addition, this will skip root tests if the test.root-disable is set
-// to true
+// root. In addition, this will skip root tests if the DISABLE_ROOT_TESTS is
+// set to true
 func RequiresRoot(t testing.TB) {
 	if rootDisabled {
 		t.Skip("skipping test that requires root")
 	}
 
 	if e, a := 0, os.Getuid(); e != a {
-		t.Fatal("This test must be run as root. " +
-			"To disable tests that require root, " +
-			"run the tests with the -test.root-disable flag.")
+		t.Fatalf("This test must be run as root. "+
+			"To disable tests that require root, "+
+			"run the tests with the %s environment variable set.",
+			rootDisableEnvName)
 	}
 }

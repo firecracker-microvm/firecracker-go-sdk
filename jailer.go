@@ -24,6 +24,8 @@ import (
 )
 
 const (
+	// defaultJailerPath is the default chroot base directory that the jailer
+	// will use if no other base directory was provided.
 	defaultJailerPath = "/srv/jailer/firecracker"
 	defaultJailerBin  = "jailer"
 
@@ -85,8 +87,8 @@ type JailerConfig struct {
 	//			parameters of the allowed syscalls.
 	SeccompLevel SeccompLevelValue
 
-	// DevMapperStrategy will dictate how files are transfered to the root drive.
-	DevMapperStrategy HandlersAdaptor
+	// ChrootStrategy will dictate how files are transfered to the root drive.
+	ChrootStrategy HandlersAdapter
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -302,7 +304,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithStderr(os.Stderr).
 		Build(ctx)
 
-	if err := cfg.JailerCfg.DevMapperStrategy.AdaptHandlers(&m.Handlers); err != nil {
+	if err := cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers); err != nil {
 		return err
 	}
 
@@ -354,16 +356,16 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 	}
 }
 
-// NaiveDevMapperStrategy will simply hard link all files, drives and kernel
+// NaiveChrootStrategy will simply hard link all files, drives and kernel
 // image, to the root drive.
-type NaiveDevMapperStrategy struct {
+type NaiveChrootStrategy struct {
 	Rootfs          string
 	KernelImagePath string
 }
 
-// NewNaiveDevMapperStrategy returns a new NaivceDevMapperStrategy
-func NewNaiveDevMapperStrategy(rootfs, kernelImagePath string) NaiveDevMapperStrategy {
-	return NaiveDevMapperStrategy{
+// NewNaiveChrootStrategy returns a new NaivceChrootStrategy
+func NewNaiveChrootStrategy(rootfs, kernelImagePath string) NaiveChrootStrategy {
+	return NaiveChrootStrategy{
 		Rootfs:          rootfs,
 		KernelImagePath: kernelImagePath,
 	}
@@ -374,7 +376,7 @@ func NewNaiveDevMapperStrategy(rootfs, kernelImagePath string) NaiveDevMapperStr
 var ErrCreateMachineHandlerMissing = fmt.Errorf("%s is missing from FcInit's list", CreateMachineHandlerName)
 
 // AdaptHandlers will inject the LinkFilesHandler into the handler list.
-func (s NaiveDevMapperStrategy) AdaptHandlers(handlers *Handlers) error {
+func (s NaiveChrootStrategy) AdaptHandlers(handlers *Handlers) error {
 	if !handlers.FcInit.Has(CreateMachineHandlerName) {
 		return ErrCreateMachineHandlerMissing
 	}
