@@ -189,17 +189,17 @@ type VsockDevice struct {
 
 // SocketPath returns the filesystem path to the socket used for VMM
 // communication
-func (m Machine) socketPath() string {
+func (m *Machine) socketPath() string {
 	return m.cfg.SocketPath
 }
 
 // LogFile returns the filesystem path of the VMM log
-func (m Machine) LogFile() string {
+func (m *Machine) LogFile() string {
 	return m.cfg.LogFifo
 }
 
 // LogLevel returns the VMM log level.
-func (m Machine) LogLevel() string {
+func (m *Machine) LogLevel() string {
 	return m.cfg.LogLevel
 }
 

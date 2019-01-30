@@ -111,7 +111,7 @@ func ExampleDrivesBuilder() {
 	}
 }
 
-func ExampleDrivesBuilder_DriveOpt() {
+func ExampleDrivesBuilder_driveOpt() {
 	drives := firecracker.NewDrivesBuilder("/path/to/rootfs").
 		AddDrive("/path/to/drive1.img", true).
 		AddDrive("/path/to/drive2.img", false, func(drive *models.Drive) {
@@ -153,7 +153,7 @@ func ExampleDrivesBuilder_DriveOpt() {
 	}
 }
 
-func ExampleNetworkInterfaces_RateLimiting() {
+func ExampleNetworkInterface_rateLimiting() {
 	// construct the limitations of the bandwidth for firecracker
 	bandwidthBuilder := firecracker.TokenBucketBuilder{}.
 		WithInitialSize(1024 * 1024).        // Initial token amount
