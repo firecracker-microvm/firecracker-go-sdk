@@ -576,6 +576,18 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	return nil
 }
 
+// UpdateGuestDrive will modify the current guest drive of ID index with the new
+// parameters of the partialDrive.
+func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) error {
+	if _, err := m.client.PatchGuestDriveByID(ctx, driveID, pathOnHost, opts...); err != nil {
+		m.logger.Errorf("PatchGuestDrive failed: %v", err)
+		return err
+	}
+
+	m.logger.Printf("PatchGuestDrive successful")
+	return nil
+}
+
 // refreshMachineConfig synchronizes our cached representation of the machine configuration
 // with that reported by the Firecracker API
 func (m *Machine) refreshMachineConfig() error {
