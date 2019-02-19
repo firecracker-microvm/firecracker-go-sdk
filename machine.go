@@ -156,7 +156,7 @@ type NetworkInterface struct {
 	// HostDevName defines the file path of the tap device on the host.
 	HostDevName string
 	// AllowMMDS makes the Firecracker MMDS available on this network interface.
-	AllowMDDS bool
+	AllowMMDS bool
 
 	// InRateLimiter limits the incoming bytes.
 	InRateLimiter *models.RateLimiter
@@ -490,7 +490,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		IfaceID:           &ifaceID,
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
-		AllowMmdsRequests: iface.AllowMDDS,
+		AllowMmdsRequests: iface.AllowMMDS,
 	}
 
 	if iface.InRateLimiter != nil {
