@@ -1,6 +1,8 @@
 A basic Go interface to the Firecracker API
 ====
 
+[![Build status](https://badge.buildkite.com/de08ca676829bedbf6de040c2c2ba1a5d2892e220997c2abdd.svg)](https://buildkite.com/firecracker-microvm/firecracker-go-sdk)
+
 This package is a Go library to interact with the Firecracker API. It
 is designed as an abstraction of the OpenAPI-generated client that
 allows for convenient manipulation of Firecracker VM from Go programs.
