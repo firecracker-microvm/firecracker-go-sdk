@@ -20,19 +20,20 @@ import (
 )
 
 type MockClient struct {
-	GetMachineConfigFn             func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error)
-	GetMmdsFn                      func(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error)
-	PatchMmdsFn                    func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
-	PutMmdsFn                      func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error)
-	CreateSyncActionFn             func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
-	DescribeInstanceFn             func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
-	PatchGuestDriveByIDFn          func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
-	PutGuestBootSourceFn           func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
-	PutGuestDriveByIDFn            func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error)
-	PutGuestNetworkInterfaceByIDFn func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
-	PutGuestVsockByIDFn            func(params *ops.PutGuestVsockByIDParams) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
-	PutLoggerFn                    func(params *ops.PutLoggerParams) (*ops.PutLoggerNoContent, error)
-	PutMachineConfigurationFn      func(params *ops.PutMachineConfigurationParams) (*ops.PutMachineConfigurationNoContent, error)
+	GetMachineConfigFn               func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error)
+	GetMmdsFn                        func(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error)
+	PatchMmdsFn                      func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
+	PutMmdsFn                        func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error)
+	CreateSyncActionFn               func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
+	DescribeInstanceFn               func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
+	PatchGuestDriveByIDFn            func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
+	PatchGuestNetworkInterfaceByIDFn func(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error)
+	PutGuestBootSourceFn             func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
+	PutGuestDriveByIDFn              func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error)
+	PutGuestNetworkInterfaceByIDFn   func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
+	PutGuestVsockByIDFn              func(params *ops.PutGuestVsockByIDParams) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error)
+	PutLoggerFn                      func(params *ops.PutLoggerParams) (*ops.PutLoggerNoContent, error)
+	PutMachineConfigurationFn        func(params *ops.PutMachineConfigurationParams) (*ops.PutMachineConfigurationNoContent, error)
 }
 
 func (c *MockClient) GetMachineConfig(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
@@ -86,6 +87,14 @@ func (c *MockClient) DescribeInstance(params *ops.DescribeInstanceParams) (*ops.
 func (c *MockClient) PatchGuestDriveByID(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error) {
 	if c.PatchGuestDriveByIDFn != nil {
 		return c.PatchGuestDriveByIDFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PatchGuestNetworkInterfaceByID(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error) {
+	if c.PatchGuestNetworkInterfaceByIDFn != nil {
+		return c.PatchGuestNetworkInterfaceByIDFn(params)
 	}
 
 	return nil, nil

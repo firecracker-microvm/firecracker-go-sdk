@@ -246,6 +246,36 @@ func (a *Client) PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchG
 }
 
 /*
+PatchGuestNetworkInterfaceByID updates the rate limiters applied to a network interface
+
+Updates the rate limiters applied to a network interface.
+*/
+func (a *Client) PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPatchGuestNetworkInterfaceByIDParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "patchGuestNetworkInterfaceByID",
+		Method:             "PATCH",
+		PathPattern:        "/network-interfaces/{iface_id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PatchGuestNetworkInterfaceByIDReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PatchGuestNetworkInterfaceByIDNoContent), nil
+
+}
+
+/*
 PutGuestBootSource creates or updates the boot source
 
 Creates new boot source if one does not already exist, otherwise updates it. Will fail if update is not possible. Note that the only currently supported boot source is LocalImage.
@@ -308,7 +338,7 @@ func (a *Client) PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDr
 /*
 PutGuestNetworkInterfaceByID creates a network interface
 
-Creates new network interface with ID specified by iface_id path parameter. Updating existing interfaces is currently not allowed.
+Creates new network interface with ID specified by iface_id path parameter.
 */
 func (a *Client) PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error) {
 	// TODO: Validate the params before sending
@@ -444,6 +474,7 @@ type ClientIface interface {
 	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
 	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
 	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
+	PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error)
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
 	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)

@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
 // MachineConfiguration Describes the number of vCPUs, memory size, Hyperthreading capabilities and the CPU template.
@@ -39,6 +40,8 @@ type MachineConfiguration struct {
 	MemSizeMib int64 `json:"mem_size_mib,omitempty"`
 
 	// Number of vCPUs (either 1 or an even number)
+	// Maximum: 32
+	// Minimum: 1
 	VcpuCount int64 `json:"vcpu_count,omitempty"`
 }
 
@@ -47,6 +50,10 @@ func (m *MachineConfiguration) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateCPUTemplate(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateVcpuCount(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -66,6 +73,23 @@ func (m *MachineConfiguration) validateCPUTemplate(formats strfmt.Registry) erro
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("cpu_template")
 		}
+		return err
+	}
+
+	return nil
+}
+
+func (m *MachineConfiguration) validateVcpuCount(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.VcpuCount) { // not required
+		return nil
+	}
+
+	if err := validate.MinimumInt("vcpu_count", "body", int64(m.VcpuCount), 1, false); err != nil {
+		return err
+	}
+
+	if err := validate.MaximumInt("vcpu_count", "body", int64(m.VcpuCount), 32, false); err != nil {
 		return err
 	}
 

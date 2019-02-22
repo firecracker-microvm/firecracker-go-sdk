@@ -28,29 +28,55 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// InstanceInfo instance info
+// InstanceInfo Describes MicroVM instance information.
 // swagger:model InstanceInfo
 type InstanceInfo struct {
 
 	// MicroVM / instance ID.
-	ID string `json:"id,omitempty"`
+	// Required: true
+	// Read Only: true
+	ID string `json:"id"`
 
 	// The current detailed state of the Firecracker instance. This value is read-only for the control-plane.
+	// Required: true
+	// Read Only: true
 	// Enum: [Uninitialized Starting Running Halting Halted]
-	State string `json:"state,omitempty"`
+	State string `json:"state"`
+
+	// MicroVM hypervisor build version.
+	// Required: true
+	// Read Only: true
+	VmmVersion string `json:"vmm_version"`
 }
 
 // Validate validates this instance info
 func (m *InstanceInfo) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateID(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateVmmVersion(formats); err != nil {
 		res = append(res, err)
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *InstanceInfo) validateID(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("id", "body", string(m.ID)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -94,12 +120,21 @@ func (m *InstanceInfo) validateStateEnum(path, location string, value string) er
 
 func (m *InstanceInfo) validateState(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.State) { // not required
-		return nil
+	if err := validate.RequiredString("state", "body", string(m.State)); err != nil {
+		return err
 	}
 
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *InstanceInfo) validateVmmVersion(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("vmm_version", "body", string(m.VmmVersion)); err != nil {
 		return err
 	}
 

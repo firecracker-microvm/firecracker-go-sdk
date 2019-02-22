@@ -35,12 +35,14 @@ type TokenBucket struct {
 	OneTimeBurst *int64 `json:"one_time_burst,omitempty"`
 
 	// The amount of milliseconds it takes for the bucket to refill.
+	// Required: true
 	// Minimum: 0
-	RefillTime *int64 `json:"refill_time,omitempty"`
+	RefillTime *int64 `json:"refill_time"`
 
 	// The total number of tokens this bucket can hold.
+	// Required: true
 	// Minimum: 0
-	Size *int64 `json:"size,omitempty"`
+	Size *int64 `json:"size"`
 }
 
 // Validate validates this token bucket
@@ -80,8 +82,8 @@ func (m *TokenBucket) validateOneTimeBurst(formats strfmt.Registry) error {
 
 func (m *TokenBucket) validateRefillTime(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.RefillTime) { // not required
-		return nil
+	if err := validate.Required("refill_time", "body", m.RefillTime); err != nil {
+		return err
 	}
 
 	if err := validate.MinimumInt("refill_time", "body", int64(*m.RefillTime), 0, false); err != nil {
@@ -93,8 +95,8 @@ func (m *TokenBucket) validateRefillTime(formats strfmt.Registry) error {
 
 func (m *TokenBucket) validateSize(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.Size) { // not required
-		return nil
+	if err := validate.Required("size", "body", m.Size); err != nil {
+		return err
 	}
 
 	if err := validate.MinimumInt("size", "body", int64(*m.Size), 0, false); err != nil {

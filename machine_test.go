@@ -325,6 +325,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(vmmCtx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
@@ -333,7 +334,6 @@ func TestMicroVMExecution(t *testing.T) {
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
 	}
-	t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
 	m.Wait(vmmCtx)
 }
 
@@ -353,9 +353,7 @@ func TestStartVMM(t *testing.T) {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
 
-	defer m.StopVMM()
 	m.Handlers.Validation = m.Handlers.Validation.Clear()
-
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
 	err = m.startVMM(timeout)
@@ -396,7 +394,6 @@ func TestStartVMMOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer m.StopVMM()
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()

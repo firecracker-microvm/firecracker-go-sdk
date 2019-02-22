@@ -408,11 +408,12 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	m.logger.Debug("Created metrics and logging fifos.")
 
 	l := models.Logger{
-		LogFifo:       m.cfg.LogFifo,
-		Level:         m.cfg.LogLevel,
-		MetricsFifo:   m.cfg.MetricsFifo,
-		ShowLevel:     true,
-		ShowLogOrigin: false,
+		LogFifo:       String(m.cfg.LogFifo),
+		Level:         String(m.cfg.LogLevel),
+		MetricsFifo:   String(m.cfg.MetricsFifo),
+		ShowLevel:     Bool(true),
+		ShowLogOrigin: Bool(false),
+		Options:       []string{},
 	}
 
 	_, err := m.client.PutLogger(ctx, &l)
@@ -500,7 +501,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	ifaceCfg := models.NetworkInterface{
 		IfaceID:           &ifaceID,
 		GuestMac:          iface.MacAddress,
-		HostDevName:       iface.HostDevName,
+		HostDevName:       String(iface.HostDevName),
 		AllowMmdsRequests: iface.AllowMMDS,
 	}
 

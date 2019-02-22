@@ -26,19 +26,9 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// NetworkInterface Defines a network interface.
-// swagger:model NetworkInterface
-type NetworkInterface struct {
-
-	// If this field is set, the device model will reply to HTTP GET requests sent to the MMDS address via this interface. In this case, both ARP requests for 169.254.169.254 and TCP segments heading to the same address are intercepted by the device model, and do not reach the associated TAP device.
-	AllowMmdsRequests bool `json:"allow_mmds_requests,omitempty"`
-
-	// guest mac
-	GuestMac string `json:"guest_mac,omitempty"`
-
-	// Host level path for the guest network interface
-	// Required: true
-	HostDevName *string `json:"host_dev_name"`
+// PartialNetworkInterface Defines a partial network interface structure, used to update the rate limiters for that interface, after microvm start.
+// swagger:model PartialNetworkInterface
+type PartialNetworkInterface struct {
 
 	// iface id
 	// Required: true
@@ -51,13 +41,9 @@ type NetworkInterface struct {
 	TxRateLimiter *RateLimiter `json:"tx_rate_limiter,omitempty"`
 }
 
-// Validate validates this network interface
-func (m *NetworkInterface) Validate(formats strfmt.Registry) error {
+// Validate validates this partial network interface
+func (m *PartialNetworkInterface) Validate(formats strfmt.Registry) error {
 	var res []error
-
-	if err := m.validateHostDevName(formats); err != nil {
-		res = append(res, err)
-	}
 
 	if err := m.validateIfaceID(formats); err != nil {
 		res = append(res, err)
@@ -77,16 +63,7 @@ func (m *NetworkInterface) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *NetworkInterface) validateHostDevName(formats strfmt.Registry) error {
-
-	if err := validate.Required("host_dev_name", "body", m.HostDevName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *NetworkInterface) validateIfaceID(formats strfmt.Registry) error {
+func (m *PartialNetworkInterface) validateIfaceID(formats strfmt.Registry) error {
 
 	if err := validate.Required("iface_id", "body", m.IfaceID); err != nil {
 		return err
@@ -95,7 +72,7 @@ func (m *NetworkInterface) validateIfaceID(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *NetworkInterface) validateRxRateLimiter(formats strfmt.Registry) error {
+func (m *PartialNetworkInterface) validateRxRateLimiter(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.RxRateLimiter) { // not required
 		return nil
@@ -113,7 +90,7 @@ func (m *NetworkInterface) validateRxRateLimiter(formats strfmt.Registry) error 
 	return nil
 }
 
-func (m *NetworkInterface) validateTxRateLimiter(formats strfmt.Registry) error {
+func (m *PartialNetworkInterface) validateTxRateLimiter(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.TxRateLimiter) { // not required
 		return nil
@@ -132,7 +109,7 @@ func (m *NetworkInterface) validateTxRateLimiter(formats strfmt.Registry) error 
 }
 
 // MarshalBinary interface implementation
-func (m *NetworkInterface) MarshalBinary() ([]byte, error) {
+func (m *PartialNetworkInterface) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -140,8 +117,8 @@ func (m *NetworkInterface) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary interface implementation
-func (m *NetworkInterface) UnmarshalBinary(b []byte) error {
-	var res NetworkInterface
+func (m *PartialNetworkInterface) UnmarshalBinary(b []byte) error {
+	var res PartialNetworkInterface
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
