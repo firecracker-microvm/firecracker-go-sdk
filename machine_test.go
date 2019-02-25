@@ -70,7 +70,8 @@ func TestNewMachine(t *testing.T) {
 	m, err := NewMachine(
 		context.Background(),
 		Config{
-			Debug: true,
+			Debug:             true,
+			DisableValidation: true,
 			JailerCfg: JailerConfig{
 				GID:            Int(100),
 				UID:            Int(100),
@@ -322,6 +323,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(vmmCtx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
 
 	// Let the VMM start and stabilize...
@@ -466,6 +468,13 @@ func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine, vmlinux
 	err := m.createBootSource(ctx, vmlinuxPath, "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
+	}
+}
+
+func testUpdateGuestDrive(ctx context.Context, t *testing.T, m *Machine) {
+	path := filepath.Join(testDataPath, "drive-3.img")
+	if err := m.UpdateGuestDrive(ctx, "2", path); err != nil {
+		t.Errorf("unexpected error on swapping guest drive: %v", err)
 	}
 }
 
