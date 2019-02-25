@@ -228,27 +228,3 @@ func (f *Client) GetMachineConfig(opts ...GetMachineConfigOpt) (*ops.GetMachineC
 
 	return f.client.Operations.GetMachineConfig(p)
 }
-
-// PatchGuestDriveByIDOpt is a functional option to be used for the PutMmds API in setting
-// any additional optional fields.
-type PatchGuestDriveByIDOpt func(*ops.PatchGuestDriveByIDParams)
-
-// PatchGuestDriveByID is a wrapper for the swagger generated client to make calling of the
-// API easier.
-func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) (*ops.PatchGuestDriveByIDNoContent, error) {
-	params := ops.NewPatchGuestDriveByIDParams()
-	params.SetContext(ctx)
-
-	partialDrive := models.PartialDrive{
-		DriveID:    &driveID,
-		PathOnHost: &pathOnHost,
-	}
-	params.SetBody(&partialDrive)
-	params.DriveID = driveID
-
-	for _, opt := range opts {
-		opt(params)
-	}
-
-	return f.client.Operations.PatchGuestDriveByID(params)
-}

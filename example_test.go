@@ -19,6 +19,13 @@ func ExampleWithProcessRunner_logging() {
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount: 1,
 		},
+		JailerCfg: firecracker.JailerConfig{
+			GID:      firecracker.Int(100),
+			UID:      firecracker.Int(100),
+			ID:       "my-micro-vm",
+			NumaNode: firecracker.Int(0),
+			ExecFile: "/path/to/firecracker",
+		},
 	}
 
 	// stdout will be directed to this file
@@ -211,4 +218,53 @@ func ExampleNetworkInterface_rateLimiting() {
 	if err := m.Wait(ctx); err != nil {
 		panic(err)
 	}
+}
+
+func ExampleJailerCommandBuilder() {
+	ctx := context.Background()
+	// Creates a jailer command using the JailerCommandBuilder.
+	b := firecracker.NewJailerCommandBuilder().
+		WithID("my-test-id").
+		WithUID(123).
+		WithGID(100).
+		WithNumaNode(0).
+		WithExecFile("/usr/local/bin/firecracker").
+		WithChrootBaseDir("/tmp").
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr)
+
+	const socketPath = "/tmp/firecracker/my-test-id/api.socket"
+	cfg := firecracker.Config{
+		SocketPath:      socketPath,
+		KernelImagePath: "./vmlinux",
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      firecracker.String("1"),
+				IsRootDevice: firecracker.Bool(true),
+				IsReadOnly:   firecracker.Bool(false),
+				PathOnHost:   firecracker.String("/path/to/root/drive"),
+			},
+		},
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount: 1,
+		},
+		DisableValidation: true,
+	}
+
+	// Passes the custom jailer command into the constructor
+	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	if err != nil {
+		panic(fmt.Errorf("failed to create new machine: %v", err))
+	}
+
+	// This does not copy any of the files over to the rootfs since a process
+	// runner was specified. This examples assumes that the files have been
+	// properly mounted.
+	if err := m.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	tCtx, cancelFn := context.WithTimeout(ctx, time.Minute)
+	defer cancelFn()
+	m.Wait(tCtx)
 }
