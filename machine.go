@@ -200,10 +200,6 @@ func (m *Machine) LogLevel() string {
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
@@ -506,6 +502,14 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		GuestMac:          iface.MacAddress,
 		HostDevName:       iface.HostDevName,
 		AllowMmdsRequests: iface.AllowMMDS,
+	}
+
+	if iface.InRateLimiter != nil {
+		ifaceCfg.RxRateLimiter = iface.InRateLimiter
+	}
+
+	if iface.OutRateLimiter != nil {
+		ifaceCfg.TxRateLimiter = iface.OutRateLimiter
 	}
 
 	if iface.InRateLimiter != nil {

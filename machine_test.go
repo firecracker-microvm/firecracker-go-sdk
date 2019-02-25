@@ -151,6 +151,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}()
 
 	cfg := Config{
+		Debug:           true,
 		SocketPath:      socketPath,
 		LogFifo:         logFifo,
 		MetricsFifo:     metricsFifo,
@@ -340,8 +341,7 @@ func TestStartVMM(t *testing.T) {
 	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
-		SocketPath:        socketPath,
-		DisableValidation: true,
+		SocketPath: socketPath,
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
