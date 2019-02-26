@@ -17,10 +17,13 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -38,15 +41,21 @@ const (
 	firecrackerBinaryPath        = "firecracker"
 	firecrackerBinaryOverrideEnv = "FC_TEST_BIN"
 
+	defaultJailerBinary = "jailer"
+
 	defaultTuntapName = "fc-test-tap0"
 	tuntapOverrideEnv = "FC_TEST_TAP"
 
 	testDataPathEnv = "FC_TEST_DATA_PATH"
+
+	sudoUID = "SUDO_UID"
+	sudoGID = "SUDO_GID"
 )
 
-var testDataPath = "./testdata"
-
-var skipTuntap bool
+var (
+	skipTuntap   bool
+	testDataPath = "./testdata"
+)
 
 func init() {
 	flag.BoolVar(&skipTuntap, "test.skip-tuntap", false, "Disables tests that require a tuntap device")
@@ -63,14 +72,181 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			Debug:             true,
 			DisableValidation: true,
+			JailerCfg: JailerConfig{
+				GID:            Int(100),
+				UID:            Int(100),
+				ID:             "my-micro-vm",
+				NumaNode:       Int(0),
+				ExecFile:       "/path/to/firecracker",
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+			},
 		})
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("failed to create new machine: %v", err)
 	}
+
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	if m == nil {
 		t.Errorf("NewMachine did not create a Machine")
 	}
+}
+
+func TestJailerMicroVMExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	fctesting.RequiresRoot(t)
+
+	jailerUID := 123
+	jailerGID := 100
+	var err error
+	if v := os.Getenv(sudoUID); v != "" {
+		if jailerUID, err = strconv.Atoi(v); err != nil {
+			t.Fatalf("Failed to parse %q", sudoUID)
+		}
+	}
+
+	if v := os.Getenv(sudoGID); v != "" {
+		if jailerGID, err = strconv.Atoi(v); err != nil {
+			t.Fatalf("Failed to parse %q", sudoGID)
+		}
+	}
+
+	// uses temp directory due to testdata's path being too long which causes a
+	// SUN_LEN error.
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "jailer-test")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+
+	vmlinuxPath := filepath.Join(tmpDir, "vmlinux")
+	if err := copyFile(filepath.Join(testDataPath, "vmlinux"), vmlinuxPath, jailerUID, jailerGID); err != nil {
+		t.Fatalf("Failed to copy the vmlinux file: %v", err)
+	}
+
+	rootdrivePath := filepath.Join(tmpDir, "root-drive.img")
+	if err := copyFile(filepath.Join(testDataPath, "root-drive.img"), rootdrivePath, jailerUID, jailerGID); err != nil {
+		t.Fatalf("Failed to copy the root drive file: %v", err)
+	}
+
+	var nCpus int64 = 2
+	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
+	var memSz int64 = 256
+
+	// short names and directory to prevent SUN_LEN error
+	id := "b"
+	jailerTestPath := tmpDir
+	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", id)
+	os.MkdirAll(jailerTestPath, 0777)
+
+	socketPath := filepath.Join(jailerTestPath, "firecracker", "api.socket")
+	logFifo := filepath.Join(testDataPath, "firecracker.log")
+	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
+	defer func() {
+		os.Remove(socketPath)
+		os.Remove(logFifo)
+		os.Remove(metricsFifo)
+		os.RemoveAll(tmpDir)
+	}()
+
+	cfg := Config{
+		Debug:           true,
+		SocketPath:      socketPath,
+		LogFifo:         logFifo,
+		MetricsFifo:     metricsFifo,
+		LogLevel:        "Debug",
+		KernelImagePath: vmlinuxPath,
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   nCpus,
+			CPUTemplate: cpuTemplate,
+			MemSizeMib:  memSz,
+		},
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      String("1"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(rootdrivePath),
+			},
+		},
+		JailerCfg: JailerConfig{
+			GID:            Int(jailerGID),
+			UID:            Int(jailerUID),
+			NumaNode:       Int(0),
+			ID:             id,
+			ChrootBaseDir:  jailerTestPath,
+			ExecFile:       getFirecrackerBinaryPath(),
+			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
+		},
+		EnableJailer: true,
+	}
+
+	if _, err := os.Stat(vmlinuxPath); err != nil {
+		t.Fatalf("Cannot find vmlinux file: %s\n"+
+			`Verify that you have a vmlinux file at "%s" or set the `+
+			"`%s` environment variable to the correct location.",
+			err, vmlinuxPath, testDataPathEnv)
+	}
+
+	kernelImageInfo := syscall.Stat_t{}
+	if err := syscall.Stat(cfg.KernelImagePath, &kernelImageInfo); err != nil {
+		t.Fatalf("Failed to stat kernel image: %v", err)
+	}
+
+	if kernelImageInfo.Uid != uint32(jailerUID) || kernelImageInfo.Gid != uint32(jailerGID) {
+		t.Fatalf("Kernel image does not have the proper UID or GID.\n"+
+			"To fix this simply run:\n"+
+			"sudo chown %d:%d %s",
+			jailerUID, jailerGID, cfg.KernelImagePath)
+	}
+
+	for _, drive := range cfg.Drives {
+		driveImageInfo := syscall.Stat_t{}
+		drivePath := StringValue(drive.PathOnHost)
+		if err := syscall.Stat(drivePath, &driveImageInfo); err != nil {
+			t.Fatalf("Failed to stat kernel image: %v", err)
+		}
+
+		if driveImageInfo.Uid != uint32(jailerUID) || kernelImageInfo.Gid != uint32(jailerGID) {
+			t.Fatalf("Drive does not have the proper UID or GID.\n"+
+				"To fix this simply run:\n"+
+				"sudo chown %d:%d %s",
+				jailerUID, jailerGID, drivePath)
+		}
+	}
+
+	jailerBin := defaultJailerBinary
+	if _, err := os.Stat(filepath.Join(testDataPath, defaultJailerBinary)); err == nil {
+		jailerBin = filepath.Join(testDataPath, defaultJailerBinary)
+	}
+
+	ctx := context.Background()
+	cmd := NewJailerCommandBuilder().
+		WithBin(jailerBin).
+		WithGID(IntValue(cfg.JailerCfg.GID)).
+		WithUID(IntValue(cfg.JailerCfg.UID)).
+		WithNumaNode(IntValue(cfg.JailerCfg.NumaNode)).
+		WithID(cfg.JailerCfg.ID).
+		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
+		WithExecFile(cfg.JailerCfg.ExecFile).
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		Build(ctx)
+
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	if err != nil {
+		t.Fatalf("failed to create new machine: %v", err)
+	}
+
+	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer vmmCancel()
+
+	if err := m.Start(vmmCtx); err != nil {
+		t.Errorf("Failed to start VMM: %v", err)
+	}
+
+	m.StopVMM()
 }
 
 func TestMicroVMExecution(t *testing.T) {
@@ -114,8 +290,10 @@ func TestMicroVMExecution(t *testing.T) {
 
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	if err != nil {
-		t.Fatalf("unexpectd error: %v", err)
+		t.Fatalf("failed to create new machine: %v", err)
 	}
+
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
@@ -163,8 +341,7 @@ func TestStartVMM(t *testing.T) {
 	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
-		SocketPath:        socketPath,
-		DisableValidation: true,
+		SocketPath: socketPath,
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
@@ -173,9 +350,11 @@ func TestStartVMM(t *testing.T) {
 		Build(ctx)
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("failed to create new machine: %v", err)
 	}
+
 	defer m.StopVMM()
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer cancel()
@@ -511,7 +690,7 @@ func TestLogFiles(t *testing.T) {
 		WithProcessRunner(cmd),
 	)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("failed to create new machine: %v", err)
 	}
 	defer m.StopVMM()
 
@@ -568,4 +747,28 @@ func TestCaptureFifoToFile(t *testing.T) {
 	if _, err := os.Stat(fifoLogPath); err != nil {
 		t.Errorf("Failed to stat file: %v", err)
 	}
+}
+
+func copyFile(src, dst string, uid, gid int) error {
+	srcFd, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFd.Close()
+
+	dstFd, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFd.Close()
+
+	if _, err = io.Copy(dstFd, srcFd); err != nil {
+		return err
+	}
+
+	if err := os.Chown(dst, uid, gid); err != nil {
+		return err
+	}
+
+	return nil
 }

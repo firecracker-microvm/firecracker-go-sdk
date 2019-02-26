@@ -6,13 +6,17 @@ Testing
 
 Tests are written using Go's testing framework and can be run with the standard
 `go test` tool.  If you prefer to use the Makefile, `make test EXTRAGOARGS=-v`
-will run tests in verbose mode.
+will run tests in verbose mode. By default, the unit tests require root
+privileged access. This can be disabled by setting the `DISABLE_ROOT_TESTS`
+environment variable.
 
 You need some external resources in order to run the tests, as described below:
 
-1. A firecracker binary (tested with 0.10.1), but any recent version should
-   work.  Must either be installed as `./testdata/firecracker` or the path must
-   be specified through the `FC_TEST_BIN` environment variable.
+1. A firecracker and jailer binary (tested with 0.12.0) must either be
+   installed as `./testdata/firecracker` or the path must be specified through
+   the `FC_TEST_BIN` environment variable. The jailer requires go test to be
+   run with sudo and can also be turned off by setting the `DISABLE_ROOT_TESTS`
+   env flag.
 2. Access to hardware virtualization via `/dev/kvm` and `/dev/vhost-vsock`
    (ensure you have mode `+rw`!)
 3. An uncompressed Linux kernel binary that can boot in Firecracker VM (Must be
