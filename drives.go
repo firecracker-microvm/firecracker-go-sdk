@@ -6,7 +6,7 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
-const rootDriveName = "root-drive"
+const rootDriveName = "root_drive"
 
 // DrivesBuilder is a builder that will build an array of drives used to set up
 // the firecracker microVM. The DriveID will be an incrementing number starting

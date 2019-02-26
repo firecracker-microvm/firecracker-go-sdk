@@ -33,8 +33,10 @@ import (
 type InstanceActionInfo struct {
 
 	// Enumeration indicating what type of action is contained in the payload
-	// Enum: [BlockDeviceRescan InstanceStart InstanceHalt]
-	ActionType string `json:"action_type,omitempty"`
+	// Required: true
+	// Read Only: true
+	// Enum: [BlockDeviceRescan FlushMetrics InstanceStart SendCtrlAltDel]
+	ActionType string `json:"action_type"`
 
 	// payload
 	Payload string `json:"payload,omitempty"`
@@ -58,7 +60,7 @@ var instanceActionInfoTypeActionTypePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["BlockDeviceRescan","InstanceStart","InstanceHalt"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["BlockDeviceRescan","FlushMetrics","InstanceStart","SendCtrlAltDel"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -71,11 +73,14 @@ const (
 	// InstanceActionInfoActionTypeBlockDeviceRescan captures enum value "BlockDeviceRescan"
 	InstanceActionInfoActionTypeBlockDeviceRescan string = "BlockDeviceRescan"
 
+	// InstanceActionInfoActionTypeFlushMetrics captures enum value "FlushMetrics"
+	InstanceActionInfoActionTypeFlushMetrics string = "FlushMetrics"
+
 	// InstanceActionInfoActionTypeInstanceStart captures enum value "InstanceStart"
 	InstanceActionInfoActionTypeInstanceStart string = "InstanceStart"
 
-	// InstanceActionInfoActionTypeInstanceHalt captures enum value "InstanceHalt"
-	InstanceActionInfoActionTypeInstanceHalt string = "InstanceHalt"
+	// InstanceActionInfoActionTypeSendCtrlAltDel captures enum value "SendCtrlAltDel"
+	InstanceActionInfoActionTypeSendCtrlAltDel string = "SendCtrlAltDel"
 )
 
 // prop value enum
@@ -88,8 +93,8 @@ func (m *InstanceActionInfo) validateActionTypeEnum(path, location string, value
 
 func (m *InstanceActionInfo) validateActionType(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.ActionType) { // not required
-		return nil
+	if err := validate.RequiredString("action_type", "body", string(m.ActionType)); err != nil {
+		return err
 	}
 
 	// value enum
