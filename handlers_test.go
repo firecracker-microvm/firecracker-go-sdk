@@ -399,6 +399,87 @@ func TestHandlerListReplace(t *testing.T) {
 	}
 }
 
+func TestHandlerListAppendAfter(t *testing.T) {
+	cases := []struct {
+		name         string
+		list         HandlerList
+		afterName    string
+		elem         Handler
+		expectedList HandlerList
+	}{
+		{
+			name: "no append",
+			list: HandlerList{}.Append(
+				Handler{
+					Name: "foo",
+				},
+				Handler{
+					Name: "bar",
+				},
+				Handler{
+					Name: "baz",
+				},
+			),
+			afterName: "not exist",
+			elem: Handler{
+				Name: "qux",
+			},
+			expectedList: HandlerList{}.Append(
+				Handler{
+					Name: "foo",
+				},
+				Handler{
+					Name: "bar",
+				},
+				Handler{
+					Name: "baz",
+				},
+			),
+		},
+		{
+			name: "append after",
+			list: HandlerList{}.Append(
+				Handler{
+					Name: "foo",
+				},
+				Handler{
+					Name: "bar",
+				},
+				Handler{
+					Name: "baz",
+				},
+			),
+			afterName: "foo",
+			elem: Handler{
+				Name: "qux",
+			},
+			expectedList: HandlerList{}.Append(
+				Handler{
+					Name: "foo",
+				},
+				Handler{
+					Name: "qux",
+				},
+				Handler{
+					Name: "bar",
+				},
+				Handler{
+					Name: "baz",
+				},
+			),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.list = c.list.AppendAfter(c.afterName, c.elem)
+			if e, a := c.expectedList, c.list; !compareHandlerLists(e, a) {
+				t.Errorf("expected %v, but received %v", e, a)
+			}
+		})
+	}
+}
+
 func compareHandlerLists(l1, l2 HandlerList) bool {
 	if l1.Len() != l2.Len() {
 		return false
