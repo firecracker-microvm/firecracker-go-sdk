@@ -29,8 +29,8 @@ steps:
   - label: ':hammer: tests'
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /usr/local/bin/firecracker testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer testdata/jailer'
+      - 'ln -s /usr/local/bin/firecracker-v0.15.0 testdata/firecracker'
+      - 'ln -s /usr/local/bin/jailer-v0.15.0 testdata/jailer'
       - 'sudo ip tuntap add fc-test-tap${BUILDKITE_BUILD_NUMBER} mode tap user $(sudo id -u buildkite-agent)'
       - "DISABLE_ROOT_TESTS=true FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
       - 'sudo ip tuntap del fc-test-tap${BUILDKITE_BUILD_NUMBER} mode tap'
@@ -38,8 +38,8 @@ steps:
   - label: ':hammer: root tests'
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /usr/local/bin/firecracker testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer testdata/jailer'
+      - 'ln -s /usr/local/bin/firecracker-v0.15.0 testdata/firecracker'
+      - 'ln -s /usr/local/bin/jailer-v0.15.0 testdata/jailer'
       - 'sudo ip tuntap add fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap user $(sudo id -u buildkite-agent)'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
       - 'sudo ip tuntap del fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap'
