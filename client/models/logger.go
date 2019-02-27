@@ -34,22 +34,24 @@ type Logger struct {
 
 	// Set the level.
 	// Enum: [Error Warning Info Debug]
-	Level string `json:"level,omitempty"`
+	Level *string `json:"level,omitempty"`
 
 	// The named pipe for the human readable log output.
-	LogFifo string `json:"log_fifo,omitempty"`
+	// Required: true
+	LogFifo *string `json:"log_fifo"`
 
 	// The named pipe where the JSON-formatted metrics will be flushed.
-	MetricsFifo string `json:"metrics_fifo,omitempty"`
+	// Required: true
+	MetricsFifo *string `json:"metrics_fifo"`
 
 	// Additional logging options. Only "LogDirtyPages" is supported.
 	Options []string `json:"options"`
 
 	// Whether or not to output the level in the logs.
-	ShowLevel bool `json:"show_level,omitempty"`
+	ShowLevel *bool `json:"show_level,omitempty"`
 
 	// Whether or not to include the file path and line number of the log's origin.
-	ShowLogOrigin bool `json:"show_log_origin,omitempty"`
+	ShowLogOrigin *bool `json:"show_log_origin,omitempty"`
 }
 
 // Validate validates this logger
@@ -57,6 +59,14 @@ func (m *Logger) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateLevel(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateLogFifo(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateMetricsFifo(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -108,7 +118,25 @@ func (m *Logger) validateLevel(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateLevelEnum("level", "body", m.Level); err != nil {
+	if err := m.validateLevelEnum("level", "body", *m.Level); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Logger) validateLogFifo(formats strfmt.Registry) error {
+
+	if err := validate.Required("log_fifo", "body", m.LogFifo); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Logger) validateMetricsFifo(formats strfmt.Registry) error {
+
+	if err := validate.Required("metrics_fifo", "body", m.MetricsFifo); err != nil {
 		return err
 	}
 

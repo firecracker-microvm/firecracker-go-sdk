@@ -4,7 +4,7 @@ info:
   description: RESTful public-facing API.
                The API is accessible through HTTP calls on specific URLs carrying JSON modeled data.
                The transport medium is a Unix Domain Socket.
-  version: 0.12.0
+  version: 0.15.0
   termsOfService: ""
   contact:
     email: "compute-capsule@amazon.com"
@@ -307,7 +307,6 @@ paths:
       summary: Creates a network interface.
       description:
         Creates new network interface with ID specified by iface_id path parameter.
-        Updating existing interfaces is currently not allowed.
       operationId: putGuestNetworkInterfaceByID
       parameters:
       - name: iface_id
@@ -326,6 +325,34 @@ paths:
           description: Network interface created/updated
         400:
           description: Network interface cannot be created due to bad input
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+    patch:
+      summary: Updates the rate limiters applied to a network interface.
+      description:
+        Updates the rate limiters applied to a network interface.
+      operationId: patchGuestNetworkInterfaceByID
+      parameters:
+        - name: iface_id
+          in: path
+          description: The id of the guest network interface
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: A subset of the guest network interface properties
+          required: true
+          schema:
+            $ref: "#/definitions/PartialNetworkInterface"
+      responses:
+        204:
+          description: Network interface updated
+        400:
+          description: Network interface cannot be updated due to bad input
           schema:
             $ref: "#/definitions/Error"
         default:
@@ -384,69 +411,95 @@ definitions:
         $ref: "#/definitions/RateLimiter"
 
   Error:
+    type: object
     properties:
       fault_message:
         type: string
         description: A description of the error condition
+        readOnly: true
 
   InstanceActionInfo:
     type: object
     description:
       Variant wrapper containing the real action.
+    required:
+      - action_type
     properties:
       action_type:
         description: Enumeration indicating what type of action is contained in the payload
         type: string
+        readOnly: true
         enum:
         - BlockDeviceRescan
+        - FlushMetrics
         - InstanceStart
-        - InstanceHalt
+        - SendCtrlAltDel
       payload:
         type: string
 
   InstanceInfo:
+    type: object
+    description:
+      Describes MicroVM instance information.
+    required:
+      - id
+      - state
+      - vmm_version
     properties:
       id:
         description: MicroVM / instance ID.
         type: string
+        readOnly: true
       state:
         description:
           The current detailed state of the Firecracker instance.
           This value is read-only for the control-plane.
         type: string
+        readOnly: true
         enum:
           - Uninitialized
           - Starting
           - Running
           - Halting
           - Halted
+      vmm_version:
+        description: MicroVM hypervisor build version.
+        type: string
+        readOnly: true
 
   Logger:
     type: object
     description:
       Describes the configuration option for the logging capability.
+    required:
+      - log_fifo
+      - metrics_fifo
     properties:
       log_fifo:
         type: string
         description: The named pipe for the human readable log output.
       metrics_fifo:
-              type: string
-              description: The named pipe where the JSON-formatted metrics will be flushed.
+        type: string
+        description: The named pipe where the JSON-formatted metrics will be flushed.
       level:
         type: string
         description: Set the level.
         enum: [Error, Warning, Info, Debug]
+        default: Warning
       show_level:
         type: boolean
         description: Whether or not to output the level in the logs.
+        default: false
       show_log_origin:
         type: boolean
         description: Whether or not to include the file path and line number of the log's origin.
+        default: false
       options:
         type: array
         items:
           type: string
         description: Additional logging options. Only "LogDirtyPages" is supported.
+        default: []
 
   MachineConfiguration:
     type: object
@@ -456,6 +509,8 @@ definitions:
     properties:
       vcpu_count:
         type: integer
+        minimum: 1
+        maximum: 32
         description: Number of vCPUs (either 1 or an even number)
       mem_size_mib:
         type: integer
@@ -472,6 +527,7 @@ definitions:
       Defines a network interface.
     required:
       - iface_id
+      - host_dev_name
     properties:
       iface_id:
         type: string
@@ -505,6 +561,21 @@ definitions:
         type: string
         description: Host level path for the guest drive
 
+  PartialNetworkInterface:
+    type: object
+    description:
+      Defines a partial network interface structure, used to update the rate limiters
+      for that interface, after microvm start.
+    required:
+      - iface_id
+    properties:
+      iface_id:
+        type: string
+      rx_rate_limiter:
+        $ref: "#/definitions/RateLimiter"
+      tx_rate_limiter:
+        $ref: "#/definitions/RateLimiter"
+
   RateLimiter:
     type: object
     description:
@@ -529,6 +600,9 @@ definitions:
       Consumption from the token bucket is unbounded in speed which allows for bursts
       bound in size by the amount of tokens available.
       Once the token bucket is empty, consumption speed is bound by the refill_rate.
+    required:
+      - size
+      - refill_time
     properties:
       size:
         type: integer
