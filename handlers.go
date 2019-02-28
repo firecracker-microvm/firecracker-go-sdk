@@ -173,7 +173,7 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 	return Handler{
 		Name: SetMetadataHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			return m.SetMetadata(ctx, m.Metadata)
+			return m.SetMetadata(ctx, metadata)
 		},
 	}
 }
