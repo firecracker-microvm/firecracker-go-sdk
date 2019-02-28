@@ -401,6 +401,7 @@ definitions:
         - BlockDeviceRescan
         - InstanceStart
         - InstanceHalt
+        - SendCtrlAltDel
       payload:
         type: string
 

@@ -33,7 +33,7 @@ import (
 type InstanceActionInfo struct {
 
 	// Enumeration indicating what type of action is contained in the payload
-	// Enum: [BlockDeviceRescan InstanceStart InstanceHalt]
+	// Enum: [BlockDeviceRescan InstanceStart InstanceHalt SendCtrlAltDel]
 	ActionType string `json:"action_type,omitempty"`
 
 	// payload
@@ -58,7 +58,7 @@ var instanceActionInfoTypeActionTypePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["BlockDeviceRescan","InstanceStart","InstanceHalt"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["BlockDeviceRescan","InstanceStart","InstanceHalt","SendCtrlAltDel"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -76,6 +76,9 @@ const (
 
 	// InstanceActionInfoActionTypeInstanceHalt captures enum value "InstanceHalt"
 	InstanceActionInfoActionTypeInstanceHalt string = "InstanceHalt"
+
+	// InstanceActionInfoActionTypeSendCtrlAltDel captures enum value "SendCtrlAltDel"
+	InstanceActionInfoActionTypeSendCtrlAltDel string = "SendCtrlAltDel"
 )
 
 // prop value enum
