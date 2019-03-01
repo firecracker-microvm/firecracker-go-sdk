@@ -330,7 +330,7 @@ func TestMicroVMExecution(t *testing.T) {
 	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-timer.C:
-		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
+		t.Run("TestShutdown", func(t *testing.T) { testShutdown(vmmCtx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
 	}
@@ -370,7 +370,6 @@ func TestStartVMM(t *testing.T) {
 			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
 	}
-
 }
 
 func TestStartVMMOnce(t *testing.T) {
@@ -410,6 +409,7 @@ func TestStartVMMOnce(t *testing.T) {
 	case <-timeout.Done():
 		if timeout.Err() == context.DeadlineExceeded {
 			t.Log("firecracker ran for 250ms")
+			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
 		} else {
 			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
@@ -562,6 +562,13 @@ func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.StopVMM()
 	if err != nil {
 		t.Errorf("StopVMM failed: %s", err)
+	}
+}
+
+func testShutdown(ctx context.Context, t *testing.T, m *Machine) {
+	err := m.Shutdown(ctx)
+	if err != nil {
+		t.Errorf("machine.Shutdown() failed: %s", err)
 	}
 }
 
