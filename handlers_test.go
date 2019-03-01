@@ -3,10 +3,16 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
+	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 )
 
 func TestHandlerListAppend(t *testing.T) {
@@ -476,6 +482,157 @@ func TestHandlerListAppendAfter(t *testing.T) {
 			if e, a := c.expectedList, c.list; !compareHandlerLists(e, a) {
 				t.Errorf("expected %v, but received %v", e, a)
 			}
+		})
+	}
+}
+
+func TestHandlers(t *testing.T) {
+	called := ""
+	metadata := map[string]string{
+		"foo": "bar",
+		"baz": "qux",
+	}
+
+	cases := []struct {
+		Handler Handler
+		Client  fctesting.MockClient
+		Config  Config
+	}{
+		{
+			Handler: BootstrapLoggingHandler,
+			Client: fctesting.MockClient{
+				PutLoggerFn: func(params *ops.PutLoggerParams) (*ops.PutLoggerNoContent, error) {
+					called = BootstrapLoggingHandler.Name
+					return nil, nil
+				},
+			},
+			Config: Config{
+				LogLevel:    "Debug",
+				LogFifo:     filepath.Join(testDataPath, "firecracker.log"),
+				MetricsFifo: filepath.Join(testDataPath, "firecracker-metrics"),
+			},
+		},
+		{
+			Handler: CreateMachineHandler,
+			Client: fctesting.MockClient{
+				PutMachineConfigurationFn: func(params *ops.PutMachineConfigurationParams) (*ops.PutMachineConfigurationNoContent, error) {
+					called = CreateMachineHandler.Name
+					return &ops.PutMachineConfigurationNoContent{}, nil
+				},
+				GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
+					return &ops.GetMachineConfigOK{
+						Payload: &models.MachineConfiguration{},
+					}, nil
+				},
+			},
+			Config: Config{},
+		},
+		{
+			Handler: CreateBootSourceHandler,
+			Client: fctesting.MockClient{
+				PutGuestBootSourceFn: func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error) {
+					called = CreateBootSourceHandler.Name
+					return &ops.PutGuestBootSourceNoContent{}, nil
+				},
+			},
+			Config: Config{},
+		},
+		{
+			Handler: AttachDrivesHandler,
+			Client: fctesting.MockClient{
+				PutGuestDriveByIDFn: func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error) {
+					called = AttachDrivesHandler.Name
+					return &ops.PutGuestDriveByIDNoContent{}, nil
+				},
+			},
+			Config: Config{
+				Drives: NewDrivesBuilder("/foo/bar").Build(),
+			},
+		},
+		{
+			Handler: CreateNetworkInterfacesHandler,
+			Client: fctesting.MockClient{
+				PutGuestNetworkInterfaceByIDFn: func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error) {
+					called = CreateNetworkInterfacesHandler.Name
+					return &ops.PutGuestNetworkInterfaceByIDNoContent{}, nil
+				},
+			},
+			Config: Config{
+				NetworkInterfaces: []NetworkInterface{
+					{
+						MacAddress:  "macaddress",
+						HostDevName: "host",
+					},
+				},
+			},
+		},
+		{
+			Handler: AddVsocksHandler,
+			Client: fctesting.MockClient{
+				PutGuestVsockByIDFn: func(params *ops.PutGuestVsockByIDParams) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error) {
+					called = AddVsocksHandler.Name
+					return &ops.PutGuestVsockByIDCreated{}, &ops.PutGuestVsockByIDNoContent{}, nil
+				},
+			},
+			Config: Config{
+				VsockDevices: []VsockDevice{
+					{
+						Path: "path",
+						CID:  123,
+					},
+				},
+			},
+		},
+		{
+			Handler: NewSetMetadataHandler(metadata),
+			Client: fctesting.MockClient{
+				PutMmdsFn: func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error) {
+					called = SetMetadataHandlerName
+					if !reflect.DeepEqual(metadata, params.Body) {
+						return nil, fmt.Errorf("incorrect metadata value: %v", params.Body)
+					}
+					return &ops.PutMmdsNoContent{}, nil
+				},
+			},
+			Config: Config{},
+		},
+	}
+
+	ctx := context.Background()
+	socketpath := filepath.Join(testDataPath, "socket")
+	cfg := Config{}
+
+	defer func() {
+		os.Remove(cfg.SocketPath)
+		os.Remove(cfg.LogFifo)
+		os.Remove(cfg.MetricsFifo)
+	}()
+
+	for _, c := range cases {
+		t.Run(c.Handler.Name, func(t *testing.T) {
+			// cache in case test exited early and can be cleaned up later
+			cfg = c.Config
+			// resetting called for the next test
+			called = ""
+
+			client := NewClient(socketpath, log.NewEntry(log.New()), true, WithOpsClient(&c.Client))
+			m, err := NewMachine(ctx, c.Config, WithClient(client))
+			if err != nil {
+				t.Fatalf("failed to create machine: %v", err)
+			}
+
+			if err := c.Handler.Fn(ctx, m); err != nil {
+				t.Errorf("failed to call handler function: %v", err)
+			}
+
+			if e, a := c.Handler.Name, called; e != a {
+				t.Errorf("expected %v, but received %v", e, a)
+			}
+
+			// clean up any created resources
+			os.Remove(c.Config.SocketPath)
+			os.Remove(c.Config.LogFifo)
+			os.Remove(c.Config.MetricsFifo)
 		})
 	}
 }

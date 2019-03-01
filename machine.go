@@ -131,9 +131,6 @@ func (cfg *Config) Validate() error {
 
 // Machine is the main object for manipulating Firecracker microVMs
 type Machine struct {
-	// Metadata is the associated metadata that will be sent to the firecracker
-	// process
-	Metadata interface{}
 	// Handlers holds the set of handlers that are run for validation and start
 	Handlers Handlers
 
