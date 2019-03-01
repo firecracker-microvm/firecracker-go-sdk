@@ -140,7 +140,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", id)
 	os.MkdirAll(jailerTestPath, 0777)
 
-	socketPath := filepath.Join(jailerTestPath, "firecracker", "api.socket")
+	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
 	defer func() {
@@ -257,7 +257,7 @@ func TestMicroVMExecution(t *testing.T) {
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
-	socketPath := filepath.Join(testDataPath, "firecracker.sock")
+	socketPath := filepath.Join(testDataPath, "TestMicroVMExecution.sock")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
 	defer func() {
@@ -338,7 +338,7 @@ func TestMicroVMExecution(t *testing.T) {
 }
 
 func TestStartVMM(t *testing.T) {
-	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	socketPath := filepath.Join("testdata", "TestStartVMM.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
 		SocketPath: socketPath,
@@ -373,7 +373,7 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestStartVMMOnce(t *testing.T) {
-	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	socketPath := filepath.Join("testdata", "TestStartVMMOnce.sock")
 	defer os.Remove(socketPath)
 
 	cfg := Config{
