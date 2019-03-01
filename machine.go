@@ -260,6 +260,12 @@ func (m *Machine) Start(ctx context.Context) error {
 	return m.startInstance(ctx)
 }
 
+// Shutdown requests a clean shutdown of the VM by sending CtrlAltDelete on the virtual keyboard
+func (m *Machine) Shutdown(ctx context.Context) error {
+	m.logger.Debug("Called machine.Shutdown()")
+	return m.sendCtrlAltDel(ctx)
+}
+
 // Wait will wait until the firecracker process has finished.  Wait is safe to
 // call concurrently, and will deliver the same error to all callers, subject to
 // each caller's context cancellation.
@@ -567,6 +573,20 @@ func (m *Machine) startInstance(ctx context.Context) error {
 		m.logger.Printf("startInstance successful: %s", resp.Error())
 	} else {
 		m.logger.Errorf("Starting instance: %s", err)
+	}
+	return err
+}
+
+func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
+	info := models.InstanceActionInfo{
+		ActionType: models.InstanceActionInfoActionTypeSendCtrlAltDel,
+	}
+
+	resp, err := m.client.CreateSyncAction(ctx, &info)
+	if err == nil {
+		m.logger.Printf("Sent instance shutdown request: %s", resp.Error())
+	} else {
+		m.logger.Errorf("Unable to send CtrlAltDel: %s", err)
 	}
 	return err
 }

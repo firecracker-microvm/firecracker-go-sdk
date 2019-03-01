@@ -140,7 +140,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", id)
 	os.MkdirAll(jailerTestPath, 0777)
 
-	socketPath := filepath.Join(jailerTestPath, "firecracker", "api.socket")
+	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
 	defer func() {
@@ -257,7 +257,7 @@ func TestMicroVMExecution(t *testing.T) {
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
-	socketPath := filepath.Join(testDataPath, "firecracker.sock")
+	socketPath := filepath.Join(testDataPath, "TestMicroVMExecution.sock")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
 	defer func() {
@@ -323,22 +323,25 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
-	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(vmmCtx, t, m) })
-	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
+	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-timer.C:
-		t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
+		t.Run("TestShutdown", func(t *testing.T) { testShutdown(ctx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
 	}
+	// unconditionally stop the VM here. TestShutdown may have triggered a shutdown, but if it
+	// didn't for some reason, we still need to terminate it:
+	m.StopVMM()
 	m.Wait(vmmCtx)
 }
 
 func TestStartVMM(t *testing.T) {
-	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	socketPath := filepath.Join("testdata", "TestStartVMM.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
 		SocketPath: socketPath,
@@ -370,11 +373,10 @@ func TestStartVMM(t *testing.T) {
 			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
 	}
-
 }
 
 func TestStartVMMOnce(t *testing.T) {
-	socketPath := filepath.Join("testdata", "fc-start-vmm-test.sock")
+	socketPath := filepath.Join("testdata", "TestStartVMMOnce.sock")
 	defer os.Remove(socketPath)
 
 	cfg := Config{
@@ -410,6 +412,7 @@ func TestStartVMMOnce(t *testing.T) {
 	case <-timeout.Done():
 		if timeout.Err() == context.DeadlineExceeded {
 			t.Log("firecracker ran for 250ms")
+			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
 		} else {
 			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
@@ -562,6 +565,13 @@ func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.StopVMM()
 	if err != nil {
 		t.Errorf("StopVMM failed: %s", err)
+	}
+}
+
+func testShutdown(ctx context.Context, t *testing.T, m *Machine) {
+	err := m.Shutdown(ctx)
+	if err != nil {
+		t.Errorf("machine.Shutdown() failed: %s", err)
 	}
 }
 
