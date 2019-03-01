@@ -323,17 +323,20 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
-	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(vmmCtx, t, m) })
-	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(vmmCtx, t, m) })
+	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
+	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-timer.C:
-		t.Run("TestShutdown", func(t *testing.T) { testShutdown(vmmCtx, t, m) })
+		t.Run("TestShutdown", func(t *testing.T) { testShutdown(ctx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
 	}
+	// unconditionally stop the VM here. TestShutdown may have triggered a shutdown, but if it
+	// didn't for some reason, we still need to terminate it:
+	m.StopVMM()
 	m.Wait(vmmCtx)
 }
 
