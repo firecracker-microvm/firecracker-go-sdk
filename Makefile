@@ -27,4 +27,20 @@ all-tests:
 generate build clean:
 	go $@ $(EXTRAGOARGS)
 
+sandbox-test-fc-build:
+	docker build -f fctesting/sandbox/Dockerfile -t "firecracker" .
+	@touch sandbox-test-fc-build
+
+sandbox-test-fc-run:
+	docker run \
+		--init \
+		--rm \
+		--privileged \
+		--security-opt seccomp=unconfined \
+		--ulimit core=0 \
+		--device=/dev/kvm:/dev/kvm \
+		-t firecracker
+
+sandbox-test-fc: sandbox-test-fc-build sandbox-test-fc-run
+
 .PHONY: all generate clean build test unit-tests all-tests

@@ -341,7 +341,7 @@ func TestMicroVMExecution(t *testing.T) {
 }
 
 func TestStartVMM(t *testing.T) {
-	socketPath := filepath.Join("testdata", "TestStartVMM.sock")
+	socketPath := filepath.Join(testDataPath, "TestStartVMM.sock")
 	defer os.Remove(socketPath)
 	cfg := Config{
 		SocketPath: socketPath,
@@ -376,12 +376,13 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestStartVMMOnce(t *testing.T) {
-	socketPath := filepath.Join("testdata", "TestStartVMMOnce.sock")
+	socketPath := filepath.Join(testDataPath, "TestStartVMMOnce.sock")
 	defer os.Remove(socketPath)
 
 	cfg := Config{
 		SocketPath:        socketPath,
 		DisableValidation: true,
+		LogLevel:          "Debug",
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount: 1,
@@ -391,6 +392,8 @@ func TestStartVMMOnce(t *testing.T) {
 	cmd := VMCommandBuilder{}.
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
 		Build(ctx)
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
 	if err != nil {
