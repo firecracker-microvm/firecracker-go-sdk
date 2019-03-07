@@ -216,7 +216,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	} else {
 		m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
 		m.cmd = defaultFirecrackerVMMCommandBuilder.
-			WithSocketPath(m.cfg.SocketPath).
+			WithSocketPath(cfg.SocketPath).
 			Build(ctx)
 	}
 
