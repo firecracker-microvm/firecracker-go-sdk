@@ -366,8 +366,13 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		return err
 	}
 	go func() {
-		err := <-errCh
-		m.err = err
+		select {
+		case <-ctx.Done():
+			m.err = ctx.Err()
+		case err := <-errCh:
+			m.err = err
+		}
+
 		close(m.exitCh)
 	}()
 

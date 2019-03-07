@@ -45,8 +45,8 @@ steps:
   - label: ':hammer: root tests'
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'cp /usr/local/bin/firecracker-v0.15.0 testdata/firecracker'
-      - 'cp /usr/local/bin/jailer-v0.15.0 testdata/jailer'
+      - 'cp /usr/local/bin/firecracker-v0.16.0 testdata/firecracker'
+      - 'cp /usr/local/bin/jailer-v0.16.0 testdata/jailer'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"

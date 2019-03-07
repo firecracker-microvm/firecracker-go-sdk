@@ -146,7 +146,7 @@ func TestJail(t *testing.T) {
 		t.Errorf("expected args %v, but received %v", e, a)
 	}
 
-	if e, a := filepath.Join(defaultJailerPath, cfg.JailerCfg.ID, "api.socket"), cfg.SocketPath; e != a {
+	if e, a := filepath.Join(defaultJailerPath, cfg.JailerCfg.ID, rootfsFolderName, "api.socket"), cfg.SocketPath; e != a {
 		t.Errorf("expected socket path %q, but received %q", e, a)
 	}
 
