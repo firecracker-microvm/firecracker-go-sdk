@@ -756,6 +756,31 @@ func TestCaptureFifoToFile(t *testing.T) {
 	}
 }
 
+func TestSocketPathSet(t *testing.T) {
+	socketpath := "foo/bar"
+	m, err := NewMachine(context.Background(), Config{SocketPath: socketpath})
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	found := false
+	for i := 0; i < len(m.cmd.Args); i++ {
+		if m.cmd.Args[i] != "--api-sock" {
+			continue
+		}
+
+		found = true
+		if m.cmd.Args[i+1] != socketpath {
+			t.Errorf("Incorrect socket path: %v", m.cmd.Args[i+1])
+		}
+		break
+	}
+
+	if !found {
+		t.Errorf("Failed to find socket path")
+	}
+}
+
 func copyFile(src, dst string, uid, gid int) error {
 	srcFd, err := os.Open(src)
 	if err != nil {
