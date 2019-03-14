@@ -1,6 +1,6 @@
 ARG TMP_BUILD_DIR=/tmp/build
 
-FROM rust:1.32 as build
+FROM rust:1.32 as firecracker-build
 
 ARG TMP_BUILD_DIR
 ARG FIRECRACKER_SRC_DIR="/firecracker"
@@ -18,8 +18,7 @@ RUN apt-get update \
 RUN mkdir "$TMP_BUILD_DIR" \
     	&& rustup install 1.32.0 \
 	&& rustup override set 1.32.0 \
-        && rustup target add x86_64-unknown-linux-musl \
-    && cd /
+        && rustup target add x86_64-unknown-linux-musl
 
 # Install Firecracker and set binaries to TMP_BUILD_DIR
 RUN git clone https://github.com/firecracker-microvm/firecracker.git
@@ -34,11 +33,12 @@ FROM golang:1.12
 ARG TMP_BUILD_DIR
 ENV FC_TEST_DATA_PATH="$TMP_BUILD_DIR"
 ARG FIRECRACKER_GO_SDK_SRC_DIR="/firecracker-go-sdk"
-ADD . /firecracker-go-sdk/
-COPY --from=build "$TMP_BUILD_DIR" "$TMP_BUILD_DIR"
+COPY --from=firecracker-build "$TMP_BUILD_DIR" "$TMP_BUILD_DIR"
 
 WORKDIR "$FIRECRACKER_GO_SDK_SRC_DIR"
-RUN cp -rf testdata/* "$TMP_BUILD_DIR"
+COPY ["./testdata/", "$TMP_BUILD_DIR"]
 RUN curl -fsSL -o "$TMP_BUILD_DIR"/vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
+COPY ["go.mod", "go.sum", "/firecracker-go-sdk/"]
 RUN go mod download
+COPY [".", "/firecracker-go-sdk/"]
 CMD ["make", "test"]

@@ -28,18 +28,18 @@ generate build clean:
 	go $@ $(EXTRAGOARGS)
 
 sandbox-test-fc-build:
-	docker build -f fctesting/sandbox/Dockerfile -t "firecracker" .
+	docker build -f fctesting/sandbox/Dockerfile -t "localhost/firecracker-go-sdk-sandbox" .
 	@touch sandbox-test-fc-build
 
 sandbox-test-fc-run:
+	test "$(shell id --user)" -eq 0
 	docker run \
 		--init \
 		--rm \
 		--privileged \
 		--security-opt seccomp=unconfined \
 		--ulimit core=0 \
-		--device=/dev/kvm:/dev/kvm \
-		-t firecracker
+		localhost/firecracker-go-sdk-sandbox
 
 sandbox-test-fc: sandbox-test-fc-build sandbox-test-fc-run
 
