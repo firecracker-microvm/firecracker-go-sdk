@@ -27,11 +27,13 @@ all-tests:
 generate build clean:
 	go $@ $(EXTRAGOARGS)
 
-sandbox-test-fc-build:
-	docker build -f fctesting/sandbox/Dockerfile -t "localhost/firecracker-go-sdk-sandbox" .
-	@touch sandbox-test-fc-build
+sandbox-test-fc-build: sandbox-test-fc-build-stamp
 
-sandbox-test-fc-run:
+sandbox-test-fc-build-stamp:
+	docker build -f fctesting/sandbox/Dockerfile -t "localhost/firecracker-go-sdk-sandbox" .
+	@touch sandbox-test-fc-build-stamp
+
+sandbox-test-fc-run: sandbox-test-fc-build
 	test "$(shell id --user)" -eq 0
 	docker run \
 		--init \
@@ -41,6 +43,6 @@ sandbox-test-fc-run:
 		--ulimit core=0 \
 		localhost/firecracker-go-sdk-sandbox
 
-sandbox-test-fc: sandbox-test-fc-build sandbox-test-fc-run
+sandbox-test-fc: sandbox-test-fc-run
 
-.PHONY: all generate clean build test unit-tests all-tests
+.PHONY: all generate clean build test unit-tests all-tests sandbox-test-fc-run sandbox-test-fc sandbox-test-fc-build

@@ -34,7 +34,7 @@ COPY --from=firecracker-build "$TMP_BUILD_DIR" "$TMP_BUILD_DIR"
 WORKDIR "$FIRECRACKER_GO_SDK_SRC_DIR"
 COPY ["./testdata/", "$TMP_BUILD_DIR"]
 COPY ["go.mod", "go.sum", "/firecracker-go-sdk/"]
-RUN curl -fsSL -o "$TMP_BUILD_DIR"/vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin \
+RUN curl --fail --silent --show-error --location -o "$TMP_BUILD_DIR"/vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin \
         && go mod download
 COPY [".", "/firecracker-go-sdk/"]
 CMD ["make", "test"]
