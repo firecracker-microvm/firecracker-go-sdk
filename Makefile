@@ -27,6 +27,11 @@ all-tests:
 generate build clean:
 	go $@ $(EXTRAGOARGS)
 
+clean:
+	go $@ $(EXTRAGOARGS)
+	# --force to prevent erroring on stamp file not existing
+	rm --force sandbox-test-fc-build-stamp
+
 sandbox-test-fc-build: sandbox-test-fc-build-stamp
 
 sandbox-test-fc-build-stamp:
