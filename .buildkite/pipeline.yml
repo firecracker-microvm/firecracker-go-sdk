@@ -21,6 +21,8 @@ steps:
     commands:
       - 'sudo ip tuntap add fc-test-tap${BUILDKITE_BUILD_NUMBER} mode tap user $(sudo id -u buildkite-agent)'
       - 'sudo ip tuntap add fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap user $(sudo id -u buildkite-agent)'
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
   # We use a "wait" step here, because Go's module logic freaks out when
   # multiple go builds are downloading to the same cache.
@@ -37,6 +39,8 @@ steps:
       - 'ln -s /usr/local/bin/firecracker-v0.15.0 testdata/firecracker'
       - 'ln -s /usr/local/bin/jailer-v0.15.0 testdata/jailer'
       - "DISABLE_ROOT_TESTS=true FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
   - label: ':hammer: root tests'
     commands:
@@ -55,4 +59,6 @@ steps:
     commands:
       - 'sudo ip tuntap del fc-test-tap${BUILDKITE_BUILD_NUMBER} mode tap'
       - 'sudo ip tuntap del fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap'
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
