@@ -336,6 +336,11 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
 		errCh <- err
+
+		// Notify subscribers that there will be no more values.
+		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),
+		// second one never ends as it tries to read from empty channel.
+		close(errCh)
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
