@@ -588,10 +588,15 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 	return err
 }
 
-// EnableMetadata will append or replace the metadata handler and only will be
-// called when calling the Machine Start operation.
-func (m *Machine) EnableMetadata(metadata interface{}) {
-	m.Handlers.FcInit = m.Handlers.FcInit.Swappend(NewSetMetadataHandler(metadata))
+// SetMetadata sets the machine's metadata for MDDS
+func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
+	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
+		m.logger.Errorf("Setting metadata: %s", err)
+		return err
+	}
+
+	m.logger.Printf("SetMetadata successful")
+	return nil
 }
 
 // UpdateGuestDrive will modify the current guest drive of ID index with the new
