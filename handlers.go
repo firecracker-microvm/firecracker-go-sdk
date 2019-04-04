@@ -173,7 +173,13 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 	return Handler{
 		Name: SetMetadataHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			return m.SetMetadata(ctx, metadata)
+			if _, err := m.client.PutMmds(ctx, metadata); err != nil {
+				m.logger.Errorf("Setting metadata: %s", err)
+				return err
+			}
+
+			m.logger.Printf("SetMetadata successful")
+			return nil
 		},
 	}
 }

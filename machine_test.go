@@ -637,7 +637,7 @@ func TestWaitForSocket(t *testing.T) {
 
 func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	metadata := map[string]string{"key": "value"}
-	err := m.SetMetadata(ctx, metadata)
+	_, err := m.client.PutMmds(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
 	}
