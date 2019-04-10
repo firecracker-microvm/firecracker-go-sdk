@@ -597,11 +597,6 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 	return err
 }
 
-// EnableMetadata will append or replace the metadata handler.
-func (m *Machine) EnableMetadata(metadata interface{}) {
-	m.Handlers.FcInit = m.Handlers.FcInit.Swappend(NewSetMetadataHandler(metadata))
-}
-
 // SetMetadata sets the machine's metadata for MDDS
 func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
