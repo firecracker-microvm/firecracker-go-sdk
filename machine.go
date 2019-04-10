@@ -200,14 +200,9 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
-	logger := log.New()
-
-	if cfg.Debug {
-		logger.SetLevel(log.DebugLevel)
-	}
 
 	m.Handlers = defaultHandlers
-	m.logger = log.NewEntry(logger)
+
 	if cfg.EnableJailer {
 		m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
 		if err := jail(ctx, m, &cfg); err != nil {
@@ -222,6 +217,15 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	for _, opt := range opts {
 		opt(m)
+	}
+
+	if m.logger == nil {
+		logger := log.New()
+		if cfg.Debug {
+			logger.SetLevel(log.DebugLevel)
+		}
+
+		m.logger = log.NewEntry(logger)
 	}
 
 	if m.client == nil {
@@ -332,6 +336,11 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		os.Remove(m.cfg.LogFifo)
 		os.Remove(m.cfg.MetricsFifo)
 		errCh <- err
+
+		// Notify subscribers that there will be no more values.
+		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),
+		// second one never ends as it tries to read from empty channel.
+		close(errCh)
 	}()
 
 	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker

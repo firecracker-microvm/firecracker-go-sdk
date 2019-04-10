@@ -373,6 +373,10 @@ func TestStartVMM(t *testing.T) {
 			t.Errorf("startVMM returned %s", m.Wait(ctx))
 		}
 	}
+
+	// Make sure exitCh close
+	_, closed := <-m.exitCh
+	assert.False(t, closed)
 }
 
 func TestStartVMMOnce(t *testing.T) {
