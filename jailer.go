@@ -90,9 +90,9 @@ type JailerConfig struct {
 	// ChrootStrategy will dictate how files are transfered to the root drive.
 	ChrootStrategy HandlersAdapter
 
-	// Stdout ...
+	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
 	Stdout io.Writer
-	// Stderr ...
+	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
 	Stderr io.Writer
 }
 
