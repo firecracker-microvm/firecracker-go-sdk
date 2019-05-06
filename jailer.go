@@ -89,6 +89,11 @@ type JailerConfig struct {
 
 	// ChrootStrategy will dictate how files are transfered to the root drive.
 	ChrootStrategy HandlersAdapter
+
+	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
+	Stdout io.Writer
+	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
+	Stderr io.Writer
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -291,6 +296,17 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	}
 
 	cfg.SocketPath = filepath.Join(rootfs, "api.socket")
+
+	stdout := cfg.JailerCfg.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+
+	stderr := cfg.JailerCfg.Stderr
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
 	m.cmd = NewJailerCommandBuilder().
 		WithID(cfg.JailerCfg.ID).
 		WithUID(*cfg.JailerCfg.UID).
@@ -300,8 +316,8 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
-		WithStdout(os.Stdout).
-		WithStderr(os.Stderr).
+		WithStdout(stdout).
+		WithStderr(stderr).
 		Build(ctx)
 
 	if err := cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers); err != nil {
