@@ -152,6 +152,14 @@ func (m *Machine) Logger() *log.Entry {
 	return m.logger.WithField("subsystem", userAgent)
 }
 
+// PID returns the machine's process ID
+func (m *Machine) PID() (int, error) {
+	if m.cmd == nil || m.cmd.Process == nil {
+		return 0, errors.New("firecracker process is not running")
+	}
+	return m.cmd.Process.Pid, nil
+}
+
 // NetworkInterface represents a Firecracker microVM's network interface.
 type NetworkInterface struct {
 	// MacAddress defines the MAC address that should be assigned to the network
@@ -416,13 +424,6 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		m.logger.Printf("VMM logging and metrics disabled.")
 		return nil
 	}
-
-	if err := createFifos(m.cfg.LogFifo, m.cfg.MetricsFifo); err != nil {
-		m.logger.Errorf("Unable to set up logging: %s", err)
-		return err
-	}
-
-	m.logger.Debug("Created metrics and logging fifos.")
 
 	l := models.Logger{
 		LogFifo:       String(m.cfg.LogFifo),

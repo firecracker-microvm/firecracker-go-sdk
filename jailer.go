@@ -375,6 +375,24 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 			}
 
 			m.cfg.KernelImagePath = kernelImageFileName
+
+			for _, fifoPath := range []string{m.cfg.LogFifo, m.cfg.MetricsFifo} {
+				if fifoPath == "" {
+					continue
+				}
+				fileName := filepath.Base(fifoPath)
+				if err := linkFileToRootFS(
+					m.cfg.JailerCfg,
+					filepath.Join(rootfs, fileName),
+					fifoPath,
+				); err != nil {
+					return err
+				}
+				if err := os.Chown(filepath.Join(rootfs, fileName), *m.cfg.JailerCfg.UID, *m.cfg.JailerCfg.GID); err != nil {
+					return err
+				}
+			}
+
 			return nil
 		},
 	}
@@ -406,7 +424,7 @@ func (s NaiveChrootStrategy) AdaptHandlers(handlers *Handlers) error {
 	}
 
 	handlers.FcInit = handlers.FcInit.AppendAfter(
-		CreateMachineHandlerName,
+		CreateLogFilesHandlerName,
 		LinkFilesHandler(filepath.Join(s.Rootfs, rootfsFolderName), filepath.Base(s.KernelImagePath)),
 	)
 
