@@ -309,12 +309,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		stderr = os.Stderr
 	}
 
-	stdin := cfg.JailerCfg.Stdin
-	if stdin == nil {
-		stdin = os.Stdin
-	}
-
-	m.cmd = NewJailerCommandBuilder().
+	builder := NewJailerCommandBuilder().
 		WithID(cfg.JailerCfg.ID).
 		WithUID(*cfg.JailerCfg.UID).
 		WithGID(*cfg.JailerCfg.GID).
@@ -324,9 +319,13 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
 		WithStdout(stdout).
-		WithStderr(stderr).
-		WithStdin(stdin).
-		Build(ctx)
+		WithStderr(stderr)
+
+	if stdin := cfg.JailerCfg.Stdin; stdin != nil {
+		builder.WithStdin(stdin)
+	}
+
+	m.cmd = builder.Build(ctx)
 
 	if err := cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers); err != nil {
 		return err
