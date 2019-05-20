@@ -94,6 +94,8 @@ type JailerConfig struct {
 	Stdout io.Writer
 	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
 	Stderr io.Writer
+	// Stdin specifies the IO reader for STDIN to use when spawning the jailer.
+	Stdin io.Reader
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -288,14 +290,14 @@ func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 // Jail will set up proper handlers and remove configuration validation due to
 // stating of files
 func jail(ctx context.Context, m *Machine, cfg *Config) error {
-	rootfs := ""
+	jailerWorkspaceDir := ""
 	if len(cfg.JailerCfg.ChrootBaseDir) > 0 {
-		rootfs = filepath.Join(cfg.JailerCfg.ChrootBaseDir, "firecracker", cfg.JailerCfg.ID)
+		jailerWorkspaceDir = filepath.Join(cfg.JailerCfg.ChrootBaseDir, "firecracker", cfg.JailerCfg.ID, rootfsFolderName)
 	} else {
-		rootfs = filepath.Join(defaultJailerPath, cfg.JailerCfg.ID)
+		jailerWorkspaceDir = filepath.Join(defaultJailerPath, cfg.JailerCfg.ID, rootfsFolderName)
 	}
 
-	cfg.SocketPath = filepath.Join(rootfs, "api.socket")
+	cfg.SocketPath = filepath.Join(jailerWorkspaceDir, "api.socket")
 
 	stdout := cfg.JailerCfg.Stdout
 	if stdout == nil {
@@ -305,6 +307,11 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	stderr := cfg.JailerCfg.Stderr
 	if stderr == nil {
 		stderr = os.Stderr
+	}
+
+	stdin := cfg.JailerCfg.Stdin
+	if stdin == nil {
+		stdin = os.Stdin
 	}
 
 	m.cmd = NewJailerCommandBuilder().
@@ -318,6 +325,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
 		WithStdout(stdout).
 		WithStderr(stderr).
+		WithStdin(stdin).
 		Build(ctx)
 
 	if err := cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers); err != nil {
