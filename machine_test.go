@@ -141,8 +141,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	os.MkdirAll(jailerTestPath, 0777)
 
 	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
-	logFifo := filepath.Join(testDataPath, "firecracker.log")
-	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
+	logFifo := filepath.Join(tmpDir, "firecracker.log")
+	metricsFifo := filepath.Join(tmpDir, "firecracker-metrics")
 	defer func() {
 		os.Remove(socketPath)
 		os.Remove(logFifo)

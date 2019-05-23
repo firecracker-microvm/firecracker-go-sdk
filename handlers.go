@@ -115,6 +115,11 @@ var CreateLogFilesHandler = Handler{
 		logFifoPath := m.cfg.LogFifo
 		metricsFifoPath := m.cfg.MetricsFifo
 
+		if len(logFifoPath) == 0 || len(metricsFifoPath) == 0 {
+			// logging is disabled
+			return nil
+		}
+
 		if err := createFifos(logFifoPath, metricsFifoPath); err != nil {
 			m.logger.Errorf("Unable to set up logging: %s", err)
 			return err

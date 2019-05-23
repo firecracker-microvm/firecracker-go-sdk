@@ -322,7 +322,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithStderr(stderr)
 
 	if stdin := cfg.JailerCfg.Stdin; stdin != nil {
-		builder.WithStdin(stdin)
+		builder = builder.WithStdin(stdin)
 	}
 
 	m.cmd = builder.Build(ctx)
@@ -375,21 +375,26 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 
 			m.cfg.KernelImagePath = kernelImageFileName
 
-			for _, fifoPath := range []string{m.cfg.LogFifo, m.cfg.MetricsFifo} {
-				if fifoPath == "" {
+			for _, fifoPath := range []*string{&m.cfg.LogFifo, &m.cfg.MetricsFifo} {
+				if fifoPath == nil || *fifoPath == "" {
 					continue
 				}
-				fileName := filepath.Base(fifoPath)
+
+				fileName := filepath.Base(*fifoPath)
 				if err := linkFileToRootFS(
 					m.cfg.JailerCfg,
 					filepath.Join(rootfs, fileName),
-					fifoPath,
+					*fifoPath,
 				); err != nil {
 					return err
 				}
+
 				if err := os.Chown(filepath.Join(rootfs, fileName), *m.cfg.JailerCfg.UID, *m.cfg.JailerCfg.GID); err != nil {
 					return err
 				}
+
+				// update fifoPath as jailer works relative to the chroot dir
+				*fifoPath = fileName
 			}
 
 			return nil
@@ -412,14 +417,14 @@ func NewNaiveChrootStrategy(rootfs, kernelImagePath string) NaiveChrootStrategy 
 	}
 }
 
-// ErrCreateMachineHandlerMissing occurs when the CreateMachineHandler is not
-// present in FcInit.
-var ErrCreateMachineHandlerMissing = fmt.Errorf("%s is missing from FcInit's list", CreateMachineHandlerName)
+// ErrRequiredHandlerMissing occurs when a required handler is not present in
+// the handler list.
+var ErrRequiredHandlerMissing = fmt.Errorf("required handler is missing from FcInit's list")
 
 // AdaptHandlers will inject the LinkFilesHandler into the handler list.
 func (s NaiveChrootStrategy) AdaptHandlers(handlers *Handlers) error {
-	if !handlers.FcInit.Has(CreateMachineHandlerName) {
-		return ErrCreateMachineHandlerMissing
+	if !handlers.FcInit.Has(CreateLogFilesHandlerName) {
+		return ErrRequiredHandlerMissing
 	}
 
 	handlers.FcInit = handlers.FcInit.AppendAfter(
