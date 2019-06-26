@@ -309,12 +309,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		stderr = os.Stderr
 	}
 
-	stdin := cfg.JailerCfg.Stdin
-	if stdin == nil {
-		stdin = os.Stdin
-	}
-
-	m.cmd = NewJailerCommandBuilder().
+	builder := NewJailerCommandBuilder().
 		WithID(cfg.JailerCfg.ID).
 		WithUID(*cfg.JailerCfg.UID).
 		WithGID(*cfg.JailerCfg.GID).
@@ -324,9 +319,13 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
 		WithStdout(stdout).
-		WithStderr(stderr).
-		WithStdin(stdin).
-		Build(ctx)
+		WithStderr(stderr)
+
+	if stdin := cfg.JailerCfg.Stdin; stdin != nil {
+		builder = builder.WithStdin(stdin)
+	}
+
+	m.cmd = builder.Build(ctx)
 
 	if err := cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers); err != nil {
 		return err
@@ -375,6 +374,29 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 			}
 
 			m.cfg.KernelImagePath = kernelImageFileName
+
+			for _, fifoPath := range []*string{&m.cfg.LogFifo, &m.cfg.MetricsFifo} {
+				if fifoPath == nil || *fifoPath == "" {
+					continue
+				}
+
+				fileName := filepath.Base(*fifoPath)
+				if err := linkFileToRootFS(
+					m.cfg.JailerCfg,
+					filepath.Join(rootfs, fileName),
+					*fifoPath,
+				); err != nil {
+					return err
+				}
+
+				if err := os.Chown(filepath.Join(rootfs, fileName), *m.cfg.JailerCfg.UID, *m.cfg.JailerCfg.GID); err != nil {
+					return err
+				}
+
+				// update fifoPath as jailer works relative to the chroot dir
+				*fifoPath = fileName
+			}
+
 			return nil
 		},
 	}
@@ -395,18 +417,18 @@ func NewNaiveChrootStrategy(rootfs, kernelImagePath string) NaiveChrootStrategy 
 	}
 }
 
-// ErrCreateMachineHandlerMissing occurs when the CreateMachineHandler is not
-// present in FcInit.
-var ErrCreateMachineHandlerMissing = fmt.Errorf("%s is missing from FcInit's list", CreateMachineHandlerName)
+// ErrRequiredHandlerMissing occurs when a required handler is not present in
+// the handler list.
+var ErrRequiredHandlerMissing = fmt.Errorf("required handler is missing from FcInit's list")
 
 // AdaptHandlers will inject the LinkFilesHandler into the handler list.
 func (s NaiveChrootStrategy) AdaptHandlers(handlers *Handlers) error {
-	if !handlers.FcInit.Has(CreateMachineHandlerName) {
-		return ErrCreateMachineHandlerMissing
+	if !handlers.FcInit.Has(CreateLogFilesHandlerName) {
+		return ErrRequiredHandlerMissing
 	}
 
 	handlers.FcInit = handlers.FcInit.AppendAfter(
-		CreateMachineHandlerName,
+		CreateLogFilesHandlerName,
 		LinkFilesHandler(filepath.Join(s.Rootfs, rootfsFolderName), filepath.Base(s.KernelImagePath)),
 	)
 

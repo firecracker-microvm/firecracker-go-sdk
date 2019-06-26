@@ -111,7 +111,7 @@ func TestJailerBuilder(t *testing.T) {
 func TestJail(t *testing.T) {
 	m := &Machine{
 		Handlers: Handlers{
-			FcInit: HandlerList{}.Append(CreateMachineHandler),
+			FcInit: defaultFcInitHandlerList,
 		},
 	}
 	cfg := &Config{

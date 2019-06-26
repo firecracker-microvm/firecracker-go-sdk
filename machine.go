@@ -417,13 +417,6 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		return nil
 	}
 
-	if err := createFifos(m.cfg.LogFifo, m.cfg.MetricsFifo); err != nil {
-		m.logger.Errorf("Unable to set up logging: %s", err)
-		return err
-	}
-
-	m.logger.Debug("Created metrics and logging fifos.")
-
 	l := models.Logger{
 		LogFifo:       String(m.cfg.LogFifo),
 		Level:         String(m.cfg.LogLevel),
