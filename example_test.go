@@ -12,12 +12,13 @@ import (
 
 func ExampleWithProcessRunner_logging() {
 	const socketPath = "/tmp/firecracker.sock"
+
 	cfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: "/path/to/kernel",
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount: firecracker.Int64(1),
 		},
 		JailerCfg: firecracker.JailerConfig{
 			GID:      firecracker.Int(100),
@@ -98,7 +99,7 @@ func ExampleDrivesBuilder() {
 		// build our drives into the machine's configuration
 		Drives: b.Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount: firecracker.Int64(1),
 		},
 	}
 
@@ -140,7 +141,7 @@ func ExampleDrivesBuilder_driveOpt() {
 		// build our drives into the machine's configuration
 		Drives: drives,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount: firecracker.Int64(1),
 		},
 	}
 
@@ -197,7 +198,7 @@ func ExampleNetworkInterface_rateLimiting() {
 		KernelImagePath: "/path/to/kernel",
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount: firecracker.Int64(1),
 		},
 		NetworkInterfaces: networkIfaces,
 	}
@@ -234,6 +235,7 @@ func ExampleJailerCommandBuilder() {
 		WithStderr(os.Stderr)
 
 	const socketPath = "/tmp/firecracker/my-test-id/api.socket"
+
 	cfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: "./vmlinux",
@@ -246,7 +248,7 @@ func ExampleJailerCommandBuilder() {
 			},
 		},
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount: firecracker.Int64(1),
 		},
 		DisableValidation: true,
 	}

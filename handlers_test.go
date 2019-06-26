@@ -519,8 +519,8 @@ func TestHandlers(t *testing.T) {
 					called = CreateMachineHandler.Name
 					return &ops.PutMachineConfigurationNoContent{}, nil
 				},
-				GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
-					return &ops.GetMachineConfigOK{
+				GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+					return &ops.GetMachineConfigurationOK{
 						Payload: &models.MachineConfiguration{},
 					}, nil
 				},

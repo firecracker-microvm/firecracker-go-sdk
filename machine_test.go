@@ -72,6 +72,12 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			Debug:             true,
 			DisableValidation: true,
+			MachineCfg: models.MachineConfiguration{
+				VcpuCount:   Int64(1),
+				MemSizeMib:  Int64(100),
+				CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+				HtEnabled:   Bool(false),
+			},
 			JailerCfg: JailerConfig{
 				GID:            Int(100),
 				UID:            Int(100),
@@ -158,9 +164,10 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		LogLevel:        "Debug",
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   nCpus,
+			VcpuCount:   Int64(nCpus),
 			CPUTemplate: cpuTemplate,
-			MemSizeMib:  memSz,
+			MemSizeMib:  Int64(memSz),
+			HtEnabled:   Bool(false),
 		},
 		Drives: []models.Drive{
 			models.Drive{
@@ -274,9 +281,10 @@ func TestMicroVMExecution(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   nCpus,
+			VcpuCount:   Int64(nCpus),
 			CPUTemplate: cpuTemplate,
-			MemSizeMib:  memSz,
+			MemSizeMib:  Int64(memSz),
+			HtEnabled:   Bool(false),
 		},
 		Debug:             true,
 		DisableValidation: true,
@@ -388,7 +396,10 @@ func TestStartVMMOnce(t *testing.T) {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: 1,
+			VcpuCount:   Int64(1),
+			MemSizeMib:  Int64(64),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			HtEnabled:   Bool(false),
 		},
 	}
 	ctx := context.Background()
@@ -453,14 +464,10 @@ func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine, expectedValues Config) {
-	if m.machineConfig.VcpuCount != expectedValues.MachineCfg.VcpuCount {
-		t.Errorf("Got unexpected number of VCPUs: Expected: %d, Actual: %d",
-			expectedValues.MachineCfg.VcpuCount, m.cfg.MachineCfg.VcpuCount)
-	}
-	if m.machineConfig.MemSizeMib != expectedValues.MachineCfg.MemSizeMib {
-		t.Errorf("Got unexpected value for machine memory: expected: %d, Got %d",
-			expectedValues.MachineCfg.MemSizeMib, m.cfg.MachineCfg.MemSizeMib)
-	}
+	assert.Equal(t, expectedValues.MachineCfg.VcpuCount,
+		m.machineConfig.VcpuCount, "CPU count should be equal")
+
+	assert.Equal(t, expectedValues.MachineCfg.MemSizeMib, m.machineConfig.MemSizeMib, "memory...")
 }
 
 func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine, vmlinuxPath string) {
@@ -582,7 +589,7 @@ func testShutdown(ctx context.Context, t *testing.T, m *Machine) {
 func TestWaitForSocket(t *testing.T) {
 	okClient := fctesting.MockClient{}
 	errClient := fctesting.MockClient{
-		GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
 			return nil, errors.New("http error")
 		},
 	}
@@ -663,8 +670,8 @@ func TestLogFiles(t *testing.T) {
 	}
 
 	opClient := fctesting.MockClient{
-		GetMachineConfigFn: func(params *ops.GetMachineConfigParams) (*ops.GetMachineConfigOK, error) {
-			return &ops.GetMachineConfigOK{
+		GetMachineConfigurationFn: func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
+			return &ops.GetMachineConfigurationOK{
 				Payload: &models.MachineConfiguration{},
 			}, nil
 		},
