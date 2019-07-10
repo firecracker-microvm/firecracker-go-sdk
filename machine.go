@@ -168,6 +168,11 @@ func (m *Machine) PID() (int, error) {
 	if m.cmd == nil || m.cmd.Process == nil {
 		return 0, fmt.Errorf("machine is not running")
 	}
+	select {
+	case <-m.exitCh:
+		return 0, fmt.Errorf("machine process has exited")
+	default:
+	}
 	return m.cmd.Process.Pid, nil
 }
 
