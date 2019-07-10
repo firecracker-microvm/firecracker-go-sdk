@@ -15,6 +15,8 @@ package firecracker
 
 import (
 	"context"
+
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // This ensures the interface method signatures match that of Machine
@@ -29,4 +31,5 @@ type MachineIface interface {
 	Wait(context.Context) error
 	SetMetadata(context.Context, interface{}) error
 	UpdateGuestDrive(context.Context, string, string, ...PatchGuestDriveByIDOpt) error
+	UpdateGuestNetworkInterface(context.Context, string, models.PartialNetworkInterface, ...PatchGuestNetworkInterfaceByIDOpt) error
 }

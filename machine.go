@@ -564,6 +564,17 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	return err
 }
 
+// UpdateGuestNetworkInterface modifies the current guest network interface of ID index
+func (m *Machine) UpdateGuestNetworkInterface(ctx context.Context, ifaceID string, iface models.PartialNetworkInterface, opts ...PatchGuestNetworkInterfaceByIDOpt) error {
+	if _, err := m.client.PatchGuestNetworkInterfaceByID(ctx, ifaceID, &iface, opts...); err != nil {
+		m.logger.Errorf("Update network interface failed: %s: %v", ifaceID, err)
+		return err
+	}
+
+	m.logger.Infof("Updated network interface: %s", ifaceID)
+	return nil
+}
+
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 	hostPath := StringValue(dev.PathOnHost)

@@ -141,6 +141,27 @@ func (f *Client) PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID strin
 	return f.client.Operations.PutGuestNetworkInterfaceByID(cfg)
 }
 
+// PatchGuestNetworkInterfaceByIDOpt is a functional option to be used for the
+// PatchGuestNetworkInterfaceByID API in setting any additional optional fields.
+type PatchGuestNetworkInterfaceByIDOpt func(*ops.PatchGuestNetworkInterfaceByIDParams)
+
+// PatchGuestNetworkInterfaceByID is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) PatchGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.PartialNetworkInterface, opts ...PatchGuestNetworkInterfaceByIDOpt) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	defer cancel()
+
+	cfg := ops.NewPatchGuestNetworkInterfaceByIDParamsWithContext(timeout)
+	cfg.SetBody(ifaceCfg)
+	cfg.SetIfaceID(ifaceID)
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	return f.client.Operations.PatchGuestNetworkInterfaceByID(cfg)
+}
+
 // PutGuestDriveByIDOpt is a functional option to be used for the
 // PutGuestDriveByID API in setting any additional optional fields.
 type PutGuestDriveByIDOpt func(*ops.PutGuestDriveByIDParams)
