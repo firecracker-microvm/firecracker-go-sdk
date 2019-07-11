@@ -499,7 +499,13 @@ func testUpdateGuestDrive(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testUpdateGuestNetworkInterface(ctx context.Context, t *testing.T, m *Machine) {
-	if err := m.UpdateGuestNetworkInterface(ctx, "1", models.PartialNetworkInterface{IfaceID: String("1")}); err != nil {
+	rateLimitSet := RateLimiterSet{
+		InRateLimiter: NewRateLimiter(
+			TokenBucketBuilder{}.WithBucketSize(10).WithRefillDuration(10).Build(),
+			TokenBucketBuilder{}.WithBucketSize(10).WithRefillDuration(10).Build(),
+		),
+	}
+	if err := m.UpdateGuestNetworkInterfaceRateLimit(ctx, "1", rateLimitSet); err != nil {
 		t.Fatalf("Failed to update the network interface %v", err)
 	}
 }
