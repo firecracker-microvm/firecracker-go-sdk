@@ -275,6 +275,13 @@ func TestMicroVMExecution(t *testing.T) {
 
 	vmlinuxPath := getVmlinuxPath(t)
 
+	networkIfaces := []NetworkInterface{
+		{
+			MacAddress:  "01-23-45-67-89-AB-CD-EF",
+			HostDevName: "tap0",
+		},
+	}
+
 	cfg := Config{
 		SocketPath:  socketPath,
 		LogFifo:     logFifo,
@@ -288,6 +295,7 @@ func TestMicroVMExecution(t *testing.T) {
 		},
 		Debug:             true,
 		DisableValidation: true,
+		NetworkInterfaces: networkIfaces,
 	}
 
 	ctx := context.Background()
@@ -332,6 +340,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
+	t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
@@ -486,6 +495,18 @@ func testUpdateGuestDrive(ctx context.Context, t *testing.T, m *Machine) {
 	path := filepath.Join(testDataPath, "drive-3.img")
 	if err := m.UpdateGuestDrive(ctx, "2", path); err != nil {
 		t.Errorf("unexpected error on swapping guest drive: %v", err)
+	}
+}
+
+func testUpdateGuestNetworkInterface(ctx context.Context, t *testing.T, m *Machine) {
+	rateLimitSet := RateLimiterSet{
+		InRateLimiter: NewRateLimiter(
+			TokenBucketBuilder{}.WithBucketSize(10).WithRefillDuration(10).Build(),
+			TokenBucketBuilder{}.WithBucketSize(10).WithRefillDuration(10).Build(),
+		),
+	}
+	if err := m.UpdateGuestNetworkInterfaceRateLimit(ctx, "1", rateLimitSet); err != nil {
+		t.Fatalf("Failed to update the network interface %v", err)
 	}
 }
 

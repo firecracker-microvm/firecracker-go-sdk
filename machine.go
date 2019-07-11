@@ -192,6 +192,14 @@ type NetworkInterface struct {
 	OutRateLimiter *models.RateLimiter
 }
 
+// RateLimiterSet represents a pair of RateLimiters (inbound and outbound)
+type RateLimiterSet struct {
+	// InRateLimiter limits the incoming bytes.
+	InRateLimiter *models.RateLimiter
+	// OutRateLimiter limits the outgoing bytes.
+	OutRateLimiter *models.RateLimiter
+}
+
 // VsockDevice represents a vsock connection between the host and the guest
 // microVM.
 type VsockDevice struct {
@@ -562,6 +570,26 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 	}
 
 	return err
+}
+
+// UpdateGuestNetworkInterfaceRateLimit modifies the specified network interface's rate limits
+func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifaceID string, rateLimiters RateLimiterSet, opts ...PatchGuestNetworkInterfaceByIDOpt) error {
+	iface := models.PartialNetworkInterface{
+		IfaceID: &ifaceID,
+	}
+	if rateLimiters.InRateLimiter != nil {
+		iface.RxRateLimiter = rateLimiters.InRateLimiter
+	}
+	if rateLimiters.OutRateLimiter != nil {
+		iface.TxRateLimiter = rateLimiters.InRateLimiter
+	}
+	if _, err := m.client.PatchGuestNetworkInterfaceByID(ctx, ifaceID, &iface, opts...); err != nil {
+		m.logger.Errorf("Update network interface failed: %s: %v", ifaceID, err)
+		return err
+	}
+
+	m.logger.Infof("Updated network interface: %s", ifaceID)
+	return nil
 }
 
 // attachDrive attaches a secondary block device
