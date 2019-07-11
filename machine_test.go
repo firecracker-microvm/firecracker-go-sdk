@@ -836,3 +836,69 @@ func copyFile(src, dst string, uid, gid int) error {
 
 	return nil
 }
+
+func TestPID(t *testing.T) {
+	m := &Machine{}
+	if _, err := m.PID(); err == nil {
+		t.Errorf("expected an error, but received none")
+	}
+
+	var nCpus int64 = 2
+	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
+	var memSz int64 = 256
+	socketPath := filepath.Join(testDataPath, "TestPID.sock")
+	defer os.Remove(socketPath)
+
+	vmlinuxPath := getVmlinuxPath(t)
+
+	cfg := Config{
+		SocketPath:      socketPath,
+		KernelImagePath: vmlinuxPath,
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(nCpus),
+			CPUTemplate: cpuTemplate,
+			MemSizeMib:  Int64(memSz),
+			HtEnabled:   Bool(false),
+		},
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      String("1"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+			},
+		},
+		Debug:             true,
+		DisableValidation: true,
+	}
+
+	m, err := NewMachine(context.Background(), cfg)
+	if err != nil {
+		t.Errorf("expected no error during create machine, but received %v", err)
+	}
+
+	if err := m.Start(context.Background()); err != nil {
+		t.Errorf("expected no error during Start, but received %v", err)
+	}
+	defer m.StopVMM()
+
+	pid, err := m.PID()
+	if err != nil {
+		t.Errorf("unexpected error during PID call, %v", err)
+	}
+
+	if pid == 0 {
+		t.Errorf("failed to retrieve correct PID")
+	}
+
+	if err := m.StopVMM(); err != nil {
+		t.Errorf("expected clean kill, but received %v", err)
+	}
+
+	m.Wait(context.Background())
+
+	if _, err := m.PID(); err == nil {
+		t.Errorf("expected an error, but received none")
+	}
+
+}
