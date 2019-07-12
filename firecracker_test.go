@@ -8,7 +8,7 @@ import (
 	"time"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
-	log "github.com/sirupsen/logrus"
+	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 )
 
 func TestClient(t *testing.T) {
@@ -42,7 +42,7 @@ func TestClient(t *testing.T) {
 		PathOnHost:   String(filepath.Join(testDataPath, "drive-2.img")),
 	}
 
-	client := NewClient(socketpath, log.NewEntry(log.New()), true)
+	client := NewClient(socketpath, fctesting.NewLogEntry(), true)
 	deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer deadlineCancel()
 	if err := waitForAliveVMM(deadlineCtx, client); err != nil {

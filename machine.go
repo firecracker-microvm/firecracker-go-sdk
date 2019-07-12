@@ -420,10 +420,10 @@ func (m *Machine) StopVMM() error {
 
 func (m *Machine) stopVMM() error {
 	if m.cmd != nil && m.cmd.Process != nil {
-		log.Debug("stopVMM(): sending sigterm to firecracker")
+		m.logger.Debug("stopVMM(): sending sigterm to firecracker")
 		return m.cmd.Process.Signal(syscall.SIGTERM)
 	}
-	log.Debug("stopVMM(): no firecracker process running, not sending a signal")
+	m.logger.Debug("stopVMM(): no firecracker process running, not sending a signal")
 
 	// don't return an error if the process isn't even running
 	return nil
@@ -517,7 +517,7 @@ func (m *Machine) createMachine(ctx context.Context) error {
 	m.logger.Debug("PutMachineConfiguration returned")
 	err = m.refreshMachineConfiguration()
 	if err != nil {
-		log.Errorf("Unable to inspect Firecracker MachineConfiguration. Continuing anyway. %s", err)
+		m.logger.Errorf("Unable to inspect Firecracker MachineConfiguration. Continuing anyway. %s", err)
 	}
 	m.logger.Debug("createMachine returning")
 	return err
@@ -595,7 +595,7 @@ func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifac
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 	hostPath := StringValue(dev.PathOnHost)
-	log.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
+	m.logger.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
 	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
 		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
