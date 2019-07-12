@@ -47,23 +47,23 @@ func RequiresRoot(t testing.TB) {
 	}
 }
 
-func newLogger() *log.Logger {
+func newLogger(t testing.TB) *log.Logger {
 	str := os.Getenv(logLevelEnvName)
-	if str != "" {
-		logLevel, err := log.ParseLevel(str)
-		if err != nil {
-			panic(err)
-		}
-		return &log.Logger{
-			Out:   os.Stdout,
-			Level: logLevel,
-		}
-	} else {
+	if str == "" {
 		return log.New()
+	}
+
+	logLevel, err := log.ParseLevel(str)
+	if err != nil {
+		t.Fatalf("Failed to parse '%s' as Log Level: %v", str, err)
+	}
+	return &log.Logger{
+		Out:   os.Stdout,
+		Level: logLevel,
 	}
 }
 
 // NewLogEntry creates log.Entry. The level is specified by "FC_TEST_LOG_LEVEL" environment variable
-func NewLogEntry() *log.Entry {
-	return log.NewEntry(newLogger())
+func NewLogEntry(t testing.TB) *log.Entry {
+	return log.NewEntry(newLogger(t))
 }

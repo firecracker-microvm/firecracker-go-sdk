@@ -148,7 +148,7 @@ func TestHandlerListRun(t *testing.T) {
 
 	ctx := context.Background()
 	m := &Machine{
-		logger: fctesting.NewLogEntry(),
+		logger: fctesting.NewLogEntry(t),
 	}
 	if err := h.Run(ctx, m); err != bazErr {
 		t.Errorf("expected an error, but received %v", err)
@@ -613,8 +613,8 @@ func TestHandlers(t *testing.T) {
 			// resetting called for the next test
 			called = ""
 
-			client := NewClient(socketpath, fctesting.NewLogEntry(), true, WithOpsClient(&c.Client))
-			m, err := NewMachine(ctx, c.Config, WithClient(client), WithLogger(fctesting.NewLogEntry()))
+			client := NewClient(socketpath, fctesting.NewLogEntry(t), true, WithOpsClient(&c.Client))
+			m, err := NewMachine(ctx, c.Config, WithClient(client), WithLogger(fctesting.NewLogEntry(t)))
 			if err != nil {
 				t.Fatalf("failed to create machine: %v", err)
 			}

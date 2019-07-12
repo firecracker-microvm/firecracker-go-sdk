@@ -86,7 +86,7 @@ func TestNewMachine(t *testing.T) {
 				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
 			},
 		},
-		WithLogger(fctesting.NewLogEntry()))
+		WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		WithStderr(os.Stderr).
 		Build(ctx)
 
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry()))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestMicroVMExecution(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry()))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestStartVMM(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry()))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -416,7 +416,7 @@ func TestStartVMMOnce(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry()))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -626,7 +626,7 @@ func TestWaitForSocket(t *testing.T) {
 
 	m := Machine{
 		cfg:    Config{SocketPath: filename},
-		logger: fctesting.NewLogEntry(),
+		logger: fctesting.NewLogEntry(t),
 	}
 
 	go func() {
@@ -638,13 +638,13 @@ func TestWaitForSocket(t *testing.T) {
 	}()
 
 	// Socket file created, HTTP request succeeded
-	m.client = NewClient(filename, fctesting.NewLogEntry(), true, WithOpsClient(&okClient))
+	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&okClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
 		t.Errorf("waitForSocket returned unexpected error %s", err)
 	}
 
 	// Socket file exists, HTTP request failed
-	m.client = NewClient(filename, fctesting.NewLogEntry(), true, WithOpsClient(&errClient))
+	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&errClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
@@ -699,7 +699,7 @@ func TestLogFiles(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	client := NewClient("socket-path", fctesting.NewLogEntry(), true, WithOpsClient(&opClient))
+	client := NewClient("socket-path", fctesting.NewLogEntry(t), true, WithOpsClient(&opClient))
 
 	stdoutPath := filepath.Join(testDataPath, "stdout.log")
 	stderrPath := filepath.Join(testDataPath, "stderr.log")
@@ -728,7 +728,7 @@ func TestLogFiles(t *testing.T) {
 		cfg,
 		WithClient(client),
 		WithProcessRunner(cmd),
-		WithLogger(fctesting.NewLogEntry()),
+		WithLogger(fctesting.NewLogEntry(t)),
 	)
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
@@ -779,7 +779,7 @@ func TestCaptureFifoToFile(t *testing.T) {
 		t.Fatalf("Failed to create fifo file: %v", err)
 	}
 
-	if err := captureFifoToFile(fctesting.NewLogEntry(), fifoPath, fifo); err != nil {
+	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, fifo); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -874,7 +874,7 @@ func TestPID(t *testing.T) {
 		DisableValidation: true,
 	}
 
-	m, err := NewMachine(context.Background(), cfg)
+	m, err := NewMachine(context.Background(), cfg, WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Errorf("expected no error during create machine, but received %v", err)
 	}
