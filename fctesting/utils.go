@@ -55,7 +55,7 @@ func newLogger(t testing.TB) *log.Logger {
 
 	logLevel, err := log.ParseLevel(str)
 	if err != nil {
-		t.Fatalf("Failed to parse '%s' as Log Level: %v", str, err)
+		t.Fatalf("Failed to parse %q as Log Level: %v", str, err)
 	}
 	return &log.Logger{
 		Out:   os.Stdout,
