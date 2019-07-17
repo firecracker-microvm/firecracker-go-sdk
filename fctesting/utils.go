@@ -16,9 +16,12 @@ package fctesting
 import (
 	"os"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const rootDisableEnvName = "DISABLE_ROOT_TESTS"
+const logLevelEnvName = "FC_TEST_LOG_LEVEL"
 
 var rootDisabled bool
 
@@ -42,4 +45,25 @@ func RequiresRoot(t testing.TB) {
 			"run the tests with the %s environment variable set.",
 			rootDisableEnvName)
 	}
+}
+
+func newLogger(t testing.TB) *log.Logger {
+	str := os.Getenv(logLevelEnvName)
+	if str == "" {
+		return log.New()
+	}
+
+	logLevel, err := log.ParseLevel(str)
+	if err != nil {
+		t.Fatalf("Failed to parse %q as Log Level: %v", str, err)
+	}
+	return &log.Logger{
+		Out:   os.Stdout,
+		Level: logLevel,
+	}
+}
+
+// NewLogEntry creates log.Entry. The level is specified by "FC_TEST_LOG_LEVEL" environment variable
+func NewLogEntry(t testing.TB) *log.Entry {
+	return log.NewEntry(newLogger(t))
 }
