@@ -66,6 +66,16 @@ type JailerConfig struct {
 	// with the jailer is mostly Firecracker specific.
 	ExecFile string
 
+	// JailerBinary specifies the jailer binary to be used for setting up the
+	// Firecracker VM jail. If the value contains no path separators, it will
+	// use the PATH environment variable to get the absolute path of the binary.
+	// If the value contains path separators, the value will be used directly
+	// to exec the jailer. This follows the same conventions as Golang's
+	// os/exec.Command.
+	//
+	// If not specified it defaults to "jailer".
+	JailerBinary string
+
 	// ChrootBaseDir represents the base folder where chroot jails are built. The
 	// default is /srv/jailer
 	ChrootBaseDir string
@@ -320,6 +330,14 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithSeccompLevel(cfg.JailerCfg.SeccompLevel).
 		WithStdout(stdout).
 		WithStderr(stderr)
+
+	if jailerBinary := cfg.JailerCfg.JailerBinary; jailerBinary != "" {
+		builder = builder.WithBin(jailerBinary)
+	}
+
+	if netNS := cfg.JailerCfg.NetNS; netNS != "" {
+		builder = builder.WithNetNS(netNS)
+	}
 
 	if stdin := cfg.JailerCfg.Stdin; stdin != nil {
 		builder = builder.WithStdin(stdin)
