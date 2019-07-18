@@ -7,74 +7,106 @@ import (
 	"testing"
 )
 
-func TestJailerBuilder(t *testing.T) {
-	cases := []struct {
-		name         string
-		jailerCfg    JailerConfig
-		expectedArgs []string
-		jailerBin    string
-	}{
-		{
-			name: "required fields",
-			jailerCfg: JailerConfig{
-				ID:       "my-test-id",
-				UID:      Int(123),
-				GID:      Int(100),
-				NumaNode: Int(0),
-				ExecFile: "/path/to/firecracker",
-			},
-			expectedArgs: []string{
-				defaultJailerBin,
-				"--id",
-				"my-test-id",
-				"--uid",
-				"123",
-				"--gid",
-				"100",
-				"--exec-file",
-				"/path/to/firecracker",
-				"--node",
-				"0",
-				"--seccomp-level",
-				"0",
-			},
+var testCases = []struct {
+	name             string
+	jailerCfg        JailerConfig
+	expectedArgs     []string
+	expectedSockPath string
+}{
+	{
+		name: "required fields",
+		jailerCfg: JailerConfig{
+			ID:             "my-test-id",
+			UID:            Int(123),
+			GID:            Int(100),
+			NumaNode:       Int(0),
+			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+			ExecFile:       "/path/to/firecracker",
 		},
-		{
-			name:      "optional fields",
-			jailerBin: "foo",
-			jailerCfg: JailerConfig{
-				ID:            "my-test-id",
-				UID:           Int(123),
-				GID:           Int(100),
-				NumaNode:      Int(1),
-				ExecFile:      "/path/to/firecracker",
-				NetNS:         "/net/namespace",
-				ChrootBaseDir: "/tmp",
-				SeccompLevel:  SeccompLevelAdvanced,
-			},
-			expectedArgs: []string{
-				"foo",
-				"--id",
-				"my-test-id",
-				"--uid",
-				"123",
-				"--gid",
-				"100",
-				"--exec-file",
-				"/path/to/firecracker",
-				"--node",
-				"1",
-				"--chroot-base-dir",
-				"/tmp",
-				"--netns",
-				"/net/namespace",
-				"--seccomp-level",
-				"2",
-			},
+		expectedArgs: []string{
+			defaultJailerBin,
+			"--id",
+			"my-test-id",
+			"--uid",
+			"123",
+			"--gid",
+			"100",
+			"--exec-file",
+			"/path/to/firecracker",
+			"--node",
+			"0",
+			"--seccomp-level",
+			"0",
 		},
-	}
+		expectedSockPath: filepath.Join(defaultJailerPath, "my-test-id", rootfsFolderName, "api.socket"),
+	},
+	{
+		name: "other jailer binary name",
+		jailerCfg: JailerConfig{
+			ID:             "my-test-id",
+			UID:            Int(123),
+			GID:            Int(100),
+			NumaNode:       Int(0),
+			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+			ExecFile:       "/path/to/firecracker",
+			JailerBinary:   "imprisoner",
+		},
+		expectedArgs: []string{
+			"imprisoner",
+			"--id",
+			"my-test-id",
+			"--uid",
+			"123",
+			"--gid",
+			"100",
+			"--exec-file",
+			"/path/to/firecracker",
+			"--node",
+			"0",
+			"--seccomp-level",
+			"0",
+		},
+		expectedSockPath: filepath.Join(defaultJailerPath, "my-test-id", rootfsFolderName, "api.socket"),
+	},
+	{
+		name: "optional fields",
+		jailerCfg: JailerConfig{
+			ID:             "my-test-id",
+			UID:            Int(123),
+			GID:            Int(100),
+			NumaNode:       Int(1),
+			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+			ExecFile:       "/path/to/firecracker",
+			NetNS:          "/net/namespace",
+			ChrootBaseDir:  "/tmp",
+			SeccompLevel:   SeccompLevelAdvanced,
+			JailerBinary:   "/path/to/the/jailer",
+		},
+		expectedArgs: []string{
+			"/path/to/the/jailer",
+			"--id",
+			"my-test-id",
+			"--uid",
+			"123",
+			"--gid",
+			"100",
+			"--exec-file",
+			"/path/to/firecracker",
+			"--node",
+			"1",
+			"--chroot-base-dir",
+			"/tmp",
+			"--netns",
+			"/net/namespace",
+			"--seccomp-level",
+			"2",
+		},
+		expectedSockPath: filepath.Join("/tmp", "firecracker", "my-test-id", rootfsFolderName, "api.socket"),
+	},
+}
 
-	for _, c := range cases {
+func TestJailerBuilder(t *testing.T) {
+	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			b := NewJailerCommandBuilder().
 				WithID(c.jailerCfg.ID).
@@ -84,8 +116,8 @@ func TestJailerBuilder(t *testing.T) {
 				WithSeccompLevel(c.jailerCfg.SeccompLevel).
 				WithExecFile(c.jailerCfg.ExecFile)
 
-			if len(c.jailerBin) > 0 {
-				b = b.WithBin(c.jailerBin)
+			if len(c.jailerCfg.JailerBinary) > 0 {
+				b = b.WithBin(c.jailerCfg.JailerBinary)
 			}
 
 			if len(c.jailerCfg.ChrootBaseDir) > 0 {
@@ -109,56 +141,37 @@ func TestJailerBuilder(t *testing.T) {
 }
 
 func TestJail(t *testing.T) {
-	m := &Machine{
-		Handlers: Handlers{
-			FcInit: defaultFcInitHandlerList,
-		},
-	}
-	cfg := &Config{
-		JailerCfg: JailerConfig{
-			ID:             "test-id",
-			UID:            Int(123),
-			GID:            Int(456),
-			NumaNode:       Int(0),
-			ExecFile:       "/path/to/firecracker",
-			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
-		},
-	}
-	jail(context.Background(), m, cfg)
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			m := &Machine{
+				Handlers: Handlers{
+					FcInit: defaultFcInitHandlerList,
+				},
+			}
+			cfg := &Config{
+				JailerCfg: c.jailerCfg,
+			}
+			jail(context.Background(), m, cfg)
 
-	expectedArgs := []string{
-		defaultJailerBin,
-		"--id",
-		"test-id",
-		"--uid",
-		"123",
-		"--gid",
-		"456",
-		"--exec-file",
-		"/path/to/firecracker",
-		"--node",
-		"0",
-		"--seccomp-level",
-		"0",
-	}
+			if e, a := c.expectedArgs, m.cmd.Args; !reflect.DeepEqual(e, a) {
+				t.Errorf("expected args %v, but received %v", e, a)
+			}
 
-	if e, a := expectedArgs, m.cmd.Args; !reflect.DeepEqual(e, a) {
-		t.Errorf("expected args %v, but received %v", e, a)
-	}
+			if e, a := c.expectedSockPath, cfg.SocketPath; e != a {
+				t.Errorf("expected socket path %q, but received %q", e, a)
+			}
 
-	if e, a := filepath.Join(defaultJailerPath, cfg.JailerCfg.ID, rootfsFolderName, "api.socket"), cfg.SocketPath; e != a {
-		t.Errorf("expected socket path %q, but received %q", e, a)
-	}
+			foundJailerHandler := false
+			for _, handler := range m.Handlers.FcInit.list {
+				if handler.Name == LinkFilesToRootFSHandlerName {
+					foundJailerHandler = true
+					break
+				}
+			}
 
-	foundJailerHandler := false
-	for _, handler := range m.Handlers.FcInit.list {
-		if handler.Name == LinkFilesToRootFSHandlerName {
-			foundJailerHandler = true
-			break
-		}
-	}
-
-	if !foundJailerHandler {
-		t.Errorf("did not find link files handler")
+			if !foundJailerHandler {
+				t.Errorf("did not find link files handler")
+			}
+		})
 	}
 }
