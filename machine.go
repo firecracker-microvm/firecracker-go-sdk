@@ -406,6 +406,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			m.err = err
 		}
 
+		signal.Stop(sigchan)
 		close(m.exitCh)
 	}()
 
