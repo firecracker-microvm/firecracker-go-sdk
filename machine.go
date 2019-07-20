@@ -385,9 +385,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		syscall.SIGABRT)
 	m.logger.Debugf("Setting up signal handler")
 	go func() {
-		sig := <-sigchan
-		m.logger.Printf("Caught signal %s", sig)
-		m.cmd.Process.Signal(sig)
+		if sig, ok := <-sigchan; ok {
+			m.logger.Printf("Caught signal %s", sig)
+			m.cmd.Process.Signal(sig)
+		}
 	}()
 
 	// Wait for firecracker to initialize:
@@ -407,6 +408,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		}
 
 		signal.Stop(sigchan)
+		close(sigchan)
 		close(m.exitCh)
 	}()
 
