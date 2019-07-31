@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -19,13 +22,6 @@ func ExampleWithProcessRunner_logging() {
 		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount: firecracker.Int64(1),
-		},
-		JailerCfg: firecracker.JailerConfig{
-			GID:      firecracker.Int(100),
-			UID:      firecracker.Int(100),
-			ID:       "my-micro-vm",
-			NumaNode: firecracker.Int(0),
-			ExecFile: "/path/to/firecracker",
 		},
 	}
 
@@ -221,52 +217,72 @@ func ExampleNetworkInterface_rateLimiting() {
 	}
 }
 
-func ExampleJailerCommandBuilder() {
+func ExampleJailerConfig_enablingJailer() {
 	ctx := context.Background()
-	// Creates a jailer command using the JailerCommandBuilder.
-	b := firecracker.NewJailerCommandBuilder().
-		WithID("my-test-id").
-		WithUID(123).
-		WithGID(100).
-		WithNumaNode(0).
-		WithExecFile("/usr/local/bin/firecracker").
-		WithChrootBaseDir("/tmp").
-		WithStdout(os.Stdout).
-		WithStderr(os.Stderr)
+	vmmCtx, vmmCancel := context.WithCancel(ctx)
+	defer vmmCancel()
 
-	const socketPath = "/tmp/firecracker/my-test-id/api.socket"
+	const id = "my-jailer-test"
+	const path = "/path/to/jailer-workspace"
+	pathToWorkspace := filepath.Join(path, "firecracker", id)
+	const kernelImagePath = "/path/to/kernel-image"
 
-	cfg := firecracker.Config{
-		SocketPath:      socketPath,
-		KernelImagePath: "./vmlinux",
-		Drives: []models.Drive{
-			models.Drive{
-				DriveID:      firecracker.String("1"),
-				IsRootDevice: firecracker.Bool(true),
-				IsReadOnly:   firecracker.Bool(false),
-				PathOnHost:   firecracker.String("/path/to/root/drive"),
-			},
-		},
+	uid := 123
+	gid := 100
+
+	fcCfg := firecracker.Config{
+		SocketPath:      "api.socket",
+		KernelImagePath: kernelImagePath,
+		KernelArgs:      "console=ttyS0 reboot=k panic=1 pci=off",
+		Drives:          firecracker.NewDrivesBuilder("/path/to/rootfs").Build(),
+		LogLevel:        "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount: firecracker.Int64(1),
+			VcpuCount:  firecracker.Int64(1),
+			HtEnabled:  firecracker.Bool(false),
+			MemSizeMib: firecracker.Int64(256),
 		},
-		DisableValidation: true,
+		EnableJailer: true,
+		JailerCfg: firecracker.JailerConfig{
+			UID:            &uid,
+			GID:            &gid,
+			ID:             id,
+			NumaNode:       firecracker.Int(0),
+			ChrootBaseDir:  path,
+			ChrootStrategy: firecracker.NewNaiveChrootStrategy(pathToWorkspace, kernelImagePath),
+			ExecFile:       "/path/to/firecracker-binary",
+		},
 	}
 
-	// Passes the custom jailer command into the constructor
-	m, err := firecracker.NewMachine(ctx, cfg, firecracker.WithProcessRunner(b.Build(ctx)))
+	// Check if kernel image is readable
+	f, err := os.Open(fcCfg.KernelImagePath)
 	if err != nil {
-		panic(fmt.Errorf("failed to create new machine: %v", err))
+		panic(fmt.Errorf("Failed to open kernel image: %v", err))
+	}
+	f.Close()
+
+	// Check each drive is readable and writable
+	for _, drive := range fcCfg.Drives {
+		drivePath := firecracker.StringValue(drive.PathOnHost)
+		f, err := os.OpenFile(drivePath, os.O_RDWR, 0666)
+		if err != nil {
+			panic(fmt.Errorf("Failed to open drive with read/write permissions: %v", err))
+		}
+		f.Close()
 	}
 
-	// This does not copy any of the files over to the rootfs since a process
-	// runner was specified. This examples assumes that the files have been
-	// properly mounted.
-	if err := m.Start(ctx); err != nil {
+	logger := log.New()
+	m, err := firecracker.NewMachine(vmmCtx, fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
+	if err != nil {
 		panic(err)
 	}
 
-	tCtx, cancelFn := context.WithTimeout(ctx, time.Minute)
-	defer cancelFn()
-	m.Wait(tCtx)
+	if err := m.Start(vmmCtx); err != nil {
+		panic(err)
+	}
+	defer m.StopVMM()
+
+	// wait for the VMM to exit
+	if err := m.Wait(vmmCtx); err != nil {
+		panic(err)
+	}
 }
