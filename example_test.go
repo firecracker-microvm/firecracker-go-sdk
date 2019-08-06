@@ -241,8 +241,7 @@ func ExampleJailerConfig_enablingJailer() {
 			HtEnabled:  firecracker.Bool(false),
 			MemSizeMib: firecracker.Int64(256),
 		},
-		EnableJailer: true,
-		JailerCfg: firecracker.JailerConfig{
+		JailerCfg: &firecracker.JailerConfig{
 			UID:            &uid,
 			GID:            &gid,
 			ID:             id,

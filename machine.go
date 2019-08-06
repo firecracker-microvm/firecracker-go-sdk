@@ -90,12 +90,8 @@ type Config struct {
 	// validation of configuration performed by the SDK.
 	DisableValidation bool
 
-	// EnableJailer will enable the jailer. By enabling the jailer, root level
-	// permissions are required.
-	EnableJailer bool
-
 	// JailerCfg is configuration specific for the jailer process.
-	JailerCfg JailerConfig
+	JailerCfg *JailerConfig
 }
 
 // Validate will ensure that the required fields are set and that
@@ -235,7 +231,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	m.Handlers = defaultHandlers
 
-	if cfg.EnableJailer {
+	if cfg.JailerCfg != nil {
 		m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
 		if err := jail(ctx, m, &cfg); err != nil {
 			return nil, err

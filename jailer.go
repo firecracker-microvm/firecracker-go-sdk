@@ -32,6 +32,12 @@ const (
 	rootfsFolderName = "root"
 )
 
+var (
+	// ErrMissingJailerConfig will occur when entering jailer logic but the
+	// jailer config had not been specified.
+	ErrMissingJailerConfig = fmt.Errorf("JailerConfig was not set for use.")
+)
+
 // SeccompLevelValue represents a secure computing level type.
 type SeccompLevelValue int
 
@@ -352,7 +358,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	return nil
 }
 
-func linkFileToRootFS(cfg JailerConfig, dst, src string) error {
+func linkFileToRootFS(cfg *JailerConfig, dst, src string) error {
 	if err := os.Link(src, dst); err != nil {
 		return err
 	}
@@ -366,6 +372,10 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 	return Handler{
 		Name: LinkFilesToRootFSHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
+			if m.cfg.JailerCfg == nil {
+				return ErrMissingJailerConfig
+			}
+
 			// copy kernel image to root fs
 			if err := linkFileToRootFS(
 				m.cfg.JailerCfg,
