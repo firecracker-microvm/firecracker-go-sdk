@@ -77,14 +77,6 @@ func TestNewMachine(t *testing.T) {
 				CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
 				HtEnabled:   Bool(false),
 			},
-			JailerCfg: JailerConfig{
-				GID:            Int(100),
-				UID:            Int(100),
-				ID:             "my-micro-vm",
-				NumaNode:       Int(0),
-				ExecFile:       "/path/to/firecracker",
-				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
-			},
 		},
 		WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
@@ -177,7 +169,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 				PathOnHost:   String(rootdrivePath),
 			},
 		},
-		JailerCfg: JailerConfig{
+		JailerCfg: &JailerConfig{
 			GID:            Int(jailerGID),
 			UID:            Int(jailerUID),
 			NumaNode:       Int(0),
@@ -186,7 +178,6 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			ExecFile:       getFirecrackerBinaryPath(),
 			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
 		},
-		EnableJailer: true,
 	}
 
 	if _, err := os.Stat(vmlinuxPath); err != nil {

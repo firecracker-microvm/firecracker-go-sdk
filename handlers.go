@@ -55,7 +55,7 @@ var ConfigValidationHandler = Handler{
 var JailerConfigValidationHandler = Handler{
 	Name: ValidateJailerCfgHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		if !m.cfg.EnableJailer {
+		if m.cfg.JailerCfg == nil {
 			return nil
 		}
 

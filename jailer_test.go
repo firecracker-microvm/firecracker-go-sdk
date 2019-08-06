@@ -149,7 +149,7 @@ func TestJail(t *testing.T) {
 				},
 			}
 			cfg := &Config{
-				JailerCfg: c.jailerCfg,
+				JailerCfg: &c.jailerCfg,
 			}
 			jail(context.Background(), m, cfg)
 
