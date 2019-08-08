@@ -46,7 +46,7 @@ var ConfigValidationHandler = Handler{
 	Name: ValidateCfgHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
 		// ensure that the configuration is valid for the FcInit handlers.
-		return m.cfg.Validate()
+		return m.Cfg.Validate()
 	},
 }
 
@@ -55,12 +55,12 @@ var ConfigValidationHandler = Handler{
 var JailerConfigValidationHandler = Handler{
 	Name: ValidateJailerCfgHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		if m.cfg.JailerCfg == nil {
+		if m.Cfg.JailerCfg == nil {
 			return nil
 		}
 
 		hasRoot := false
-		for _, drive := range m.cfg.Drives {
+		for _, drive := range m.Cfg.Drives {
 			if BoolValue(drive.IsRootDevice) {
 				hasRoot = true
 				break
@@ -71,27 +71,27 @@ var JailerConfigValidationHandler = Handler{
 			return fmt.Errorf("A root drive must be present in the drive list")
 		}
 
-		if m.cfg.JailerCfg.ChrootStrategy == nil {
+		if m.Cfg.JailerCfg.ChrootStrategy == nil {
 			return fmt.Errorf("ChrootStrategy cannot be nil")
 		}
 
-		if len(m.cfg.JailerCfg.ExecFile) == 0 {
+		if len(m.Cfg.JailerCfg.ExecFile) == 0 {
 			return fmt.Errorf("exec file must be specified when using jailer mode")
 		}
 
-		if len(m.cfg.JailerCfg.ID) == 0 {
+		if len(m.Cfg.JailerCfg.ID) == 0 {
 			return fmt.Errorf("id must be specified when using jailer mode")
 		}
 
-		if m.cfg.JailerCfg.GID == nil {
+		if m.Cfg.JailerCfg.GID == nil {
 			return fmt.Errorf("GID must be specified when using jailer mode")
 		}
 
-		if m.cfg.JailerCfg.UID == nil {
+		if m.Cfg.JailerCfg.UID == nil {
 			return fmt.Errorf("UID must be specified when using jailer mode")
 		}
 
-		if m.cfg.JailerCfg.NumaNode == nil {
+		if m.Cfg.JailerCfg.NumaNode == nil {
 			return fmt.Errorf("ID must be specified when using jailer mode")
 		}
 
@@ -112,8 +112,8 @@ var StartVMMHandler = Handler{
 var CreateLogFilesHandler = Handler{
 	Name: CreateLogFilesHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		logFifoPath := m.cfg.LogFifo
-		metricsFifoPath := m.cfg.MetricsFifo
+		logFifoPath := m.Cfg.LogFifo
+		metricsFifoPath := m.Cfg.MetricsFifo
 
 		if len(logFifoPath) == 0 || len(metricsFifoPath) == 0 {
 			// logging is disabled
@@ -160,7 +160,7 @@ var CreateMachineHandler = Handler{
 var CreateBootSourceHandler = Handler{
 	Name: CreateBootSourceHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.createBootSource(ctx, m.cfg.KernelImagePath, m.cfg.KernelArgs)
+		return m.createBootSource(ctx, m.Cfg.KernelImagePath, m.Cfg.KernelArgs)
 	},
 }
 
@@ -169,7 +169,7 @@ var CreateBootSourceHandler = Handler{
 var AttachDrivesHandler = Handler{
 	Name: AttachDrivesHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.attachDrives(ctx, m.cfg.Drives...)
+		return m.attachDrives(ctx, m.Cfg.Drives...)
 	},
 }
 
@@ -178,7 +178,7 @@ var AttachDrivesHandler = Handler{
 var CreateNetworkInterfacesHandler = Handler{
 	Name: CreateNetworkInterfacesHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.createNetworkInterfaces(ctx, m.cfg.NetworkInterfaces...)
+		return m.createNetworkInterfaces(ctx, m.Cfg.NetworkInterfaces...)
 	},
 }
 
@@ -187,7 +187,7 @@ var CreateNetworkInterfacesHandler = Handler{
 var AddVsocksHandler = Handler{
 	Name: AddVsocksHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.addVsocks(ctx, m.cfg.VsockDevices...)
+		return m.addVsocks(ctx, m.Cfg.VsockDevices...)
 	},
 }
 
@@ -234,7 +234,7 @@ type Handlers struct {
 // into a single list and running.
 func (h Handlers) Run(ctx context.Context, m *Machine) error {
 	l := HandlerList{}
-	if !m.cfg.DisableValidation {
+	if !m.Cfg.DisableValidation {
 		l = l.Append(h.Validation.list...)
 	}
 
