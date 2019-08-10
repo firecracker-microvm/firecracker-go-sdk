@@ -251,6 +251,13 @@ type HandlerList struct {
 	list []Handler
 }
 
+// Prepend will prepend a new set of handlers to the handler list
+func (l HandlerList) Prepend(handlers ...Handler) HandlerList {
+	l.list = append(handlers, l.list...)
+
+	return l
+}
+
 // Append will append a new handler to the handler list.
 func (l HandlerList) Append(handlers ...Handler) HandlerList {
 	l.list = append(l.list, handlers...)

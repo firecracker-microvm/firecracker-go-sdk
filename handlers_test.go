@@ -38,6 +38,31 @@ func TestHandlerListAppend(t *testing.T) {
 	}
 }
 
+func TestHandlerListPrepend(t *testing.T) {
+	h := HandlerList{}
+	h.Prepend(Handler{Name: "foo"})
+
+	if size := h.Len(); size != 0 {
+		t.Errorf("expected length to be '0', but received '%d'", size)
+	}
+
+	expectedNames := []string{
+		"foo",
+		"bar",
+		"baz",
+	}
+
+	for _, name := range expectedNames {
+		h = h.Prepend(Handler{Name: name})
+	}
+
+	for i, name := range expectedNames {
+		if e, a := name, h.list[len(h.list)-i-1].Name; e != a {
+			t.Errorf("expected %q, but received %q", e, a)
+		}
+	}
+}
+
 func TestHandlerListRemove(t *testing.T) {
 	h := HandlerList{}.Append(
 		Handler{
