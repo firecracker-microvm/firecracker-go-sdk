@@ -35,7 +35,7 @@ const (
 var (
 	// ErrMissingJailerConfig will occur when entering jailer logic but the
 	// jailer config had not been specified.
-	ErrMissingJailerConfig = fmt.Errorf("JailerConfig was not set for use.")
+	ErrMissingJailerConfig = fmt.Errorf("jailer config was not set for use")
 )
 
 // SeccompLevelValue represents a secure computing level type.
@@ -372,52 +372,52 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 	return Handler{
 		Name: LinkFilesToRootFSHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
-			if m.cfg.JailerCfg == nil {
+			if m.Cfg.JailerCfg == nil {
 				return ErrMissingJailerConfig
 			}
 
 			// copy kernel image to root fs
 			if err := linkFileToRootFS(
-				m.cfg.JailerCfg,
+				m.Cfg.JailerCfg,
 				filepath.Join(rootfs, kernelImageFileName),
-				m.cfg.KernelImagePath,
+				m.Cfg.KernelImagePath,
 			); err != nil {
 				return err
 			}
 
 			// copy all drives to the root fs
-			for i, drive := range m.cfg.Drives {
+			for i, drive := range m.Cfg.Drives {
 				hostPath := StringValue(drive.PathOnHost)
 				driveFileName := filepath.Base(hostPath)
 
 				if err := linkFileToRootFS(
-					m.cfg.JailerCfg,
+					m.Cfg.JailerCfg,
 					filepath.Join(rootfs, driveFileName),
 					hostPath,
 				); err != nil {
 					return err
 				}
 
-				m.cfg.Drives[i].PathOnHost = String(driveFileName)
+				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
 			}
 
-			m.cfg.KernelImagePath = kernelImageFileName
+			m.Cfg.KernelImagePath = kernelImageFileName
 
-			for _, fifoPath := range []*string{&m.cfg.LogFifo, &m.cfg.MetricsFifo} {
+			for _, fifoPath := range []*string{&m.Cfg.LogFifo, &m.Cfg.MetricsFifo} {
 				if fifoPath == nil || *fifoPath == "" {
 					continue
 				}
 
 				fileName := filepath.Base(*fifoPath)
 				if err := linkFileToRootFS(
-					m.cfg.JailerCfg,
+					m.Cfg.JailerCfg,
 					filepath.Join(rootfs, fileName),
 					*fifoPath,
 				); err != nil {
 					return err
 				}
 
-				if err := os.Chown(filepath.Join(rootfs, fileName), *m.cfg.JailerCfg.UID, *m.cfg.JailerCfg.GID); err != nil {
+				if err := os.Chown(filepath.Join(rootfs, fileName), *m.Cfg.JailerCfg.UID, *m.Cfg.JailerCfg.GID); err != nil {
 					return err
 				}
 

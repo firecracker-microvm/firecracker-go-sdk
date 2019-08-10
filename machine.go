@@ -141,7 +141,7 @@ type Machine struct {
 	// Handlers holds the set of handlers that are run for validation and start
 	Handlers Handlers
 
-	cfg           Config
+	Cfg           Config
 	client        *Client
 	cmd           *exec.Cmd
 	logger        *log.Entry
@@ -209,17 +209,17 @@ type VsockDevice struct {
 // SocketPath returns the filesystem path to the socket used for VMM
 // communication
 func (m *Machine) socketPath() string {
-	return m.cfg.SocketPath
+	return m.Cfg.SocketPath
 }
 
 // LogFile returns the filesystem path of the VMM log
 func (m *Machine) LogFile() string {
-	return m.cfg.LogFifo
+	return m.Cfg.LogFifo
 }
 
 // LogLevel returns the VMM log level.
 func (m *Machine) LogLevel() string {
-	return m.cfg.LogLevel
+	return m.Cfg.LogLevel
 }
 
 // NewMachine initializes a new Machine instance and performs validation of the
@@ -261,7 +261,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	m.machineConfig = cfg.MachineCfg
-	m.cfg = cfg
+	m.Cfg = cfg
 
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
@@ -309,7 +309,7 @@ func (m *Machine) Wait(ctx context.Context) error {
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for _, dev := range m.cfg.VsockDevices {
+	for _, dev := range m.Cfg.VsockDevices {
 		if err := m.addVsock(ctx, dev); err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) erro
 
 // startVMM starts the firecracker vmm process and configures logging.
 func (m *Machine) startVMM(ctx context.Context) error {
-	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.cfg.SocketPath)
+	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.Cfg.SocketPath)
 
 	errCh := make(chan error)
 
@@ -352,7 +352,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		close(m.exitCh)
 		return err
 	}
-	m.logger.Debugf("VMM started socket path is %s", m.cfg.SocketPath)
+	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
 
 	go func() {
 		if err := m.cmd.Wait(); err != nil {
@@ -361,9 +361,9 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			m.logger.Printf("firecracker exited: status=0")
 		}
 
-		os.Remove(m.cfg.SocketPath)
-		os.Remove(m.cfg.LogFifo)
-		os.Remove(m.cfg.MetricsFifo)
+		os.Remove(m.Cfg.SocketPath)
+		os.Remove(m.Cfg.LogFifo)
+		os.Remove(m.Cfg.MetricsFifo)
 		errCh <- err
 
 		// Notify subscribers that there will be no more values.
@@ -390,7 +390,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
-		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.cfg.SocketPath, err)
+		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.Cfg.SocketPath, err)
 		err = errors.New(msg)
 		close(m.exitCh)
 		return err
@@ -443,16 +443,16 @@ func createFifos(logFifo, metricsFifo string) error {
 }
 
 func (m *Machine) setupLogging(ctx context.Context) error {
-	if len(m.cfg.LogFifo) == 0 || len(m.cfg.MetricsFifo) == 0 {
+	if len(m.Cfg.LogFifo) == 0 || len(m.Cfg.MetricsFifo) == 0 {
 		// No logging configured
 		m.logger.Printf("VMM logging and metrics disabled.")
 		return nil
 	}
 
 	l := models.Logger{
-		LogFifo:       String(m.cfg.LogFifo),
-		Level:         String(m.cfg.LogLevel),
-		MetricsFifo:   String(m.cfg.MetricsFifo),
+		LogFifo:       String(m.Cfg.LogFifo),
+		Level:         String(m.Cfg.LogLevel),
+		MetricsFifo:   String(m.Cfg.MetricsFifo),
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
 		Options:       []string{},
@@ -464,12 +464,12 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	}
 
 	m.logger.Debugf("Configured VMM logging to %s, metrics to %s",
-		m.cfg.LogFifo,
-		m.cfg.MetricsFifo,
+		m.Cfg.LogFifo,
+		m.Cfg.MetricsFifo,
 	)
 
-	if m.cfg.FifoLogWriter != nil {
-		if err := captureFifoToFile(m.logger, m.cfg.LogFifo, m.cfg.FifoLogWriter); err != nil {
+	if m.Cfg.FifoLogWriter != nil {
+		if err := captureFifoToFile(m.logger, m.Cfg.LogFifo, m.Cfg.FifoLogWriter); err != nil {
 			return err
 		}
 	}
@@ -507,7 +507,7 @@ func captureFifoToFile(logger *log.Entry, fifoPath string, fifo io.Writer) error
 }
 
 func (m *Machine) createMachine(ctx context.Context) error {
-	resp, err := m.client.PutMachineConfiguration(ctx, &m.cfg.MachineCfg)
+	resp, err := m.client.PutMachineConfiguration(ctx, &m.Cfg.MachineCfg)
 	if err != nil {
 		m.logger.Errorf("PutMachineConfiguration returned %s", resp.Error())
 		return err
@@ -699,7 +699,7 @@ func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) erro
 		case err := <-exitchan:
 			return err
 		case <-ticker.C:
-			if _, err := os.Stat(m.cfg.SocketPath); err != nil {
+			if _, err := os.Stat(m.Cfg.SocketPath); err != nil {
 				continue
 			}
 

@@ -616,7 +616,7 @@ func TestWaitForSocket(t *testing.T) {
 	errchan := make(chan error)
 
 	m := Machine{
-		cfg:    Config{SocketPath: filename},
+		Cfg:    Config{SocketPath: filename},
 		logger: fctesting.NewLogEntry(t),
 	}
 
