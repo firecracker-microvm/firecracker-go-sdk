@@ -15,6 +15,7 @@ package firecracker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -657,6 +658,40 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	}
 
 	m.logger.Printf("SetMetadata successful")
+	return nil
+}
+
+// UpdateMetadata patches the machine's metadata for MDDS
+func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) error {
+	if _, err := m.client.PatchMmds(ctx, metadata); err != nil {
+		m.logger.Errorf("Updating metadata: %s", err)
+		return err
+	}
+
+	m.logger.Printf("UpdateMetadata successful")
+	return nil
+}
+
+// GetMetadata gets the machine's metadata from MDDS and unmarshals it into v
+func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
+	resp, err := m.client.GetMmds(ctx)
+	if err != nil {
+		m.logger.Errorf("Getting metadata: %s", err)
+		return err
+	}
+
+	payloadData, err := json.Marshal(resp.Payload)
+	if err != nil {
+		m.logger.Errorf("Getting metadata failed parsing payload: %s", err)
+		return err
+	}
+
+	if err := json.Unmarshal(payloadData, v); err != nil {
+		m.logger.Errorf("Getting metadata failed parsing payload: %s", err)
+		return err
+	}
+
+	m.logger.Printf("GetMetadata successful")
 	return nil
 }
 

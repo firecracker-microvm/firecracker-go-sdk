@@ -15,8 +15,9 @@ package firecracker
 
 import (
 	"context"
-	"github.com/go-openapi/strfmt"
 	"time"
+
+	"github.com/go-openapi/strfmt"
 
 	"github.com/sirupsen/logrus"
 
@@ -232,6 +233,39 @@ func (f *Client) PutMmds(ctx context.Context, metadata interface{}, opts ...PutM
 	}
 
 	return f.client.Operations.PutMmds(params)
+}
+
+// GetMmdsOpt is a functional option to be used for the GetMmds API in setting
+// any additional optional fields.
+type GetMmdsOpt func(*ops.GetMmdsParams)
+
+// GetMmds is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) GetMmds(ctx context.Context, opts ...GetMmdsOpt) (*ops.GetMmdsOK, error) {
+	params := ops.NewGetMmdsParams()
+	params.SetContext(ctx)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.GetMmds(params)
+}
+
+// PatchMmdsOpt is a functional option to be used for the GetMmds API in setting
+// any additional optional fields.
+type PatchMmdsOpt func(*ops.PatchMmdsParams)
+
+// PatchMmds is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) PatchMmds(ctx context.Context, metadata interface{}, opts ...PatchMmdsOpt) (*ops.PatchMmdsNoContent, error) {
+	params := ops.NewPatchMmdsParams()
+	params.SetContext(ctx)
+	params.SetBody(metadata)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PatchMmds(params)
 }
 
 // GetMachineConfigurationOpt  is a functional option to be used for the
