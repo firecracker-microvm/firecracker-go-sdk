@@ -330,6 +330,8 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
+	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
 	t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
@@ -664,6 +666,28 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.SetMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
+	}
+}
+
+func testUpdateMetadata(ctx context.Context, t *testing.T, m *Machine) {
+	metadata := map[string]string{"patch_key": "patch_value"}
+	err := m.UpdateMetadata(ctx, metadata)
+	if err != nil {
+		t.Errorf("failed to set metadata: %s", err)
+	}
+}
+
+func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
+	metadata := struct {
+		Key      string `json:"key"`
+		PatchKey string `json:"patch_key"`
+	}{}
+	if err := m.GetMetadata(ctx, &metadata); err != nil {
+		t.Errorf("failed to get metadata: %s", err)
+	}
+
+	if metadata.Key != "value" || metadata.PatchKey != "patch_value" {
+		t.Error("failed to get expected metadata values")
 	}
 }
 
