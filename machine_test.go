@@ -330,6 +330,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("DescribeInstance", func(t *testing.T) { testDescribeInstance(ctx, t, m) })
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
 	t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
@@ -664,6 +665,29 @@ func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.SetMetadata(ctx, metadata)
 	if err != nil {
 		t.Errorf("failed to set metadata: %s", err)
+	}
+}
+
+func testDescribeInstance(ctx context.Context, t *testing.T, m *Machine) {
+	instanceInfo, err := m.DescribeInstance(ctx)
+	if err != nil {
+		t.Errorf("failed to describe instance: %v", err)
+	}
+
+	if instanceInfo == nil {
+		t.Error("instance info is nil")
+	}
+
+	if instanceInfo.ID == nil || *instanceInfo.ID == "" {
+		t.Error("invalid instance id")
+	}
+
+	if instanceInfo.State == nil || *instanceInfo.State == "" {
+		t.Error("invalid vmm state")
+	}
+
+	if instanceInfo.VmmVersion == nil || *instanceInfo.VmmVersion == "" {
+		t.Error("invalid vmm version")
 	}
 }
 

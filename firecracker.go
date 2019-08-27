@@ -273,3 +273,12 @@ func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost st
 
 	return f.client.Operations.PatchGuestDriveByID(params)
 }
+
+// DescribeInstance is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) DescribeInstance(ctx context.Context) (*ops.DescribeInstanceOK, error) {
+	params := ops.NewDescribeInstanceParams()
+	params.SetContext(ctx)
+
+	return f.client.Operations.DescribeInstance(params)
+}

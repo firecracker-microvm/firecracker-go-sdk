@@ -672,6 +672,18 @@ func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost stri
 	return nil
 }
 
+// DescribeInstance returns general information about an instance.
+func (m *Machine) DescribeInstance(ctx context.Context) (*models.InstanceInfo, error) {
+	instance, err := m.client.DescribeInstance(ctx)
+	if err != nil {
+		m.logger.WithError(err).Error("Failed to describe instance")
+		return nil, err
+	}
+
+	m.logger.Printf("DescribeInstance successful")
+	return instance.Payload, nil
+}
+
 // refreshMachineConfiguration synchronizes our cached representation of the machine configuration
 // with that reported by the Firecracker API
 func (m *Machine) refreshMachineConfiguration() error {
