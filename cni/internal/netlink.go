@@ -14,6 +14,8 @@
 package internal
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -37,10 +39,35 @@ func RootFilterHandle() uint32 {
 // * U32 Filters: http://man7.org/linux/man-pages/man8/tc-u32.8.html
 // * Using u32 redirects with taps: https://gist.github.com/mcastelino/7d85f4164ffdaf48242f9281bb1d0f9b
 type NetlinkOps interface {
+	// CreateTap will create a tap device configured as expected by the tc-redirect-tap plugin for
+	// use by a Firecracker VM. It sets the tap in the up state and with the provided MTU.
 	CreateTap(name string, mtu int, ownerUID int, ownerGID int) (netlink.Link, error)
+
+	// AddIngressQdisc adds a qdisc to the ingress queue of the provided device.
 	AddIngressQdisc(link netlink.Link) error
+	// GetIngressQdisc looks for an ingress qdisc matching the one added by AddIngressQdisc,
+	// returning it if found. If not found, it returns a QdiscNotFoundError
+	GetIngressQdisc(link netlink.Link) (netlink.Qdisc, error)
+	// RemoveIngressQdisc removes the ingress qdisc added by AddIngressQdisc from the provided
+	// device. It returns a QdiscNotFoundError if the expected qdisc is not attached to the
+	// provided device.
+	RemoveIngressQdisc(link netlink.Link) error
+
+	// AddRedirectFilter adds a u32 redirect filter to the provided sourceLink that redirects
+	// packets from its ingress queue to the egress queue of the provided targetLink. It requires
+	// that sourceLink have an ingress qdisc attached prior to the call.
 	AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error
+	// GetRedirectFilter looks for a u32 redirect filter matching the one added by
+	// AddRedirectFilter, returning it if found. If not found, it returns a FilterNotFoundError
+	GetRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) (netlink.Filter, error)
+
+	// GetLink returns the netlink.Link for the device with the provided name, or a
+	// LinkNotFoundError if no such device is found in the network namespace in which the call is
+	// executed.
 	GetLink(name string) (netlink.Link, error)
+	// RemoveLink deletes the link with the provided device name. It returns LinkNotFoundError if
+	// the link doesn't exist
+	RemoveLink(name string) error
 }
 
 // DefaultNetlinkOps returns a standard implementation of NetlinkOps that performs the corresponding
@@ -53,14 +80,8 @@ type defaultNetlinkOps struct{}
 
 var _ NetlinkOps = &defaultNetlinkOps{}
 
-// AddIngressQdisc adds a qdisc to the ingress queue of the provided device.
-func (defaultNetlinkOps) AddIngressQdisc(link netlink.Link) error {
-	err := netlink.QdiscAdd(&netlink.Ingress{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: link.Attrs().Index,
-			Parent:    netlink.HANDLE_INGRESS,
-		},
-	})
+func (ops defaultNetlinkOps) AddIngressQdisc(link netlink.Link) error {
+	err := netlink.QdiscAdd(ops.ingressQdisc(link))
 	if err != nil {
 		err = errors.Wrapf(err, "failed to add ingress qdisc to device %q", link.Attrs().Name)
 	}
@@ -68,10 +89,46 @@ func (defaultNetlinkOps) AddIngressQdisc(link netlink.Link) error {
 	return err
 }
 
-// AddRedirectFilter adds a u32 redirect filter to the provided sourceLink that redirects packets from
-// its ingress queue to the egress queue of the provided targetLink. It requires that sourceLink have an
-// ingress qdisc attached prior to the call.
-func (defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error {
+func (ops defaultNetlinkOps) RemoveIngressQdisc(link netlink.Link) error {
+	qdisc, err := ops.GetIngressQdisc(link)
+	if err != nil {
+		return err
+	}
+
+	err = netlink.QdiscDel(qdisc)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove ingress qdisc from device %q", link.Attrs().Name)
+	}
+
+	return nil
+}
+
+func (ops defaultNetlinkOps) GetIngressQdisc(link netlink.Link) (netlink.Qdisc, error) {
+	qdiscs, err := netlink.QdiscList(link)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list qdiscs for link %q", link.Attrs().Name)
+	}
+
+	expectedQdisc := ops.ingressQdisc(link)
+	for _, qdisc := range qdiscs {
+		if qdisc.Attrs().Parent == expectedQdisc.Attrs().Parent {
+			return qdisc, nil
+		}
+	}
+
+	return nil, &QdiscNotFoundError{device: link.Attrs().Name}
+}
+
+func (defaultNetlinkOps) ingressQdisc(link netlink.Link) netlink.Qdisc {
+	return &netlink.Ingress{
+		QdiscAttrs: netlink.QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    netlink.HANDLE_INGRESS,
+		},
+	}
+}
+
+func (ops defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) error {
 	err := netlink.FilterAdd(&netlink.U32{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: sourceLink.Attrs().Index,
@@ -97,14 +154,47 @@ func (defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLink n
 	return err
 }
 
-// GetLink returns the netlink.Link for the device with the provided name, or an error if no such
-// device is found in the network namespace in which the call is executed.
-func (defaultNetlinkOps) GetLink(name string) (netlink.Link, error) {
-	return netlink.LinkByName(name)
+func (ops defaultNetlinkOps) GetRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) (netlink.Filter, error) {
+	filters, err := netlink.FilterList(sourceLink, RootFilterHandle())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list filters for device %q", sourceLink.Attrs().Name)
+	}
+
+	for _, filter := range filters {
+		u32Filter, ok := filter.(*netlink.U32)
+		if !ok {
+			continue
+		}
+
+		if u32Filter.RedirIndex == targetLink.Attrs().Index {
+			return u32Filter, nil
+		}
+	}
+
+	return nil, &FilterNotFoundError{device: sourceLink.Attrs().Name}
 }
 
-// CreateTap will create a tap device configured as expected by the tc-redirect-tap plugin for use
-// by a Firecracker VM. It sets the tap in the up state and with the MTU of the provided redirectLink.
+func (defaultNetlinkOps) GetLink(name string) (netlink.Link, error) {
+	link, err := netlink.LinkByName(name)
+	if _, ok := err.(netlink.LinkNotFoundError); ok {
+		return nil, &LinkNotFoundError{device: name}
+	}
+	return link, err
+}
+
+func (ops defaultNetlinkOps) RemoveLink(name string) error {
+	link, err := ops.GetLink(name)
+	if err != nil {
+		return err
+	}
+
+	err = netlink.LinkDel(link)
+	if _, ok := err.(netlink.LinkNotFoundError); ok {
+		return &LinkNotFoundError{device: link.Attrs().Name}
+	}
+	return err
+}
+
 func (defaultNetlinkOps) CreateTap(name string, mtu int, ownerUID, ownerGID int) (netlink.Link, error) {
 	tapLinkAttrs := netlink.NewLinkAttrs()
 	tapLinkAttrs.Name = name
@@ -152,4 +242,28 @@ func (defaultNetlinkOps) CreateTap(name string, mtu int, ownerUID, ownerGID int)
 	}
 
 	return tapLink, nil
+}
+
+type QdiscNotFoundError struct {
+	device string
+}
+
+func (e QdiscNotFoundError) Error() string {
+	return fmt.Sprintf("did not find expected Qdisc on device %q", e.device)
+}
+
+type FilterNotFoundError struct {
+	device string
+}
+
+func (e FilterNotFoundError) Error() string {
+	return fmt.Sprintf("did not find expected filter on device %q", e.device)
+}
+
+type LinkNotFoundError struct {
+	device string
+}
+
+func (e LinkNotFoundError) Error() string {
+	return fmt.Sprintf("did not find expected network device with name %q", e.device)
 }

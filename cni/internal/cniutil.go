@@ -14,7 +14,10 @@
 package internal
 
 import (
+	"fmt"
+
 	"github.com/containernetworking/cni/pkg/types/current"
+	"github.com/pkg/errors"
 )
 
 // InterfaceIPs returns the IPs associated with the interface possessing the provided name and
@@ -60,4 +63,45 @@ func IfacesWithName(name string, ifaces ...*current.Interface) []*current.Interf
 	}
 
 	return foundIfaces
+}
+
+// VMTapPair takes a CNI result and returns the vm iface and the tap iface corresponding
+// to the provided vmID. See the vmconf package docs for details on the expected
+// vm and tap iface configurations.
+func VMTapPair(
+	result *current.Result,
+	vmID string,
+) (
+	vmIface *current.Interface,
+	tapIface *current.Interface,
+	err error,
+) {
+	vmIfaces, otherIfaces := FilterBySandbox(vmID, result.Interfaces...)
+	if len(vmIfaces) > 1 {
+		return nil, nil, errors.Errorf(
+			"expected to find at most 1 interface in sandbox %q, but instead found %d",
+			vmID, len(vmIfaces))
+	} else if len(vmIfaces) == 0 {
+		return nil, nil, LinkNotFoundError{device: fmt.Sprintf("pseudo-device for %s", vmID)}
+	}
+
+	vmIface = vmIfaces[0]
+
+	// As specified in the package docstring, the vm interface is given the same name as the
+	// corresponding tap device outside the VM. The tap device, however, will be in a sandbox
+	// corresponding to a network namespace path.
+	tapName := vmIface.Name
+
+	tapIfaces := IfacesWithName(tapName, otherIfaces...)
+	if len(tapIfaces) > 1 {
+		return nil, nil, errors.Errorf(
+			"expected to find at most 1 interface with name %q, but instead found %d",
+			tapName, len(tapIfaces))
+	} else if len(tapIfaces) == 0 {
+		return nil, nil, LinkNotFoundError{device: tapName}
+	}
+
+	tapIface = tapIfaces[0]
+
+	return vmIface, tapIface, nil
 }

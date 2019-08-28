@@ -154,13 +154,13 @@ func StaticNetworkConfFrom(result types.Result, containerID string) (*StaticNetw
 		return nil, errors.Wrap(err, "failed to parse cni result")
 	}
 
-	// As specified in the package docstring, we are looking for an interface who's sandbox ID
-	// is the "containerID" (really "vmID" in this case) that CNI was invoked with.
-	// That interface holds the configuration that should be applied to the VM's internal
-	// network device.
+	// As specified in the vmconf package docstring, we are looking for an interface who's
+	// sandbox ID is the "containerID" (really "vmID" in this case) that CNI was invoked
+	// with. That interface holds the configuration that should be applied to the VM's
+	// internal network device.
 	vmIfaceSandbox := containerID
 
-	vmIface, tapIface, err := getVMTapPair(currentResult, vmIfaceSandbox)
+	vmIface, tapIface, err := internal.VMTapPair(currentResult, vmIfaceSandbox)
 	if err != nil {
 		return nil, err
 	}
@@ -195,32 +195,6 @@ func StaticNetworkConfFrom(result types.Result, containerID string) (*StaticNetw
 		VMSearchDomains:   currentResult.DNS.Search,
 		VMResolverOptions: currentResult.DNS.Options,
 	}, nil
-}
-
-// find the vmIface and its corresponding tap device in the provided CNI results
-func getVMTapPair(
-	result *current.Result, vmIfaceSandbox string,
-) (*current.Interface, *current.Interface, error) {
-	vmIfaces, otherIfaces := internal.FilterBySandbox(vmIfaceSandbox, result.Interfaces...)
-	if len(vmIfaces) != 1 {
-		return nil, nil, errors.Errorf("expected to find 1 interface in sandbox %q, but instead found %d",
-			vmIfaceSandbox, len(vmIfaces))
-	}
-	vmIface := vmIfaces[0]
-
-	// As specified in the package docstring, the vm interface is given the same name as the
-	// corresponding tap device outside the VM. The tap device, however, will be in a sandbox
-	// corresponding to a network namespace path.
-	tapName := vmIface.Name
-
-	tapIfaces := internal.IfacesWithName(tapName, otherIfaces...)
-	if len(tapIfaces) != 1 {
-		return nil, nil, errors.Errorf("expected to find 1 interface with name %q, but instead found %d",
-			tapName, len(tapIfaces))
-	}
-	tapIface := tapIfaces[0]
-
-	return vmIface, tapIface, nil
 }
 
 func mtuOf(ifaceName string, netNS ns.NetNS, netlinkOps internal.NetlinkOps) (int, error) {
