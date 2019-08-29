@@ -723,9 +723,13 @@ func (m *Machine) refreshMachineConfiguration() error {
 // waitForSocket waits for the given file to exist
 func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	ticker := time.NewTicker(10 * time.Millisecond)
+
+	defer func() {
+		cancel()
+		ticker.Stop()
+	}()
 
 	for {
 		select {
