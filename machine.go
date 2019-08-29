@@ -707,6 +707,13 @@ func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost stri
 	return nil
 }
 
+// IsAlive makes sure that a Firecracker instance is running and responds via API by
+// calling `DescribeInstance` endpoint behind.
+func (m *Machine) IsAlive(ctx context.Context) error {
+	_, err := m.client.DescribeInstance(ctx)
+	return err
+}
+
 // refreshMachineConfiguration synchronizes our cached representation of the machine configuration
 // with that reported by the Firecracker API
 func (m *Machine) refreshMachineConfiguration() error {

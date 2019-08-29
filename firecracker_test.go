@@ -52,4 +52,8 @@ func TestClient(t *testing.T) {
 	if _, err := client.PutGuestDriveByID(ctx, "test", drive); err != nil {
 		t.Errorf("unexpected error on PutGuestDriveByID, %v", err)
 	}
+
+	if _, err := client.DescribeInstance(ctx); err != nil {
+		t.Errorf("unexpected error on DescribeInstance, %v", err)
+	}
 }

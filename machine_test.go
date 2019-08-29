@@ -330,6 +330,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("IsAlive", func(t *testing.T) { testIsAlive(ctx, t, m) })
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
 	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
@@ -688,6 +689,13 @@ func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 
 	if metadata.Key != "value" || metadata.PatchKey != "patch_value" {
 		t.Error("failed to get expected metadata values")
+	}
+}
+
+func testIsAlive(ctx context.Context, t *testing.T, m *Machine) {
+	err := m.IsAlive(ctx)
+	if err != nil {
+		t.Errorf("machine is expected to be alive: %v", err)
 	}
 }
 

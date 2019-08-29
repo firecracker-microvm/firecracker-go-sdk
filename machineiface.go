@@ -30,4 +30,5 @@ type MachineIface interface {
 	SetMetadata(context.Context, interface{}) error
 	UpdateGuestDrive(context.Context, string, string, ...PatchGuestDriveByIDOpt) error
 	UpdateGuestNetworkInterfaceRateLimit(context.Context, string, RateLimiterSet, ...PatchGuestNetworkInterfaceByIDOpt) error
+	IsAlive(ctx context.Context) error
 }
