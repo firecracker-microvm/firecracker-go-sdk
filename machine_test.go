@@ -335,7 +335,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
 	t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
-	t.Run("IsAlive", func(t *testing.T) { testIsAlive(ctx, t, m) })
+	t.Run("IsRunning", func(t *testing.T) { testIsRunning(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
@@ -692,10 +692,10 @@ func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	}
 }
 
-func testIsAlive(ctx context.Context, t *testing.T, m *Machine) {
-	err := m.IsAlive(ctx)
+func testIsRunning(ctx context.Context, t *testing.T, m *Machine) {
+	err := m.IsRunning(ctx)
 	if err != nil {
-		t.Errorf("machine is expected to be alive: %v", err)
+		t.Errorf("machine is expected to be running: %v", err)
 	}
 }
 
