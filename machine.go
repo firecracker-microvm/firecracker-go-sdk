@@ -27,8 +27,9 @@ import (
 	"syscall"
 	"time"
 
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	log "github.com/sirupsen/logrus"
+
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 const (
@@ -710,8 +711,18 @@ func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost stri
 // IsAlive makes sure that a Firecracker instance is running and responds via API by
 // calling `DescribeInstance` endpoint behind.
 func (m *Machine) IsAlive(ctx context.Context) error {
-	_, err := m.client.DescribeInstance(ctx)
-	return err
+	instance, err := m.client.DescribeInstance(ctx)
+	if err != nil {
+		return err
+	}
+
+	state := StringValue(instance.Payload.State)
+	switch state {
+	case models.InstanceInfoStateStarting, models.InstanceInfoStateRunning:
+		return nil
+	default:
+		return fmt.Errorf("invalid instance state: %q", state)
+	}
 }
 
 // refreshMachineConfiguration synchronizes our cached representation of the machine configuration
