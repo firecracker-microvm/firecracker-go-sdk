@@ -19,10 +19,9 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"net/http"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
@@ -30,7 +29,7 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
-	client_models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // NewPutGuestVsockByIDParams creates a new PutGuestVsockByIDParams object
@@ -81,7 +80,7 @@ type PutGuestVsockByIDParams struct {
 	  Guest vsock properties
 
 	*/
-	Body *client_models.Vsock
+	Body *models.Vsock
 	/*ID
 	  The id of the vsock device
 
@@ -127,13 +126,13 @@ func (o *PutGuestVsockByIDParams) SetHTTPClient(client *http.Client) {
 }
 
 // WithBody adds the body to the put guest vsock by ID params
-func (o *PutGuestVsockByIDParams) WithBody(body *client_models.Vsock) *PutGuestVsockByIDParams {
+func (o *PutGuestVsockByIDParams) WithBody(body *models.Vsock) *PutGuestVsockByIDParams {
 	o.SetBody(body)
 	return o
 }
 
 // SetBody adds the body to the put guest vsock by ID params
-func (o *PutGuestVsockByIDParams) SetBody(body *client_models.Vsock) {
+func (o *PutGuestVsockByIDParams) SetBody(body *models.Vsock) {
 	o.Body = body
 }
 
