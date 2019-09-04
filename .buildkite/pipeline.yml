@@ -12,6 +12,11 @@
 # permissions and limitations under the License.
 
 steps:
+  - label: ':ec2: environment'
+    command:
+      - uname -a
+      - go version
+
   - label: ':go: go mod download'
     command: 'go mod download'
     agents:

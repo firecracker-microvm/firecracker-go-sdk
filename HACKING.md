@@ -43,3 +43,17 @@ following:
 1. Update `client/swagger.yaml`
 3. Run `go generate`
 4. Figure out what broke and fix it.
+
+Continuous Integration
+---
+
+To access `/dev/kvm`, we are using [BuildKite](https://buildkite.com/) and
+Amazon EC2 Bare Metal Instances.
+
+The instance is pre-configured to have
+
+  - firecracker and jailer under /usr/local/bin.
+    Both of them are currently v0.17.0 and built with
+    `cargo build --features vsock --release` to enable vsock support
+  - vmlinux.bin from
+    https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
