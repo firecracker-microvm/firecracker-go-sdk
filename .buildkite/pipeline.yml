@@ -35,18 +35,16 @@ steps:
 
   - label: ':hammer: tests'
     commands:
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
+      - ./download-testdata.sh
       - 'ln -s /usr/local/bin/firecracker-v0.17.0 testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer-v0.17.0 testdata/jailer'
       - "DISABLE_ROOT_TESTS=true FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
   - label: ':hammer: root tests'
     commands:
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
+      - ./download-testdata.sh
       - 'cp /usr/local/bin/firecracker-v0.17.0 testdata/firecracker'
-      - 'cp /usr/local/bin/jailer-v0.17.0 testdata/jailer'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
