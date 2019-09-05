@@ -19,7 +19,6 @@ import (
 
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
-	"github.com/containernetworking/cni/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
@@ -60,52 +59,6 @@ func TestMTUOf(t *testing.T) {
 	actualMTU, err := mtuOf(tapName, netNS, nlOps)
 	require.NoError(t, err, "failed to get mtu")
 	assert.Equal(t, tapMTU, actualMTU, "received unexpected tap MTU")
-}
-
-func TestGetVMTapPair(t *testing.T) {
-	netNS := internal.MockNetNS{MockPath: "/my/lil/netns"}
-
-	redirectIfName := "veth0"
-	redirectMac, err := net.ParseMAC("22:33:44:55:66:77")
-	require.NoError(t, err, "failed to get redirect mac")
-
-	tapName := "tap0"
-	tapMac, err := net.ParseMAC("11:22:33:44:55:66")
-	require.NoError(t, err, "failed to get tap mac")
-
-	vmID := "this-is-not-a-machine"
-
-	result := &current.Result{
-		CNIVersion: version.Current(),
-		Interfaces: []*current.Interface{
-			{
-				Name:    redirectIfName,
-				Sandbox: netNS.Path(),
-				Mac:     redirectMac.String(),
-			},
-			{
-				Name:    tapName,
-				Sandbox: netNS.Path(),
-				Mac:     tapMac.String(),
-			},
-			{
-				Name:    tapName,
-				Sandbox: vmID,
-				Mac:     redirectMac.String(),
-			},
-		},
-	}
-
-	vmIface, tapIface, err := getVMTapPair(result, vmID)
-	require.NoError(t, err, "failed to get vm tap pair")
-
-	assert.Equal(t, tapName, vmIface.Name)
-	assert.Equal(t, vmID, vmIface.Sandbox)
-	assert.Equal(t, redirectMac.String(), vmIface.Mac)
-
-	assert.Equal(t, tapName, tapIface.Name)
-	assert.Equal(t, netNS.Path(), tapIface.Sandbox)
-	assert.Equal(t, tapMac.String(), tapIface.Mac)
 }
 
 func TestIPBootParams(t *testing.T) {

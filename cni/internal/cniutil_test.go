@@ -162,3 +162,49 @@ func TestIfacesWithName(t *testing.T) {
 	actualIfaces = IfacesWithName(vmIfaceName, ifaces...)
 	assert.Equal(t, ifaces[1:], actualIfaces)
 }
+
+func TestGetVMTapPair(t *testing.T) {
+	netNS := MockNetNS{MockPath: "/my/lil/netns"}
+
+	redirectIfName := "veth0"
+	redirectMac, err := net.ParseMAC("22:33:44:55:66:77")
+	require.NoError(t, err, "failed to get redirect mac")
+
+	tapName := "tap0"
+	tapMac, err := net.ParseMAC("11:22:33:44:55:66")
+	require.NoError(t, err, "failed to get tap mac")
+
+	vmID := "this-is-not-a-machine"
+
+	result := &current.Result{
+		CNIVersion: version.Current(),
+		Interfaces: []*current.Interface{
+			{
+				Name:    redirectIfName,
+				Sandbox: netNS.Path(),
+				Mac:     redirectMac.String(),
+			},
+			{
+				Name:    tapName,
+				Sandbox: netNS.Path(),
+				Mac:     tapMac.String(),
+			},
+			{
+				Name:    tapName,
+				Sandbox: vmID,
+				Mac:     redirectMac.String(),
+			},
+		},
+	}
+
+	vmIface, tapIface, err := VMTapPair(result, vmID)
+	require.NoError(t, err, "failed to get vm tap pair")
+
+	assert.Equal(t, tapName, vmIface.Name)
+	assert.Equal(t, vmID, vmIface.Sandbox)
+	assert.Equal(t, redirectMac.String(), vmIface.Mac)
+
+	assert.Equal(t, tapName, tapIface.Name)
+	assert.Equal(t, netNS.Path(), tapIface.Sandbox)
+	assert.Equal(t, tapMac.String(), tapIface.Mac)
+}

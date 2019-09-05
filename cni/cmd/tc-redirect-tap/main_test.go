@@ -30,25 +30,43 @@ import (
 	"github.com/firecracker-microvm/firecracker-go-sdk/cni/internal"
 )
 
-func TestAdd(t *testing.T) {
-	vmID := "this-is-not-a-machine"
+const (
+	vmID = "this-is-not-a-machine"
 
-	redirectInterfaceName := "veth0"
-	redirectMTU := 1337
+	redirectInterfaceName = "veth0"
+	redirectMTU           = 1337
+	redirectMacStr        = "22:33:44:55:66:77"
 
-	redirectMac, err := net.ParseMAC("22:33:44:55:66:77")
-	require.NoError(t, err, "failed to get redirect mac")
+	tapName   = "tap0"
+	tapUID    = 123
+	tapGID    = 456
+	tapMacStr = "11:22:33:44:55:66"
+)
 
-	tapName := "tap0"
-	tapMac, err := net.ParseMAC("11:22:33:44:55:66")
-	require.NoError(t, err, "failed to get tap mac")
+var (
+	netNS = internal.MockNetNS{MockPath: "/my/lil/netns"}
 
-	tapUID := 123
-	tapGID := 456
+	redirectMac net.HardwareAddr
+	tapMac      net.HardwareAddr
+)
 
-	netNS := internal.MockNetNS{MockPath: "/my/lil/netns"}
+func init() {
+	var err error
+	redirectMac, err = net.ParseMAC(redirectMacStr)
+	if err != nil {
+		panic(err.Error())
+	}
 
-	p := &plugin{
+	tapMac, err = net.ParseMAC(tapMacStr)
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+func defaultTestPlugin() *plugin {
+	redirectIfacesIndex := 0
+
+	return &plugin{
 		NetlinkOps: &internal.MockNetlinkOps{
 			CreatedTap: &internal.MockLink{
 				LinkAttrs: netlink.LinkAttrs{
@@ -64,47 +82,55 @@ func TestAdd(t *testing.T) {
 				},
 			},
 		},
+
 		vmID:                  vmID,
 		tapName:               tapName,
 		tapUID:                tapUID,
 		tapGID:                tapGID,
 		redirectInterfaceName: redirectInterfaceName,
 		netNS:                 netNS,
-	}
 
-	redirectIfacesIndex := 0
-
-	baseResult := &current.Result{
-		CNIVersion: version.Current(),
-		Interfaces: []*current.Interface{{
-			Name:    "veth0",
-			Sandbox: netNS.Path(),
-			Mac:     redirectMac.String(),
-		}},
-		IPs: []*current.IPConfig{{
-			Version:   "4",
-			Interface: &redirectIfacesIndex,
-			Address: net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 2),
-				Mask: net.IPv4Mask(255, 255, 255, 0),
+		currentResult: &current.Result{
+			CNIVersion: version.Current(),
+			Interfaces: []*current.Interface{{
+				Name:    "veth0",
+				Sandbox: netNS.Path(),
+				Mac:     redirectMac.String(),
+			}},
+			IPs: []*current.IPConfig{{
+				Version:   "4",
+				Interface: &redirectIfacesIndex,
+				Address: net.IPNet{
+					IP:   net.IPv4(10, 0, 0, 2),
+					Mask: net.IPv4Mask(255, 255, 255, 0),
+				},
+				Gateway: net.IPv4(10, 0, 0, 1),
+			}},
+			Routes: []*types.Route{},
+			DNS: types.DNS{
+				Nameservers: []string{"1.1.1.1", "8.8.8.8"},
+				Domain:      "example.com",
+				Search:      []string{"look", "here"},
+				Options:     []string{"choice", "is", "an", "illusion"},
 			},
-			Gateway: net.IPv4(10, 0, 0, 1),
-		}},
+		},
 	}
+}
 
-	newResult := &current.Result{
-		CNIVersion: baseResult.CNIVersion,
-		Interfaces: append([]*current.Interface{}, baseResult.Interfaces...),
-		IPs:        append([]*current.IPConfig{}, baseResult.IPs...),
-	}
+func TestAdd(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	origRedirectIface := testPlugin.currentResult.Interfaces[0]
+	origRedirectIP := testPlugin.currentResult.IPs[0]
 
-	err = p.add(newResult)
+	err := testPlugin.add()
 	require.NoError(t, err,
 		"failed to add tap device")
+	newResult := testPlugin.currentResult
 
 	require.Len(t, newResult.Interfaces,
 		3, "adding tap device should increase CNI result interfaces by 2")
-	assert.Equal(t, baseResult.Interfaces[0], newResult.Interfaces[0],
+
+	assert.Equal(t, origRedirectIface, newResult.Interfaces[0],
 		"adding tap device should not modify the original redirect interface")
 
 	actualTapIface := newResult.Interfaces[1]
@@ -125,148 +151,51 @@ func TestAdd(t *testing.T) {
 
 	require.Len(t, newResult.IPs, 2,
 		"adding tap device should increase CNI result IPs by 1")
-	assert.Equal(t, newResult.IPs[0], baseResult.IPs[0],
+	assert.Equal(t, newResult.IPs[0], origRedirectIP,
 		"adding tap device should not modify original redirect IP")
 }
 
-func TestAddFails(t *testing.T) {
-	vmID := "this-is-not-a-machine"
-
-	redirectInterfaceName := "veth0"
-	redirectMTU := 1337
-
-	redirectMac, err := net.ParseMAC("22:33:44:55:66:77")
-	require.NoError(t, err, "failed to get redirect mac")
-
-	tapName := "tap0"
-	tapMac, err := net.ParseMAC("11:22:33:44:55:66")
-	require.NoError(t, err, "failed to get tap mac")
-
-	tapUID := 123
-	tapGID := 456
-
-	netNS := internal.MockNetNS{MockPath: "/my/lil/netns"}
-
-	nlOps := internal.MockNetlinkOps{
-		CreatedTap: &internal.MockLink{
-			LinkAttrs: netlink.LinkAttrs{
-				Name:         tapName,
-				HardwareAddr: tapMac,
-			},
-		},
-		RedirectIface: &internal.MockLink{
-			LinkAttrs: netlink.LinkAttrs{
-				Name:         redirectInterfaceName,
-				HardwareAddr: redirectMac,
-				MTU:          redirectMTU,
-			},
-		},
-	}
-
-	p := &plugin{
-		NetlinkOps:            &nlOps,
-		vmID:                  vmID,
-		tapName:               tapName,
-		tapUID:                tapUID,
-		tapGID:                tapGID,
-		redirectInterfaceName: redirectInterfaceName,
-		netNS:                 netNS,
-	}
-
-	redirectIfacesIndex := 0
-
-	baseResult := &current.Result{
-		CNIVersion: version.Current(),
-		Interfaces: []*current.Interface{{
-			Name:    "veth0",
-			Sandbox: netNS.Path(),
-			Mac:     redirectMac.String(),
-		}},
-		IPs: []*current.IPConfig{{
-			Version:   "4",
-			Interface: &redirectIfacesIndex,
-			Address: net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 2),
-				Mask: net.IPv4Mask(255, 255, 255, 0),
-			},
-			Gateway: net.IPv4(10, 0, 0, 1),
-		}},
-	}
+func TestAddFailsQdiscErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
 
 	nlOps.AddIngressQdiscErr = errors.New("a terrible mistake")
-	result := &current.Result{
-		CNIVersion: baseResult.CNIVersion,
-		Interfaces: append([]*current.Interface{}, baseResult.Interfaces...),
-		IPs:        append([]*current.IPConfig{}, baseResult.IPs...),
-	}
-	err = p.add(result)
+	err := testPlugin.add()
 	require.Error(t, err,
 		"tap device add should return an error on AddIngressQdisc failure")
 	assert.Contains(t, err.Error(), nlOps.AddIngressQdiscErr.Error())
-	assert.Len(t, result.Interfaces, 1,
+	assert.Len(t, testPlugin.currentResult.Interfaces, 1,
 		"tap device add should not append tap interface to results on error")
-	nlOps.AddIngressQdiscErr = nil
+}
+
+func TestAddFailsRedirectErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
 
 	nlOps.AddRedirectFilterErr = errors.New("a grave error")
-	result = &current.Result{
-		CNIVersion: baseResult.CNIVersion,
-		Interfaces: append([]*current.Interface{}, baseResult.Interfaces...),
-		IPs:        append([]*current.IPConfig{}, baseResult.IPs...),
-	}
-	err = p.add(result)
+	err := testPlugin.add()
 	require.Error(t, err,
 		"tap device add should return an error on AddRedirectFilter failure")
 	assert.Contains(t, err.Error(), nlOps.AddRedirectFilterErr.Error())
-	assert.Len(t, result.Interfaces, 1,
+	assert.Len(t, testPlugin.currentResult.Interfaces, 1,
 		"tap device add should not append tap interface to results on error")
-	nlOps.AddRedirectFilterErr = nil
+}
+
+func TestAddFailsCreateTapErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
 
 	nlOps.CreateTapErr = errors.New("a bit of a snafu")
-	result = &current.Result{
-		CNIVersion: baseResult.CNIVersion,
-		Interfaces: append([]*current.Interface{}, baseResult.Interfaces...),
-		IPs:        append([]*current.IPConfig{}, baseResult.IPs...),
-	}
-	err = p.add(result)
+	err := testPlugin.add()
 	require.Error(t, err,
 		"tap device add should return an error on CreateTap failure")
 	assert.Contains(t, err.Error(), nlOps.CreateTapErr.Error())
-	assert.Len(t, result.Interfaces, 1,
+	assert.Len(t, testPlugin.currentResult.Interfaces, 1,
 		"tap device add should not append tap interface to results on error")
 }
 
 func TestGetCurrentResult(t *testing.T) {
-	netNS := internal.MockNetNS{MockPath: "/my/lil/netns"}
-
-	redirectMac, err := net.ParseMAC("22:33:44:55:66:77")
-	require.NoError(t, err, "failed to get redirect mac")
-
-	redirectIfacesIndex := 0
-
-	expectedResult := &current.Result{
-		CNIVersion: version.Current(),
-		Interfaces: []*current.Interface{{
-			Name:    "veth0",
-			Sandbox: netNS.Path(),
-			Mac:     redirectMac.String(),
-		}},
-		IPs: []*current.IPConfig{{
-			Version:   "4",
-			Interface: &redirectIfacesIndex,
-			Address: net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 2),
-				Mask: net.IPv4Mask(255, 255, 255, 0),
-			},
-			Gateway: net.IPv4(10, 0, 0, 1),
-		}},
-		Routes: []*types.Route{},
-		DNS: types.DNS{
-			Nameservers: []string{"1.1.1.1", "8.8.8.8"},
-			Domain:      "example.com",
-			Search:      []string{"look", "here"},
-			Options:     []string{"choice", "is", "an", "illusion"},
-		},
-	}
+	expectedResult := defaultTestPlugin().currentResult
 
 	netConf := &types.NetConf{
 		CNIVersion: "0.3.1",
@@ -292,4 +221,130 @@ func TestGetCurrentResult(t *testing.T) {
 	require.NoError(t, err, "failed to get current result from mock net conf")
 
 	assert.Equal(t, expectedResult, actualResult)
+}
+
+func TestDel(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	mockOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
+
+	err := testPlugin.add()
+	require.NoError(t, err, "failed to add")
+
+	err = testPlugin.del()
+	require.NoError(t, err, "failed to del")
+
+	require.Len(t, mockOps.RemoveIngressQdiscCalls, 1)
+	assert.Equal(t, mockOps.RemoveIngressQdiscCalls[0], mockOps.RedirectIface)
+
+	require.Len(t, mockOps.RemoveLinkCalls, 1)
+	assert.Equal(t, mockOps.RemoveLinkCalls[0], tapName)
+}
+
+func TestDelLinksGone(t *testing.T) {
+	mockOps := &internal.MockNetlinkOps{
+		CreatedTap: &internal.MockLink{
+			LinkAttrs: netlink.LinkAttrs{
+				Name: "random-name",
+			},
+		},
+		RedirectIface: &internal.MockLink{
+			LinkAttrs: netlink.LinkAttrs{
+				Name: "another-random-name",
+			},
+		},
+	}
+
+	testPlugin := &plugin{
+		NetlinkOps:            mockOps,
+		vmID:                  vmID,
+		tapName:               tapName,
+		redirectInterfaceName: redirectInterfaceName,
+		netNS:                 netNS,
+		currentResult: &current.Result{
+			CNIVersion: version.Current(),
+			Interfaces: []*current.Interface{
+				{
+					Name:    redirectInterfaceName,
+					Sandbox: netNS.Path(),
+					Mac:     redirectMac.String(),
+				},
+				{
+					Name:    tapName,
+					Sandbox: netNS.Path(),
+					Mac:     tapMac.String(),
+				},
+				{
+					Name:    tapName,
+					Sandbox: vmID,
+					Mac:     redirectMac.String(),
+				},
+			},
+		},
+	}
+
+	err := testPlugin.del()
+	require.NoError(t, err, "failed to del")
+
+	assert.Len(t, mockOps.RemoveLinkCalls, 1)
+	assert.Equal(t, mockOps.RemoveLinkCalls[0], tapName,
+		"del should attempt to delete tap even if redirect was not found")
+}
+
+func TestDelFailsQdiscErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
+
+	err := testPlugin.add()
+	require.NoError(t, err, "failed to add")
+
+	nlOps.RemoveIngressQdiscErr = errors.New("a terrible mistake")
+	err = testPlugin.del()
+	require.Error(t, err,
+		"del should return an error on RemoveIngressQdisc failure")
+	assert.Contains(t, err.Error(), nlOps.RemoveIngressQdiscErr.Error())
+}
+
+func TestDelFailsRemoveLinkErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
+
+	err := testPlugin.add()
+	require.NoError(t, err, "failed to add")
+
+	nlOps.RemoveLinkErr = errors.New("a grave error")
+	err = testPlugin.del()
+	require.Error(t, err,
+		"del should return an error on RemoveLink failure")
+	assert.Contains(t, err.Error(), nlOps.RemoveLinkErr.Error())
+}
+
+func TestDelFailsGetLinkErr(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+	nlOps := testPlugin.NetlinkOps.(*internal.MockNetlinkOps)
+
+	err := testPlugin.add()
+	require.NoError(t, err, "failed to add")
+
+	nlOps.GetLinkErr = errors.New("a bit of a snafu")
+	err = testPlugin.del()
+	require.Error(t, err,
+		"del should return an error on GetLink failure")
+	assert.Contains(t, err.Error(), nlOps.GetLinkErr.Error())
+}
+
+func TestCheck(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+
+	err := testPlugin.add()
+	require.NoError(t, err, "failed to add")
+
+	err = testPlugin.check()
+	require.NoError(t, err, "failed to check")
+}
+
+func TestCheckFails(t *testing.T) {
+	testPlugin := defaultTestPlugin()
+
+	err := testPlugin.check()
+	require.Error(t, err, "check should fail when configuration not as expected")
 }
