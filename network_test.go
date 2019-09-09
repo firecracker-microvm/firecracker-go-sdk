@@ -300,80 +300,24 @@ func TestNetworkMachineCNI(t *testing.T) {
 			defer cancel()
 
 			firecrackerSockPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.sock", vmID))
-
-			rootfsBytes, err := ioutil.ReadFile(testRootfs)
-			require.NoError(t, err, "failed to read rootfs file")
 			rootfsPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.img", vmID))
-			err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
-			require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
-
 			expectedCacheDirPath := filepath.Join(cniCacheDir, "results",
 				fmt.Sprintf("%s-%s-%s", networkName, vmID, ifName))
 
-			m, err := NewMachine(ctx, Config{
-				SocketPath:      firecrackerSockPath,
-				KernelImagePath: getVmlinuxPath(t),
-				MachineCfg: models.MachineConfiguration{
-					VcpuCount:  Int64(2),
-					MemSizeMib: Int64(256),
-					HtEnabled:  Bool(true),
-				},
-				Drives: []models.Drive{
-					models.Drive{
-						DriveID:      String("1"),
-						IsRootDevice: Bool(true),
-						IsReadOnly:   Bool(false),
-						PathOnHost:   String(rootfsPath),
-					},
-				},
-				NetworkInterfaces: []NetworkInterface{{
-					CNIConfiguration: &CNIConfiguration{
-						ConfDir:     cniConfDir,
-						BinPath:     cniBinPath,
-						CacheDir:    cniCacheDir,
-						NetworkName: networkName,
-						IfName:      ifName,
-						ContainerID: vmID,
-					},
-				}},
-			})
-			require.NoError(t, err, "failed to create machine")
-
-			err = m.Start(context.Background())
-			require.NoError(t, err, "failed to start machine")
-
-			staticConfig := m.Cfg.NetworkInterfaces[0].StaticConfiguration
-			require.NotNil(t, staticConfig,
-				"cni configuration should have updated network interface static configuration")
-			assert.NotEmpty(t, staticConfig.MacAddress,
-				"static config should have mac address set")
-			assert.NotEmpty(t, staticConfig.HostDevName,
-				"static config should have host dev name set")
-
-			ipConfig := staticConfig.IPConfiguration
-			require.NotNil(t, ipConfig,
-				"cni configuration should have updated network interface ip configuration")
-
-			vmIP := ipConfig.IPAddr.IP.String()
+			m, vmIP := startCNIMachine(t, ctx,
+				firecrackerSockPath, rootfsPath, cniConfDir, cniCacheDir, networkName, ifName, vmID, cniBinPath)
 			vmIPs <- vmIP
 
-			pinger, err := ping.NewPinger(vmIP)
-			require.NoError(t, err, "failed to create vm pinger")
-			pinger.Count = 3
-			pinger.Timeout = 5 * time.Second
-			pinger.SetPrivileged(true)
-			pinger.Run()
-			pingStats := pinger.Statistics()
-			assert.Equal(t, pinger.Count, pingStats.PacketsRecv, "machine did not respond to all pings")
-
 			assert.FileExists(t, expectedCacheDirPath, "CNI cache dir doesn't exist after vm startup")
+
+			testPing(t, vmIP, 3, 5*time.Second)
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")
 			waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Second)
 			assert.NoError(t, m.Wait(waitCtx), "failed waiting for machine stop")
 			waitCancel()
 
-			_, err = os.Stat(expectedCacheDirPath)
+			_, err := os.Stat(expectedCacheDirPath)
 			assert.True(t, os.IsNotExist(err), "expected CNI cache dir to not exist after vm exit")
 
 		}(fmt.Sprintf("%s-%d", networkName, i))
@@ -389,4 +333,78 @@ func TestNetworkMachineCNI(t *testing.T) {
 			vmIPSet[vmIP] = true
 		}
 	}
+}
+
+func startCNIMachine(t *testing.T,
+	ctx context.Context,
+	firecrackerSockPath,
+	rootfsPath,
+	cniConfDir,
+	cniCacheDir,
+	networkName,
+	ifName,
+	vmID string,
+	cniBinPath []string,
+) (*Machine, string) {
+	rootfsBytes, err := ioutil.ReadFile(testRootfs)
+	require.NoError(t, err, "failed to read rootfs file")
+	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
+
+	m, err := NewMachine(ctx, Config{
+		SocketPath:      firecrackerSockPath,
+		KernelImagePath: getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:  Int64(2),
+			MemSizeMib: Int64(256),
+			HtEnabled:  Bool(true),
+		},
+		Drives: []models.Drive{
+			models.Drive{
+				DriveID:      String("1"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(rootfsPath),
+			},
+		},
+		NetworkInterfaces: []NetworkInterface{{
+			CNIConfiguration: &CNIConfiguration{
+				ConfDir:     cniConfDir,
+				BinPath:     cniBinPath,
+				CacheDir:    cniCacheDir,
+				NetworkName: networkName,
+				IfName:      ifName,
+				ContainerID: vmID,
+			},
+		}},
+	})
+	require.NoError(t, err, "failed to create machine with CNI network interface")
+
+	err = m.Start(context.Background())
+	require.NoError(t, err, "failed to start machine")
+
+	staticConfig := m.Cfg.NetworkInterfaces[0].StaticConfiguration
+	require.NotNil(t, staticConfig,
+		"cni configuration should have updated network interface static configuration")
+	assert.NotEmpty(t, staticConfig.MacAddress,
+		"static config should have mac address set")
+	assert.NotEmpty(t, staticConfig.HostDevName,
+		"static config should have host dev name set")
+
+	ipConfig := staticConfig.IPConfiguration
+	require.NotNil(t, ipConfig,
+		"cni configuration should have updated network interface ip configuration")
+
+	return m, ipConfig.IPAddr.IP.String()
+}
+
+func testPing(t *testing.T, ip string, count int, timeout time.Duration) {
+	pinger, err := ping.NewPinger(ip)
+	require.NoError(t, err, "failed to create pinger")
+	pinger.Count = count
+	pinger.Timeout = timeout
+	pinger.SetPrivileged(true)
+	pinger.Run()
+	pingStats := pinger.Statistics()
+	assert.Equal(t, pinger.Count, pingStats.PacketsRecv, "machine did not respond to all pings")
 }
