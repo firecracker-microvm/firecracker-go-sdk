@@ -310,6 +310,8 @@ func TestNetworkMachineCNI(t *testing.T) {
 
 			assert.FileExists(t, expectedCacheDirPath, "CNI cache dir doesn't exist after vm startup")
 
+			// rarely the VMs take an extra second or two to boot before responding to pings, kludge a sleep to workaround
+			time.Sleep(3 * time.Second)
 			testPing(t, vmIP, 3, 5*time.Second)
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")
