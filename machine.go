@@ -1,4 +1,4 @@
-// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"). You may
 // not use this file except in compliance with the License. A copy of the
@@ -16,23 +16,31 @@ package firecracker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/gofrs/uuid"
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 const (
 	userAgent = "firecracker-go-sdk"
+
+	// as specified in http://man7.org/linux/man-pages/man8/ip-netns.8.html
+	defaultNetNSDir = "/var/run/netns"
 )
 
 // ErrAlreadyStarted signifies that the Machine has already started and cannot
@@ -71,7 +79,7 @@ type Config struct {
 
 	// NetworkInterfaces specifies the tap devices that should be made available
 	// to the microVM.
-	NetworkInterfaces []NetworkInterface
+	NetworkInterfaces NetworkInterfaces
 
 	// FifoLogWriter is an io.Writer that is used to redirect the contents of the
 	// fifo log to the writer.
@@ -93,6 +101,12 @@ type Config struct {
 
 	// JailerCfg is configuration specific for the jailer process.
 	JailerCfg *JailerConfig
+
+	// (Optional) VMID is a unique identifier for this VM. It's set to a
+	// random uuid if not provided by the user. It's currently used to
+	// set the CNI ContainerID and create a network namespace path if
+	// CNI configuration is provided as part of NetworkInterfaces
+	VMID string
 }
 
 // Validate will ensure that the required fields are set and that
@@ -137,6 +151,14 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
+func (cfg *Config) ValidateNetwork() error {
+	if cfg.DisableValidation {
+		return nil
+	}
+
+	return cfg.NetworkInterfaces.validate(parseKernelArgs(cfg.KernelArgs))
+}
+
 // Machine is the main object for manipulating Firecracker microVMs
 type Machine struct {
 	// Handlers holds the set of handlers that are run for validation and start
@@ -153,6 +175,10 @@ type Machine struct {
 	exitCh chan struct{}
 	// err records any error executing the VMM
 	err error
+
+	// callbacks that should be run when the machine is being torn down
+	cleanupOnce  sync.Once
+	cleanupFuncs []func() error
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -173,20 +199,16 @@ func (m *Machine) PID() (int, error) {
 	return m.cmd.Process.Pid, nil
 }
 
-// NetworkInterface represents a Firecracker microVM's network interface.
-type NetworkInterface struct {
-	// MacAddress defines the MAC address that should be assigned to the network
-	// interface inside the microVM.
-	MacAddress string
-	// HostDevName defines the file path of the tap device on the host.
-	HostDevName string
-	// AllowMMDS makes the Firecracker MMDS available on this network interface.
-	AllowMMDS bool
-
-	// InRateLimiter limits the incoming bytes.
-	InRateLimiter *models.RateLimiter
-	// OutRateLimiter limits the outgoing bytes.
-	OutRateLimiter *models.RateLimiter
+func (m *Machine) doCleanup() error {
+	var err *multierror.Error
+	m.cleanupOnce.Do(func() {
+		// run them in reverse order so changes are "unwound" (similar to defer statements)
+		for i := range m.cleanupFuncs {
+			cleanupFunc := m.cleanupFuncs[len(m.cleanupFuncs)-1-i]
+			err = multierror.Append(err, cleanupFunc())
+		}
+	})
+	return err.ErrorOrNil()
 }
 
 // RateLimiterSet represents a pair of RateLimiters (inbound and outbound)
@@ -261,6 +283,14 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.client = NewClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
+	if cfg.VMID == "" {
+		randomID, err := uuid.NewV4()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create random ID for VMID")
+		}
+		cfg.VMID = randomID.String()
+	}
+
 	m.machineConfig = cfg.MachineCfg
 	m.Cfg = cfg
 
@@ -284,11 +314,23 @@ func (m *Machine) Start(ctx context.Context) error {
 		return ErrAlreadyStarted
 	}
 
-	if err := m.Handlers.Run(ctx, m); err != nil {
+	var err error
+	defer func() {
+		if err != nil {
+			if cleanupErr := m.doCleanup(); cleanupErr != nil {
+				m.Logger().Errorf(
+					"failed to cleanup VM after previous start failure: %v", cleanupErr)
+			}
+		}
+	}()
+
+	err = m.Handlers.Run(ctx, m)
+	if err != nil {
 		return err
 	}
 
-	return m.startInstance(ctx)
+	err = m.startInstance(ctx)
+	return err
 }
 
 // Shutdown requests a clean shutdown of the VM by sending CtrlAltDelete on the virtual keyboard
@@ -309,12 +351,39 @@ func (m *Machine) Wait(ctx context.Context) error {
 	}
 }
 
-func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for _, dev := range m.Cfg.VsockDevices {
-		if err := m.addVsock(ctx, dev); err != nil {
-			return err
-		}
+func (m *Machine) netNSPath() string {
+	// If the jailer specifies a netns, use that
+	if jailerNetNS := m.Cfg.JailerCfg.netNSPath(); jailerNetNS != "" {
+		return jailerNetNS
 	}
+
+	// If there isn't a jailer netns but there is a network
+	// interface with CNI configuration, use a default netns path
+	if m.Cfg.NetworkInterfaces.cniInterface() != nil {
+		return filepath.Join(defaultNetNSDir, m.Cfg.VMID)
+	}
+
+	// else, just don't use a netns for the VM
+	return ""
+}
+
+func (m *Machine) setupNetwork(ctx context.Context) error {
+	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.netNSPath(), m.logger)
+	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
+	return err
+}
+
+func (m *Machine) setupKernelArgs(ctx context.Context) error {
+	kernelArgs := parseKernelArgs(m.Cfg.KernelArgs)
+
+	// If any network interfaces have a static IP configured, we need to set the "ip=" boot param.
+	// Validation that we are not overriding an existing "ip=" setting happens in the network validation
+	if staticIPInterface := m.Cfg.NetworkInterfaces.staticIPInterface(); staticIPInterface != nil {
+		ipBootParam := staticIPInterface.StaticConfiguration.IPConfiguration.ipBootParam()
+		kernelArgs["ip"] = &ipBootParam
+	}
+
+	m.Cfg.KernelArgs = kernelArgs.String()
 	return nil
 }
 
@@ -323,9 +392,17 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 		if err := m.createNetworkInterface(ctx, iface, id+1); err != nil {
 			return err
 		}
-		m.logger.Debugf("createNetworkInterface returned for %s", iface.HostDevName)
 	}
 
+	return nil
+}
+
+func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
+	for _, dev := range m.Cfg.VsockDevices {
+		if err := m.addVsock(ctx, dev); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -345,9 +422,23 @@ func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) erro
 func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.Cfg.SocketPath)
 
-	errCh := make(chan error)
+	hasNetNS := m.netNSPath() != ""
+	jailerProvidedNetNS := m.Cfg.JailerCfg.netNSPath() != ""
+	startCmd := m.cmd.Start
 
-	err := m.cmd.Start()
+	var err error
+	if hasNetNS && !jailerProvidedNetNS {
+		// If the VM needs to be started in a netns but no jailer netns was configured,
+		// start the vmm child process in the netns directly here.
+		err = ns.WithNetNSPath(m.netNSPath(), func(_ ns.NetNS) error {
+			return startCmd()
+		})
+	} else {
+		// Else, just start the process normally as it's either not in a netns or will
+		// be placed in one by the jailer process instead.
+		err = startCmd()
+	}
+
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
 		close(m.exitCh)
@@ -355,6 +446,28 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
 
+	m.cleanupFuncs = append(m.cleanupFuncs,
+		func() error {
+			if err := os.Remove(m.Cfg.SocketPath); !os.IsNotExist(err) {
+				return err
+			}
+			return nil
+		},
+		func() error {
+			if err := os.Remove(m.Cfg.LogFifo); !os.IsNotExist(err) {
+				return err
+			}
+			return nil
+		},
+		func() error {
+			if err := os.Remove(m.Cfg.MetricsFifo); !os.IsNotExist(err) {
+				return err
+			}
+			return nil
+		},
+	)
+
+	errCh := make(chan error)
 	go func() {
 		if err := m.cmd.Wait(); err != nil {
 			m.logger.Warnf("firecracker exited: %s", err.Error())
@@ -362,9 +475,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			m.logger.Printf("firecracker exited: status=0")
 		}
 
-		os.Remove(m.Cfg.SocketPath)
-		os.Remove(m.Cfg.LogFifo)
-		os.Remove(m.Cfg.MetricsFifo)
+		if err := m.doCleanup(); err != nil {
+			m.logger.Errorf("failed to cleanup after VM exit: %v", err)
+		}
+
 		errCh <- err
 
 		// Notify subscribers that there will be no more values.
@@ -539,12 +653,20 @@ func (m *Machine) createBootSource(ctx context.Context, imagePath, kernelArgs st
 
 func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInterface, iid int) error {
 	ifaceID := strconv.Itoa(iid)
-	m.logger.Printf("Attaching NIC %s (hwaddr %s) at index %s", iface.HostDevName, iface.MacAddress, ifaceID)
+
+	if iface.StaticConfiguration == nil {
+		// this should not be possible, but check nil anyways to prevent a panic
+		// if there is a bug
+		return errors.New("invalid nil state for network interface")
+	}
+
+	m.logger.Printf("Attaching NIC %s (hwaddr %s) at index %s",
+		iface.StaticConfiguration.HostDevName, iface.StaticConfiguration.MacAddress, ifaceID)
 
 	ifaceCfg := models.NetworkInterface{
 		IfaceID:           &ifaceID,
-		GuestMac:          iface.MacAddress,
-		HostDevName:       String(iface.HostDevName),
+		GuestMac:          iface.StaticConfiguration.MacAddress,
+		HostDevName:       String(iface.StaticConfiguration.HostDevName),
 		AllowMmdsRequests: iface.AllowMMDS,
 	}
 
@@ -566,9 +688,10 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 
 	resp, err := m.client.PutGuestNetworkInterfaceByID(ctx, ifaceID, &ifaceCfg)
 	if err == nil {
-		m.logger.Printf("PutGuestNetworkInterfaceByID: %s", resp.Error())
+		m.logger.Debugf("PutGuestNetworkInterfaceByID: %s", resp.Error())
 	}
 
+	m.logger.Debugf("createNetworkInterface returned for %s", iface.StaticConfiguration.HostDevName)
 	return err
 }
 

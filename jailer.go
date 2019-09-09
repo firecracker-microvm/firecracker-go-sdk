@@ -1,4 +1,4 @@
-// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"). You may
 // not use this file except in compliance with the License. A copy of the
@@ -112,6 +112,13 @@ type JailerConfig struct {
 	Stderr io.Writer
 	// Stdin specifies the IO reader for STDIN to use when spawning the jailer.
 	Stdin io.Reader
+}
+
+func (jailerCfg *JailerConfig) netNSPath() string {
+	if jailerCfg == nil {
+		return ""
+	}
+	return jailerCfg.NetNS
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to

@@ -18,6 +18,9 @@ SOURCES:=$(shell find . -name '*.go' ! -name '*_test.go')
 GOMOD := $(shell go env GOMOD)
 GOSUM := $(GOMOD:.mod=.sum)
 
+# Set this to override the directory in which the tc-redirect-tap plugin is
+# installed by the "install" target
+CNI_BIN_ROOT?=/opt/cni/bin
 
 .PHONY: all
 all: tc-redirect-tap
@@ -26,7 +29,8 @@ tc-redirect-tap: $(SOURCES) $(GOMOD) $(GOSUM)
 	go build -o tc-redirect-tap $(CURDIR)/cmd/tc-redirect-tap
 
 .PHONY: install
-install:
+install: tc-redirect-tap
+	install -D -m755 -t $(CNI_BIN_ROOT) tc-redirect-tap
 
 .PHONY: test
 test:
