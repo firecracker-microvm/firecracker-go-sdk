@@ -461,6 +461,12 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 		}
 
 		if vmNetConf.VMIPConfig != nil {
+			if len(vmNetConf.VMNameservers) > 2 {
+				logger.Warnf("more than 2 nameservers provided from CNI result, only the first 2 %+v will be applied",
+					vmNetConf.VMNameservers[:2])
+				vmNetConf.VMNameservers = vmNetConf.VMNameservers[:2]
+			}
+
 			cniNetworkInterface.StaticConfiguration.IPConfiguration = &IPConfiguration{
 				IPAddr:      vmNetConf.VMIPConfig.Address,
 				Gateway:     vmNetConf.VMIPConfig.Gateway,

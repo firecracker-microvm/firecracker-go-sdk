@@ -40,10 +40,10 @@ provides facilities to:
   the VM. This is referred to as a "static network interface".
 * Create a tap device via [CNI](https://github.com/containernetworking/cni) plugins, 
   which will then be attached to the VM automatically by the SDK. This is referred 
-  to as a "CNI network interface"
+  to as a "CNI-configured network interface"
   
 ### CNI
-If a VM is configured with a CNI network interface, by default CNI configuration
+If a VM is configured with a CNI-configured network interface, by default CNI configuration
 files will be sought from `/etc/cni/conf.d` and CNI plugins will be sought under
 `/opt/cni/bin` (both of these values can be overridden via API fields).
 
@@ -82,7 +82,7 @@ and the
 and [`tc-redirect-tap`](cni/Makefile)
 CNI plugin binaries installed under `/opt/cni/bin`, you can specify, in the Go SDK API, 
 a `Machine` with the following `NetworkInterface`:
-```
+```go
 {
   NetworkInterfaces: []firecracker.NetworkInterface{{
     CNIConfiguration: &firecracker.CNIConfiguration{
@@ -117,13 +117,13 @@ network interface. It will setup the tap device to be mirrored with the `IfName`
 created by any previous plugin. Any IP configuration on that `IfName` device will be
 applied statically to the VM's internal network interface on boot.
 
-Also note that use of CNI network interfaces will require the SDK to be running with at least
+Also note that use of CNI-configured network interfaces will require the SDK to be running with at least
 `CAP_SYS_ADMIN` and `CAP_NET_ADMIN` Linux capabilities (in order to have the 
 ability to create and configure network namespaces).
 
 ### Network Setup Limitations
 These limitations are a result of the current implementation and may be lifted in the future:
-* For a given VM, if a CNI network interface is specified or a static interface
+* For a given VM, if a CNI-configured network interface is specified or a static interface
   that includes IP configuration is specified, the VM can only have a single
   network interface, not multiple.
   * Users can specify multiple static interfaces as long as none of them 
@@ -133,7 +133,7 @@ These limitations are a result of the current implementation and may be lifted i
 * Only up to 2 DNS nameservers can be configured within the VM internally.
   * If a static network interface specifies more than 2, an error will be 
     returned.
-  * If a CNI network interface receives more than 2 nameservers from the CNI 
+  * If a CNI-configured network interface receives more than 2 nameservers from the CNI 
     invocation result, the nameservers after the second will be ignored without 
     error (in order to be compatible with pre-existing CNI plugins/configuration).
 
