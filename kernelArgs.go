@@ -41,6 +41,7 @@ func (kargs kernelArgs) String() string {
 func parseKernelArgs(rawString string) kernelArgs {
 	argMap := make(map[string]*string)
 	for _, kv := range strings.Fields(rawString) {
+		// only split into up to 2 fields (before and after the first "=")
 		kvSplit := strings.SplitN(kv, "=", 2)
 
 		key := kvSplit[0]

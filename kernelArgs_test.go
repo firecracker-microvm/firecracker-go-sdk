@@ -23,16 +23,20 @@ import (
 func TestKernelArgsSerder(t *testing.T) {
 	fooVal := "bar"
 	booVal := "far"
+	dooVal := "a=silly=val"
 	emptyVal := ""
 
-	argsString := fmt.Sprintf("foo=%s blah huh=%s bleh duh=%s boo=%s",
+	argsString := fmt.Sprintf("foo=%s blah doo=%s huh=%s bleh duh=%s boo=%s",
 		fooVal,
+		dooVal,
 		emptyVal,
 		emptyVal,
-		booVal)
+		booVal,
+	)
 
 	expectedParsedArgs := kernelArgs(map[string]*string{
 		"foo":  &fooVal,
+		"doo":  &dooVal,
 		"blah": nil,
 		"huh":  &emptyVal,
 		"bleh": nil,
