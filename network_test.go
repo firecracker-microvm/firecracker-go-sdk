@@ -41,16 +41,18 @@ var (
 	kernelArgsNoIP   = parseKernelArgs("foo=bar this=phony")
 	kernelArgsWithIP = parseKernelArgs("foo=bar this=phony ip=whatevz")
 
+	// These RFC 5737 IPs are reserved for documentation, they are not usable
 	validIPConfiguration = &IPConfiguration{
 		IPAddr: net.IPNet{
-			IP:   net.IPv4(10, 0, 0, 2),
+			IP:   net.IPv4(198, 51, 100, 2),
 			Mask: net.IPv4Mask(255, 255, 255, 0),
 		},
-		Gateway:     net.IPv4(10, 0, 0, 1),
-		Nameservers: []string{"1.1.1.1", "8.8.8.8"},
+		Gateway:     net.IPv4(198, 51, 100, 1),
+		Nameservers: []string{"192.0.2.1", "192.0.2.2"},
 	}
 
 	// IPv6 is currently invalid
+	// These RFC 3849 IPs are reserved for documentation, they are not usable
 	invalidIPConfiguration = &IPConfiguration{
 		IPAddr: net.IPNet{
 			IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
@@ -97,11 +99,11 @@ func TestNetworkStaticValidationFails_TooManyNameservers(t *testing.T) {
 		HostDevName: tapName,
 		IPConfiguration: &IPConfiguration{
 			IPAddr: net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 2),
+				IP:   net.IPv4(198, 51, 100, 2),
 				Mask: net.IPv4Mask(255, 255, 255, 0),
 			},
-			Gateway:     net.IPv4(10, 0, 0, 1),
-			Nameservers: []string{"1.1.1.1", "8.8.8.8", "2.2.2.2"},
+			Gateway:     net.IPv4(198, 51, 100, 1),
+			Nameservers: []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"},
 		},
 	}
 
@@ -248,8 +250,6 @@ func TestNetworkMachineCNI(t *testing.T) {
 	os.RemoveAll(testCNIDir)
 	defer os.RemoveAll(testCNIDir)
 
-	ipamDataDir := filepath.Join(testCNIDir, "ipam.data")
-
 	cniCacheDir := filepath.Join(testCNIDir, "cni.cache")
 	require.NoError(t,
 		os.MkdirAll(cniCacheDir, 0755),
@@ -271,16 +271,15 @@ func TestNetworkMachineCNI(t *testing.T) {
       "type": "ptp",
       "ipam": {
         "type": "host-local",
-        "subnet": "192.168.127.0/24",
-        "resolvConf": "/etc/resolv.conf",
-        "dataDir": "%s"
+        "subnet": "10.168.0.0/16",
+        "resolvConf": "/etc/resolv.conf"
       }
     },
     {
       "type": "tc-redirect-tap"
     }
   ]
-}`, networkName, ipamDataDir)
+}`, networkName)
 
 	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
 	require.NoError(t,
@@ -310,8 +309,6 @@ func TestNetworkMachineCNI(t *testing.T) {
 
 			assert.FileExists(t, expectedCacheDirPath, "CNI cache dir doesn't exist after vm startup")
 
-			// rarely the VMs take an extra second or two to boot before responding to pings, kludge a sleep to workaround
-			time.Sleep(3 * time.Second)
 			testPing(t, vmIP, 3, 5*time.Second)
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")

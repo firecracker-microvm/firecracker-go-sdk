@@ -167,12 +167,16 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 
 	// Try deleting the network in case it already exists, which can happen if there is
 	// a crash before cleanup from a previous invocations. If it doesn't exist,
-	// well-behaved CNI plugins should treat this as a no-op without returning an error.
+	// well-behaved CNI plugins should treat this as a no-op without returning an error
+	// (resulting also in a nil error here).
 	// We can be reasonably sure any previous VM that was using this network is gone due
 	// to earlier validation that the VM's socket path does not already exist.
 	err = delNetworkFunc()
 	if err != nil {
-		logger.Errorf("failed to delete any pre-existing CNI network %+v: %v", cniConf, err)
+		// something actually went wrong deleting the network, return an error so we don't
+		// try to create a new network on top of a possibly half-deleted previous one.
+		return nil, errors.Wrapf(err,
+			"failed to delete pre-existing CNI network %+v", cniConf), cleanupFuncs
 	}
 
 	// Append cleanup of the network list before calling AddNetworkList to handle

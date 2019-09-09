@@ -45,7 +45,8 @@ provides facilities to:
 ### CNI
 If a VM is configured with a CNI-configured network interface, by default CNI configuration
 files will be sought from `/etc/cni/conf.d` and CNI plugins will be sought under
-`/opt/cni/bin` (both of these values can be overridden via API fields).
+`/opt/cni/bin` (both of these values can be overridden via API fields). CNI network lists
+must be specified in a configuration file at this time.
 
 It's currently highly recommended to use CNI configuration that includes
 [tc-redirect-tap](cni/Makefile) as a chained plugin. This will allow you to
@@ -110,6 +111,8 @@ CNI and place the final VM inside the resultant network namespace. The end resul
     * Traffic sent on this device will be mirrored with the external `veth0` device,
       so from a practical perspective the VM's internal network interface will externally
       appear the same as `veth0`
+    * The internal name of the interface is determined by the Guest OS, not the Firecracker
+      Go SDK.
 
 Note that the `ptp` and `host-local` plugins are not required, they are just used in this
 example. The `tc-redirect-tap` plugin can be chained after any CNI plugin that creates a
