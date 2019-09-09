@@ -114,6 +114,13 @@ type JailerConfig struct {
 	Stdin io.Reader
 }
 
+func (jailerCfg *JailerConfig) netNSPath() string {
+	if jailerCfg == nil {
+		return ""
+	}
+	return jailerCfg.NetNS
+}
+
 // JailerCommandBuilder will build a jailer command. This can be used to
 // specify that a jailed firecracker executable wants to be run on the Machine.
 type JailerCommandBuilder struct {

@@ -1,3 +1,12 @@
+# 0.18.0
+* Adds support for configuring Network Interfaces via CNI
+  * TODO link to issue once there is one
+* Moves NetworkInterface.HostDevName and NetworkInterface.MacAddress fields to
+  NetworkInterface.StaticConfiguration.HostDevName and NetworkInterface.StaticConfiguration.MacAddress
+  fields, respectively. This is a backwards incompatible change, users will need
+  to update the location of these fields.
+  * TODO link to issue once there is one
+
 # 0.17.0
 
 * Fixes a bug where fifos were not working properly with jailer enabled (#96)

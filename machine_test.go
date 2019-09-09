@@ -29,11 +29,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -54,6 +56,9 @@ const (
 var (
 	skipTuntap   bool
 	testDataPath = "./testdata"
+	testDataBin  = filepath.Join(testDataPath, "bin")
+
+	testRootfs = filepath.Join(testDataPath, "root-drive.img")
 )
 
 func init() {
@@ -124,7 +129,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	rootdrivePath := filepath.Join(tmpDir, "root-drive.img")
-	if err := copyFile(filepath.Join(testDataPath, "root-drive.img"), rootdrivePath, jailerUID, jailerGID); err != nil {
+	if err := copyFile(testRootfs, rootdrivePath, jailerUID, jailerGID); err != nil {
 		t.Fatalf("Failed to copy the root drive file: %v", err)
 	}
 
@@ -266,12 +271,12 @@ func TestMicroVMExecution(t *testing.T) {
 
 	vmlinuxPath := getVmlinuxPath(t)
 
-	networkIfaces := []NetworkInterface{
-		{
+	networkIfaces := []NetworkInterface{{
+		StaticConfiguration: &StaticNetworkConfiguration{
 			MacAddress:  "01-23-45-67-89-AB-CD-EF",
 			HostDevName: "tap0",
 		},
-	}
+	}}
 
 	cfg := Config{
 		SocketPath:  socketPath,
@@ -509,8 +514,10 @@ func testCreateNetworkInterfaceByID(ctx context.Context, t *testing.T, m *Machin
 	}
 	hostDevName := getTapName()
 	iface := NetworkInterface{
-		MacAddress:  "02:00:00:01:02:03",
-		HostDevName: hostDevName,
+		StaticConfiguration: &StaticNetworkConfiguration{
+			MacAddress:  "02:00:00:01:02:03",
+			HostDevName: hostDevName,
+		},
 	}
 	err := m.createNetworkInterface(ctx, iface, 1)
 	if err != nil {
@@ -532,7 +539,7 @@ func testAttachRootDrive(ctx context.Context, t *testing.T, m *Machine) {
 		DriveID:      String("0"),
 		IsRootDevice: Bool(true),
 		IsReadOnly:   Bool(true),
-		PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+		PathOnHost:   String(testRootfs),
 	}
 	err := m.attachDrives(ctx, drive)
 	if err != nil {
@@ -700,7 +707,7 @@ func TestLogFiles(t *testing.T) {
 				DriveID:      String("0"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
-				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+				PathOnHost:   String(testRootfs),
 			},
 		},
 		DisableValidation: true,
@@ -855,6 +862,11 @@ func copyFile(src, dst string, uid, gid int) error {
 }
 
 func TestPID(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	fctesting.RequiresRoot(t)
+
 	m := &Machine{}
 	if _, err := m.PID(); err == nil {
 		t.Errorf("expected an error, but received none")
@@ -867,6 +879,12 @@ func TestPID(t *testing.T) {
 	defer os.Remove(socketPath)
 
 	vmlinuxPath := getVmlinuxPath(t)
+
+	rootfsBytes, err := ioutil.ReadFile(testRootfs)
+	require.NoError(t, err, "failed to read rootfs file")
+	rootfsPath := filepath.Join(testDataPath, "TestPID.img")
+	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
 	cfg := Config{
 		SocketPath:      socketPath,
@@ -882,14 +900,14 @@ func TestPID(t *testing.T) {
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
-				PathOnHost:   String(filepath.Join(testDataPath, "root-drive.img")),
+				PathOnHost:   String(rootfsPath),
 			},
 		},
 		Debug:             true,
 		DisableValidation: true,
 	}
 
-	m, err := NewMachine(context.Background(), cfg, WithLogger(fctesting.NewLogEntry(t)))
+	m, err = NewMachine(context.Background(), cfg, WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Errorf("expected no error during create machine, but received %v", err)
 	}

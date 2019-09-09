@@ -180,14 +180,14 @@ func ExampleNetworkInterface_rateLimiting() {
 	// create the outbound rate limiter
 	outbound := firecracker.NewRateLimiter(bandwidthBuilder.Build(), opsBuilder.Build())
 
-	networkIfaces := []firecracker.NetworkInterface{
-		{
-			MacAddress:     "01-23-45-67-89-AB-CD-EF",
-			HostDevName:    "tap-name",
-			InRateLimiter:  inbound,
-			OutRateLimiter: outbound,
+	networkIfaces := []firecracker.NetworkInterface{{
+		StaticConfiguration: &firecracker.StaticNetworkConfiguration{
+			MacAddress:  "01-23-45-67-89-AB-CD-EF",
+			HostDevName: "tap-name",
 		},
-	}
+		InRateLimiter:  inbound,
+		OutRateLimiter: outbound,
+	}}
 
 	cfg := firecracker.Config{
 		SocketPath:      "/path/to/socket",
