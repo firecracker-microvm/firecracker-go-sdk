@@ -1,11 +1,9 @@
 # 0.18.0
-* Adds support for configuring Network Interfaces via CNI
-  * TODO link to issue once there is one
+* Adds support for configuring Network Interfaces via CNI (#126)
 * Moves NetworkInterface.HostDevName and NetworkInterface.MacAddress fields to
   NetworkInterface.StaticConfiguration.HostDevName and NetworkInterface.StaticConfiguration.MacAddress
   fields, respectively. This is a backwards incompatible change, users will need
-  to update the location of these fields.
-  * TODO link to issue once there is one
+  to update the location of these fields. (#126)
 
 # 0.17.0
 
