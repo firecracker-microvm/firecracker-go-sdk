@@ -373,9 +373,9 @@ func startCNIMachine(t *testing.T,
 				CacheDir:    cniCacheDir,
 				NetworkName: networkName,
 				IfName:      ifName,
-				ContainerID: vmID,
 			},
 		}},
+		VMID: vmID,
 	})
 	require.NoError(t, err, "failed to create machine with CNI network interface")
 

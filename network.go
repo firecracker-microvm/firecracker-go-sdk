@@ -86,11 +86,6 @@ type CNIConfiguration struct {
 	// invocation.
 	Args [][2]string
 
-	// ContainerID (optional) corresponds to the CNI_CONTAINERID parameter as
-	// specified in the CNI spec. If not specified, an ID unique to the
-	// VM will be used instead.
-	ContainerID string
-
 	// BinPath (optional) is a list of directories in which CNI plugin binaries
 	// will be sought. If not provided, defaults to just "/opt/bin/CNI"
 	BinPath []string
@@ -102,6 +97,12 @@ type CNIConfiguration struct {
 	// CacheDir (optional) is the director in which CNI queries/results will be
 	// cached by the runtime. If not provided, defaults to "/var/lib/cni"
 	CacheDir string
+
+	// containerID corresponds to the CNI_CONTAINERID parameter as
+	// specified in the CNI spec. It is private to CNIConfiguration
+	// because we expect users to provide it via the Machine's VMID parameter
+	// (or otherwise be randomly generated if the VMID was unset by the user)
+	containerID string
 
 	// netNSPath is private to CNIConfiguration because we expect users to
 	// either provide the netNSPath via the Jailer config or allow the
@@ -117,11 +118,7 @@ func (cniConf CNIConfiguration) validate() error {
 	return nil
 }
 
-func (cniConf *CNIConfiguration) setDefaults(machineID string) {
-	if cniConf.ContainerID == "" {
-		cniConf.ContainerID = machineID
-	}
-
+func (cniConf *CNIConfiguration) setDefaults() {
 	if len(cniConf.BinPath) == 0 {
 		cniConf.BinPath = []string{defaultCNIBinDir}
 	}
@@ -131,13 +128,13 @@ func (cniConf *CNIConfiguration) setDefaults(machineID string) {
 	}
 
 	if cniConf.CacheDir == "" {
-		cniConf.CacheDir = filepath.Join(defaultCNICacheDir, machineID)
+		cniConf.CacheDir = filepath.Join(defaultCNICacheDir, cniConf.containerID)
 	}
 }
 
 func (cniConf CNIConfiguration) asCNIRuntimeConf() *libcni.RuntimeConf {
 	return &libcni.RuntimeConf{
-		ContainerID: cniConf.ContainerID,
+		ContainerID: cniConf.containerID,
 		NetNS:       cniConf.netNSPath,
 		IfName:      cniConf.IfName,
 		Args:        cniConf.Args,
@@ -417,7 +414,7 @@ func (networkInterfaces NetworkInterfaces) validate(kernelArgs kernelArgs) error
 // setupNetwork will invoke CNI if needed for any interfaces
 func (networkInterfaces NetworkInterfaces) setupNetwork(
 	ctx context.Context,
-	machineID string,
+	vmID string,
 	netNSPath string,
 	logger *log.Entry,
 ) (error, []func() error) {
@@ -430,8 +427,9 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 		return nil, cleanupFuncs
 	}
 
+	cniNetworkInterface.CNIConfiguration.containerID = vmID
 	cniNetworkInterface.CNIConfiguration.netNSPath = netNSPath
-	cniNetworkInterface.CNIConfiguration.setDefaults(machineID)
+	cniNetworkInterface.CNIConfiguration.setDefaults()
 
 	// Make sure the netns is setup. If the path doesn't yet exist, it will be
 	// initialized with a new empty netns.
@@ -451,7 +449,7 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	// by parsing the CNI result object according to the specifications detailed in the
 	// vmconf package docs.
 	if cniNetworkInterface.StaticConfiguration == nil {
-		vmNetConf, err := vmconf.StaticNetworkConfFrom(*cniResult, cniNetworkInterface.CNIConfiguration.ContainerID)
+		vmNetConf, err := vmconf.StaticNetworkConfFrom(*cniResult, cniNetworkInterface.CNIConfiguration.containerID)
 		if err != nil {
 			return errors.Wrap(err,
 				"failed to parse VM network configuration from CNI output, ensure CNI is configured with a plugin "+

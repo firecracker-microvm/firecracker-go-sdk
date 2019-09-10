@@ -15,7 +15,6 @@ package firecracker
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,12 +23,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -102,6 +101,12 @@ type Config struct {
 
 	// JailerCfg is configuration specific for the jailer process.
 	JailerCfg *JailerConfig
+
+	// (Optional) VMID is a unique identifier for this VM. It's set to a
+	// random uuid if not provided by the user. It's currently used to
+	// set the CNI ContainerID and create a network namespace path if
+	// CNI configuration is provided as part of NetworkInterfaces
+	VMID string
 }
 
 // Validate will ensure that the required fields are set and that
@@ -174,9 +179,6 @@ type Machine struct {
 	// callbacks that should be run when the machine is being torn down
 	cleanupOnce  sync.Once
 	cleanupFuncs []func() error
-
-	// uniqueID is a unique identifier for the VM
-	uniqueID string
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -281,45 +283,19 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.client = NewClient(cfg.SocketPath, m.logger, cfg.Debug)
 	}
 
+	if cfg.VMID == "" {
+		randomID, err := uuid.NewV4()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create random ID for VMID")
+		}
+		cfg.VMID = randomID.String()
+	}
+
 	m.machineConfig = cfg.MachineCfg
 	m.Cfg = cfg
 
-	// Use the socketPath (which must be unique to the vm) to generate a unique ID
-	// that doesn't include any path components or other special characters.
-	uniqueID, err := uniqueIDFromSocketPath(cfg.SocketPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate unique machine ID")
-	}
-	m.uniqueID = uniqueID
-
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
-}
-
-func uniqueIDFromSocketPath(socketPath string) (string, error) {
-	absPath, err := filepath.Abs(socketPath)
-	if err != nil {
-		return "", errors.Wrapf(err,
-			"failed to get absolute path of socket path %q", socketPath)
-	}
-
-	// we don't assume all parent directories for the socket yet exist, so we evaluate
-	// symlinks in the path one component at a time to handle any ENOENT errors
-	parentDir := "/"
-	for _, pathPart := range strings.Split(filepath.Dir(absPath), string(os.PathSeparator)) {
-		parentDir = filepath.Join(parentDir, pathPart)
-
-		resolvedDir, err := filepath.EvalSymlinks(parentDir)
-		if err == nil {
-			parentDir = resolvedDir
-		} else if !os.IsNotExist(err) {
-			return "", errors.Wrapf(err,
-				"failed while attempting to resolve any symlinks in socket path %q", socketPath)
-		}
-	}
-
-	resolvedSocketPath := filepath.Join(parentDir, filepath.Base(socketPath))
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(resolvedSocketPath))), nil
 }
 
 // Start will iterate through the handler list and call each handler. If an
@@ -384,7 +360,7 @@ func (m *Machine) netNSPath() string {
 	// If there isn't a jailer netns but there is a network
 	// interface with CNI configuration, use a default netns path
 	if m.Cfg.NetworkInterfaces.cniInterface() != nil {
-		return filepath.Join(defaultNetNSDir, m.uniqueID)
+		return filepath.Join(defaultNetNSDir, m.Cfg.VMID)
 	}
 
 	// else, just don't use a netns for the VM
@@ -392,7 +368,7 @@ func (m *Machine) netNSPath() string {
 }
 
 func (m *Machine) setupNetwork(ctx context.Context) error {
-	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.uniqueID, m.netNSPath(), m.logger)
+	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.netNSPath(), m.logger)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
 	return err
 }
