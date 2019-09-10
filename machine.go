@@ -310,12 +310,12 @@ func uniqueIDFromSocketPath(socketPath string) (string, error) {
 		parentDir = filepath.Join(parentDir, pathPart)
 
 		resolvedDir, err := filepath.EvalSymlinks(parentDir)
-		if err != nil && !os.IsNotExist(err) {
+		if err == nil {
+			parentDir = resolvedDir
+		} else if !os.IsNotExist(err) {
 			return "", errors.Wrapf(err,
 				"failed while attempting to resolve any symlinks in socket path %q", socketPath)
 		}
-
-		parentDir = resolvedDir
 	}
 
 	resolvedSocketPath := filepath.Join(parentDir, filepath.Base(socketPath))
