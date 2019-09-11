@@ -289,6 +289,9 @@ func TestNetworkMachineCNI(t *testing.T) {
 	numVMs := 10
 	vmIPs := make(chan string, numVMs)
 
+	// used as part of the VMIDs to make sure different test suites don't use the same CNI ContainerID (which can reak havok)
+	timestamp := time.Now().UnixNano()
+
 	var vmWg sync.WaitGroup
 	for i := 0; i < numVMs; i++ {
 		vmWg.Add(1)
@@ -319,7 +322,7 @@ func TestNetworkMachineCNI(t *testing.T) {
 			_, err := os.Stat(expectedCacheDirPath)
 			assert.True(t, os.IsNotExist(err), "expected CNI cache dir to not exist after vm exit")
 
-		}(fmt.Sprintf("%s-%d", networkName, i))
+		}(fmt.Sprintf("%d-%s-%d", timestamp, networkName, i))
 	}
 	vmWg.Wait()
 	close(vmIPs)
