@@ -179,6 +179,14 @@ type Machine struct {
 	// callbacks that should be run when the machine is being torn down
 	cleanupOnce  sync.Once
 	cleanupFuncs []func() error
+
+	// configuredLogFifo is the configured LogFifo path. The value of LogFifo will be changed if using jailer
+	// this ensures operations that depend on the configured path still work
+	configuredLogFifo string
+
+	// configuredMetricsFifo is the configured MetricsFifo path. The value of MetricsFifo will be changed if using jailer
+	// this ensures operations that depend on the configured path (such as cleanup) still work
+	configuredMetricsFifo string
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -293,6 +301,8 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	m.machineConfig = cfg.MachineCfg
 	m.Cfg = cfg
+	m.configuredLogFifo = m.Cfg.LogFifo
+	m.configuredMetricsFifo = m.Cfg.MetricsFifo
 
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
@@ -454,13 +464,13 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			return nil
 		},
 		func() error {
-			if err := os.Remove(m.Cfg.LogFifo); !os.IsNotExist(err) {
+			if err := os.Remove(m.configuredLogFifo); !os.IsNotExist(err) {
 				return err
 			}
 			return nil
 		},
 		func() error {
-			if err := os.Remove(m.Cfg.MetricsFifo); !os.IsNotExist(err) {
+			if err := os.Remove(m.configuredMetricsFifo); !os.IsNotExist(err) {
 				return err
 			}
 			return nil
@@ -584,7 +594,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	)
 
 	if m.Cfg.FifoLogWriter != nil {
-		if err := captureFifoToFile(m.logger, m.Cfg.LogFifo, m.Cfg.FifoLogWriter); err != nil {
+		if err := captureFifoToFile(m.logger, m.configuredLogFifo, m.Cfg.FifoLogWriter); err != nil {
 			return err
 		}
 	}
