@@ -400,7 +400,7 @@ PutGuestVsockByID creates new vsock with ID specified by the id parameter
 
 If the vsock device with the specified ID already exists, its body will be updated based on the new input. May fail if update is not possible.
 */
-func (a *Client) PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVsockByIDCreated, *PutGuestVsockByIDNoContent, error) {
+func (a *Client) PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVsockByIDNoContent, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewPutGuestVsockByIDParams()
@@ -419,15 +419,9 @@ func (a *Client) PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVs
 		Client:             params.HTTPClient,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	switch value := result.(type) {
-	case *PutGuestVsockByIDCreated:
-		return value, nil, nil
-	case *PutGuestVsockByIDNoContent:
-		return nil, value, nil
-	}
-	return nil, nil, nil
+	return result.(*PutGuestVsockByIDNoContent), nil
 
 }
 
@@ -509,7 +503,7 @@ type ClientIface interface {
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
 	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)
-	PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVsockByIDCreated, *PutGuestVsockByIDNoContent, error)
+	PutGuestVsockByID(params *PutGuestVsockByIDParams) (*PutGuestVsockByIDNoContent, error)
 	PutLogger(params *PutLoggerParams) (*PutLoggerNoContent, error)
 	PutMachineConfiguration(params *PutMachineConfigurationParams) (*PutMachineConfigurationNoContent, error)
 }

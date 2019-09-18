@@ -398,8 +398,8 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for _, dev := range m.Cfg.VsockDevices {
-		if err := m.addVsock(ctx, dev); err != nil {
+	for i, dev := range m.Cfg.VsockDevices {
+		if err := m.addVsock(ctx, fmt.Sprintf("%d", i), dev); err != nil {
 			return err
 		}
 	}
@@ -729,13 +729,14 @@ func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 }
 
 // addVsock adds a vsock to the instance
-func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
+func (m *Machine) addVsock(ctx context.Context, id string, dev VsockDevice) error {
 	vsockCfg := models.Vsock{
-		GuestCid: int64(dev.CID),
-		ID:       &dev.Path,
+		GuestCid: Int64(int64(dev.CID)),
+		UdsPath:  &dev.Path,
+		VsockID:  &id,
 	}
 
-	resp, _, err := m.client.PutGuestVsockByID(ctx, dev.Path, &vsockCfg)
+	resp, err := m.client.PutGuestVsockByID(ctx, &vsockCfg)
 	if err != nil {
 		return err
 	}
