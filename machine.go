@@ -222,6 +222,8 @@ type RateLimiterSet struct {
 // VsockDevice represents a vsock connection between the host and the guest
 // microVM.
 type VsockDevice struct {
+	// ID defines the vsock's device ID for firecracker.
+	ID string
 	// Path defines the filesystem path of the vsock device on the host.
 	Path string
 	// CID defines the 32-bit Context Identifier for the vsock device.  See
@@ -398,8 +400,8 @@ func (m *Machine) createNetworkInterfaces(ctx context.Context, ifaces ...Network
 }
 
 func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
-	for i, dev := range m.Cfg.VsockDevices {
-		if err := m.addVsock(ctx, fmt.Sprintf("%d", i), dev); err != nil {
+	for _, dev := range m.Cfg.VsockDevices {
+		if err := m.addVsock(ctx, dev); err != nil {
 			return err
 		}
 	}
@@ -729,11 +731,11 @@ func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 }
 
 // addVsock adds a vsock to the instance
-func (m *Machine) addVsock(ctx context.Context, id string, dev VsockDevice) error {
+func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	vsockCfg := models.Vsock{
 		GuestCid: Int64(int64(dev.CID)),
 		UdsPath:  &dev.Path,
-		VsockID:  &id,
+		VsockID:  &dev.ID,
 	}
 
 	resp, err := m.client.PutGuestVsockByID(ctx, &vsockCfg)

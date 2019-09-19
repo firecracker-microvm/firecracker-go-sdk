@@ -183,16 +183,16 @@ func (f *Client) PutGuestDriveByID(ctx context.Context, driveID string, drive *m
 	return f.client.Operations.PutGuestDriveByID(params)
 }
 
-// PutGuestVsockOpt is a functional option to be used for the
+// PutGuestVsockByIDOpt is a functional option to be used for the
 // PutGuestVsockByID API in setting any additional optional fields.
 type PutGuestVsockByIDOpt func(*ops.PutGuestVsockByIDParams)
 
-// PutGuestVsock is a wrapper for the swagger generated client to make
+// PutGuestVsockByID is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) PutGuestVsockByID(ctx context.Context, vsock *models.Vsock, opts ...PutGuestVsockByIDOpt) (*ops.PutGuestVsockByIDNoContent, error) {
 	params := ops.NewPutGuestVsockByIDParams()
 	params.SetContext(ctx)
-	params.SetID(*vsock.VsockID)
+	params.ID = *vsock.VsockID
 	params.SetBody(vsock)
 	for _, opt := range opts {
 		opt(params)

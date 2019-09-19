@@ -562,6 +562,7 @@ func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 
 func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 	dev := VsockDevice{
+		ID:   "1",
 		CID:  3,
 		Path: "foo",
 	}
