@@ -561,9 +561,11 @@ func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
+	timestamp := strconv.Itoa(int(time.Now().UnixNano()))
 	dev := VsockDevice{
+		ID:   "1",
 		CID:  3,
-		Path: "foo",
+		Path: timestamp + ".vsock",
 	}
 	err := m.addVsock(ctx, dev)
 	if err != nil {
