@@ -189,10 +189,10 @@ type PutGuestVsockByIDOpt func(*ops.PutGuestVsockByIDParams)
 
 // PutGuestVsockByID is a wrapper for the swagger generated client to make
 // calling of the API easier.
-func (f *Client) PutGuestVsockByID(ctx context.Context, vsockID string, vsock *models.Vsock, opts ...PutGuestVsockByIDOpt) (*ops.PutGuestVsockByIDCreated, *ops.PutGuestVsockByIDNoContent, error) {
+func (f *Client) PutGuestVsockByID(ctx context.Context, vsock *models.Vsock, opts ...PutGuestVsockByIDOpt) (*ops.PutGuestVsockByIDNoContent, error) {
 	params := ops.NewPutGuestVsockByIDParams()
 	params.SetContext(ctx)
-	params.SetID(vsockID)
+	params.SetID(StringValue(vsock.VsockID))
 	params.SetBody(vsock)
 	for _, opt := range opts {
 		opt(params)
