@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"os"
 )
 
 // Handler name constants
@@ -133,6 +134,27 @@ var CreateLogFilesHandler = Handler{
 		if err := createFifos(logFifoPath, metricsFifoPath); err != nil {
 			m.logger.Errorf("Unable to set up logging: %s", err)
 			return err
+		}
+
+		m.cleanupFuncs = append(m.cleanupFuncs,
+			func() error {
+				if err := os.Remove(logFifoPath); !os.IsNotExist(err) {
+					return err
+				}
+				return nil
+			},
+			func() error {
+				if err := os.Remove(metricsFifoPath); !os.IsNotExist(err) {
+					return err
+				}
+				return nil
+			},
+		)
+
+		if m.Cfg.FifoLogWriter != nil {
+			if err := captureFifoToFile(m.logger, logFifoPath, m.Cfg.FifoLogWriter); err != nil {
+				m.logger.Warnf("captureFifoToFile() returned %s. Continuing anyway.", err)
+			}
 		}
 
 		m.logger.Debug("Created metrics and logging fifos.")

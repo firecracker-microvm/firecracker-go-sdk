@@ -1,12 +1,14 @@
 package firecracker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
@@ -657,6 +659,55 @@ func TestHandlers(t *testing.T) {
 			os.Remove(c.Config.LogFifo)
 			os.Remove(c.Config.MetricsFifo)
 		})
+	}
+}
+
+func TestCreateLogFilesHandler(t *testing.T) {
+	logWriterBuf := new(bytes.Buffer)
+	config := Config{
+		LogFifo:       filepath.Join(testDataPath, "firecracker-log.fifo"),
+		MetricsFifo:   filepath.Join(testDataPath, "firecracker-metrics.fifo"),
+		FifoLogWriter: logWriterBuf,
+	}
+
+	defer func() {
+		os.Remove(config.LogFifo)
+		os.Remove(config.MetricsFifo)
+	}()
+
+	ctx := context.Background()
+	m, err := NewMachine(ctx, config, WithLogger(fctesting.NewLogEntry(t)))
+	if err != nil {
+		t.Fatalf("failed to create machine: %v", err)
+	}
+
+	// spin off goroutine to write to Log fifo so we don't block
+	go func() {
+		timer := time.NewTimer(1 * time.Second)
+		for {
+			select {
+			case <-timer.C:
+				t.Error("timed out waiting for log fifo")
+			default:
+				fifoPipe, err := os.OpenFile(config.LogFifo, os.O_WRONLY, os.ModePerm)
+				if err != nil {
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+
+				timer.Stop()
+				_, err = fifoPipe.WriteString("data")
+				if err != nil {
+					t.Errorf("Failed to write to fifo %v", err)
+				}
+				return
+			}
+		}
+	}()
+
+	err = CreateLogFilesHandler.Fn(ctx, m)
+	if err != nil {
+		t.Errorf("failed to call CreateLogFilesHandler function: %v", err)
 	}
 }
 
