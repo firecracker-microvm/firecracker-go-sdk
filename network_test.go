@@ -252,12 +252,12 @@ func TestNetworkMachineCNI(t *testing.T) {
 
 	cniCacheDir := filepath.Join(testCNIDir, "cni.cache")
 	require.NoError(t,
-		os.MkdirAll(cniCacheDir, 0755),
+		os.MkdirAll(cniCacheDir, 0777), // broad permissions for tests
 		"failed to create cni cache dir")
 
 	cniConfDir := filepath.Join(testCNIDir, "cni.conf")
 	require.NoError(t,
-		os.MkdirAll(cniConfDir, 0755),
+		os.MkdirAll(cniConfDir, 0777), // broad permissions for tests
 		"failed to create cni conf dir")
 
 	const ifName = "veth0"
@@ -283,7 +283,7 @@ func TestNetworkMachineCNI(t *testing.T) {
 
 	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
 	require.NoError(t,
-		ioutil.WriteFile(cniConfPath, []byte(cniConf), 0644),
+		ioutil.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
 		"failed to write cni conf file")
 
 	numVMs := 10
