@@ -718,8 +718,7 @@ func TestCreateLogFilesHandler(t *testing.T) {
 		case <-timer.C:
 			t.Fatal("timed out reading from log writer")
 		default:
-			// Newling byte code is 0x0A
-			logData, err := logWriterBuf.ReadString(0x0A)
+			logData, err := logWriterBuf.ReadString('\n')
 			if err != nil {
 				time.Sleep(10 * time.Millisecond)
 				continue
