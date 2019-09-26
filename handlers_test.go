@@ -13,6 +13,7 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
+	"github.com/pkg/errors"
 )
 
 func TestHandlerListAppend(t *testing.T) {
@@ -663,7 +664,7 @@ func TestHandlers(t *testing.T) {
 }
 
 func TestCreateLogFilesHandler(t *testing.T) {
-	logWriterBuf := new(bytes.Buffer)
+	logWriterBuf := &bytes.Buffer{}
 	config := Config{
 		LogFifo:       filepath.Join(testDataPath, "firecracker-log.fifo"),
 		MetricsFifo:   filepath.Join(testDataPath, "firecracker-metrics.fifo"),
@@ -682,33 +683,55 @@ func TestCreateLogFilesHandler(t *testing.T) {
 	}
 
 	// spin off goroutine to write to Log fifo so we don't block
+	doneChan := make(chan struct{}, 1)
 	go func() {
-		timer := time.NewTimer(1 * time.Second)
-		for {
-			select {
-			case <-timer.C:
-				t.Error("timed out waiting for log fifo")
-			default:
-				fifoPipe, err := os.OpenFile(config.LogFifo, os.O_WRONLY, os.ModePerm)
-				if err != nil {
-					time.Sleep(10 * time.Millisecond)
-					continue
-				}
+		defer close(doneChan)
 
-				timer.Stop()
-				_, err = fifoPipe.WriteString("data")
-				if err != nil {
-					t.Errorf("Failed to write to fifo %v", err)
-				}
-				return
-			}
+		// try to open file
+		fifoPipe, err := openFileRetry(config.LogFifo)
+		if err != nil {
+			t.Error(err)
 		}
+
+		if _, err := fifoPipe.WriteString("data\n"); err != nil {
+			t.Errorf("Failed to write to fifo %v", err)
+		}
+
+		fifoPipe.Close()
+		return
 	}()
 
-	err = CreateLogFilesHandler.Fn(ctx, m)
-	if err != nil {
+	// Execute Handler
+	if err := CreateLogFilesHandler.Fn(ctx, m); err != nil {
 		t.Errorf("failed to call CreateLogFilesHandler function: %v", err)
+		return
 	}
+
+	// Block until writing go routine is done to check data that was written
+	<-doneChan
+
+	// Poll for verifying logs were written as we need to allow time
+	// for copying from the log fifo into the FifoLogWriter
+	timer := time.NewTimer(1 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			t.Fatal("timed out reading from log writer")
+		default:
+			// Newling byte code is 0x0A
+			logData, err := logWriterBuf.ReadString(0x0A)
+			if err != nil {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+
+			if logData != "data\n" {
+				t.Errorf("expected 'data' written to log got '%s'", logData)
+			}
+			return
+		}
+	}
+
 }
 
 func compareHandlerLists(l1, l2 HandlerList) bool {
@@ -731,4 +754,22 @@ func compareHandlerLists(l1, l2 HandlerList) bool {
 	}
 
 	return true
+}
+
+func openFileRetry(filePath string) (file *os.File, err error) {
+	timer := time.NewTimer(1 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			err = errors.New("timed out waiting for file")
+			return
+		default:
+			file, err = os.OpenFile(filePath, os.O_WRONLY, os.ModePerm)
+			if err == nil {
+				timer.Stop()
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 }
