@@ -455,18 +455,6 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			}
 			return nil
 		},
-		func() error {
-			if err := os.Remove(m.Cfg.LogFifo); !os.IsNotExist(err) {
-				return err
-			}
-			return nil
-		},
-		func() error {
-			if err := os.Remove(m.Cfg.MetricsFifo); !os.IsNotExist(err) {
-				return err
-			}
-			return nil
-		},
 	)
 
 	errCh := make(chan error)
@@ -584,12 +572,6 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		m.Cfg.LogFifo,
 		m.Cfg.MetricsFifo,
 	)
-
-	if m.Cfg.FifoLogWriter != nil {
-		if err := captureFifoToFile(m.logger, m.Cfg.LogFifo, m.Cfg.FifoLogWriter); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
