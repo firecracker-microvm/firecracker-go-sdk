@@ -36,9 +36,7 @@ func TestDrivesBuilderWithRootDrive(t *testing.T) {
 	}
 
 	b := NewDrivesBuilder(expectedPath)
-	drives := b.WithRootDrive(expectedPath, func(drive *models.Drive) {
-		drive.DriveID = String("foo")
-	}).Build()
+	drives := b.WithRootDrive(expectedPath, WithDriveID("foo")).Build()
 
 	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
 		t.Errorf("expected drives %v, but received %v", e, a)
