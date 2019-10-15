@@ -15,7 +15,10 @@ package main
 
 import (
 	"encoding/json"
+	pluginargs "github.com/firecracker-microvm/firecracker-go-sdk/cni/cmd/tc-redirect-tap/args"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
@@ -101,7 +104,7 @@ func newPlugin(args *skel.CmdArgs) (*plugin, error) {
 		// It's valid for the netns to no longer exist during DEL commands (in which case DEL is
 		// a noop). Thus, we leave validating that netNS is not nil to command implementations.
 		switch err.(type) {
-		case *ns.NSPathNotExistErr:
+		case ns.NSPathNotExistErr:
 			netNS = nil
 		default:
 			return nil, errors.Wrapf(err, "failed to open netns at path %q", args.Netns)
@@ -118,14 +121,10 @@ func newPlugin(args *skel.CmdArgs) (*plugin, error) {
 		}
 	}
 
-	return &plugin{
+	plugin := &plugin{
 		NetlinkOps: internal.DefaultNetlinkOps(),
-
-		// TODO(sipsma) support customizing tap name through args
-
-		// TODO(sipsma) support customizing tap uid/gid through args
-		tapUID: os.Geteuid(),
-		tapGID: os.Getegid(),
+		tapUID:     os.Geteuid(),
+		tapGID:     os.Getegid(),
 
 		// given the use case of supporting VMs, we call the "containerID" a "vmID"
 		vmID: args.ContainerID,
@@ -135,7 +134,33 @@ func newPlugin(args *skel.CmdArgs) (*plugin, error) {
 		netNS: netNS,
 
 		currentResult: currentResult,
-	}, nil
+	}
+	parsedArgs, err := extractArgs(args.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	if tapName, wasDefined := parsedArgs[pluginargs.TCRedirectTapName]; wasDefined {
+		plugin.tapName = tapName
+	}
+
+	if tapUIDVal, wasDefined := parsedArgs[pluginargs.TCRedirectTapUID]; wasDefined {
+		tapUID, err := strconv.Atoi(tapUIDVal)
+		if err != nil {
+			return nil, errors.Wrapf(err, "tapUID should be numeric convertible, got %q", tapUIDVal)
+		}
+		plugin.tapUID = tapUID
+	}
+
+	if tapGIDVal, wasDefined := parsedArgs[pluginargs.TCRedirectTapGUID]; wasDefined {
+		tapGID, err := strconv.Atoi(tapGIDVal)
+		if err != nil {
+			return nil, errors.Wrapf(err, "tapGID should be numeric convertible, got %q", tapGIDVal)
+		}
+		plugin.tapGID = tapGID
+	}
+
+	return plugin, nil
 }
 
 func getCurrentResult(args *skel.CmdArgs) (*current.Result, error) {
@@ -375,4 +400,22 @@ type NoPreviousResultError struct{}
 
 func (e NoPreviousResultError) Error() string {
 	return "no previous result was found, was this plugin chained with a previous one?"
+}
+
+// extractArgs returns cli args in form of map of strings
+// args string - cli args string("key1=val1;key2=val2)
+func extractArgs(args string) (map[string]string, error) {
+	result := make(map[string]string)
+	if args != "" {
+		argumentsPairs := strings.Split(args, ";")
+		for _, pairStr := range argumentsPairs {
+			pair := strings.SplitN(pairStr, "=", 2)
+			if len(pair) < 2 {
+				return result, errors.Errorf("Invalid cni arguments format, %q", pairStr)
+			}
+			result[pair[0]] = pair[1]
+		}
+	}
+
+	return result, nil
 }

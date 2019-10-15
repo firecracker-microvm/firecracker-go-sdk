@@ -348,3 +348,47 @@ func TestCheckFails(t *testing.T) {
 	err := testPlugin.check()
 	require.Error(t, err, "check should fail when configuration not as expected")
 }
+
+func TestNewPlugin(t *testing.T) {
+	expectedResult := defaultTestPlugin().currentResult
+	nspath := "/tmp/IDoNotExist"
+	netConf := &types.NetConf{
+		CNIVersion: "0.3.1",
+		Name:       "my-lil-network",
+		Type:       "my-lil-plugin",
+		RawPrevResult: map[string]interface{}{
+			"cniVersion": "0.3.1",
+			"interfaces": expectedResult.Interfaces,
+			"ips":        expectedResult.IPs,
+			"routes":     expectedResult.Routes,
+			"dns":        expectedResult.DNS,
+		},
+	}
+	rawPrevResultBytes, err := json.Marshal(netConf)
+	testArgs := skel.CmdArgs{
+		ContainerID: "continer-id",
+		Netns:       nspath,
+		IfName:      "test-name",
+		Args:        "TC_REDIRECT_TAP_NAME=tap_name;TC_REDIRECT_TAP_UID=123;TC_REDIRECT_TAP_GID=321",
+		Path:        "",
+		StdinData:   rawPrevResultBytes,
+	}
+
+	plugin, err := newPlugin(&testArgs)
+	require.NoError(t, err, "failed to create new plugin")
+	assert.Equal(t, plugin.tapName, "tap_name",
+		"TC_REDIRECT_TAP_NAME should be equal to `tap_name`")
+	assert.Equal(t, plugin.tapGID, 321,
+		"TC_REDIRECT_TAP_NAME should be equal to `321`")
+	assert.Equal(t, plugin.tapUID, 123,
+		"TC_REDIRECT_TAP_NAME should be equal to `123`")
+}
+
+func TestExtractArgs(t *testing.T) {
+	cliArgs := "key1=val1;key2=val2"
+	parsedArgs, err := extractArgs(cliArgs)
+	require.NoError(t, err,
+		"failed to extract cli args")
+	assert.Equal(t, "val2", parsedArgs["key2"],
+		"Parameter value for key2 should be `val2`")
+}
