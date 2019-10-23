@@ -576,7 +576,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	return nil
 }
 
-func captureFifoToFile(logger *log.Entry, fifoPath string, w io.Writer) error {
+func (m *Machine) captureFifoToFile(logger *log.Entry, fifoPath string, w io.Writer) error {
 	// open the fifo pipe which will be used
 	// to write its contents to a file.
 	fd, err := syscall.Open(fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
@@ -590,6 +590,16 @@ func captureFifoToFile(logger *log.Entry, fifoPath string, w io.Writer) error {
 	}
 
 	logger.Debugf("Capturing %q to writer", fifoPath)
+
+	// this goroutine is to track the life of the application along with whether
+	// or not the context has been cancelled which is signified by the exitCh. In
+	// the event that the exitCh has been closed, we will close the fifo file.
+	go func() {
+		<-m.exitCh
+		if err := fifoPipe.Close(); err != nil {
+			logger.WithError(err).Debug("failed to close fifo")
+		}
+	}()
 
 	// Uses a goroutine to copy the contents of the fifo pipe to the io.Writer.
 	// In the event that the goroutine finishes, which is caused by either the

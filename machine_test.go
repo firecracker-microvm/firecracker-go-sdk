@@ -14,6 +14,7 @@
 package firecracker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -30,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -830,7 +832,10 @@ func TestCaptureFifoToFile(t *testing.T) {
 		},
 	}
 
-	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
+	if err := m.captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -869,7 +874,10 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 		},
 	}
 
-	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
+	if err := m.captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -1024,4 +1032,46 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected an error, but received none")
 	}
 
+}
+
+func TestCaptureFifoToFile_leak(t *testing.T) {
+	m := &Machine{
+		exitCh: make(chan struct{}),
+	}
+
+	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFileLeak.fifo")
+	err := syscall.Mkfifo(fifoPath, 0700)
+	require.NoError(t, err, "failed to make fifo")
+	defer os.Remove(fifoPath)
+
+	fd, err := syscall.Open(fifoPath, syscall.O_RDWR|syscall.O_NONBLOCK, 0600)
+	require.NoError(t, err, "failed to open fifo path")
+	f := os.NewFile(uintptr(fd), fifoPath)
+	assert.NotNil(t, f, "failed to create new  file")
+	go func() {
+		for {
+			select {
+			case <-m.exitCh:
+				break
+			default:
+				_, err := f.Write([]byte("A"))
+				assert.NoError(t, err, "failed to write bytes to fifo")
+			}
+		}
+	}()
+
+	buf := bytes.NewBuffer(nil)
+
+	loggerBuffer := bytes.NewBuffer(nil)
+	logger := fctesting.NewLogEntry(t)
+	logger.Logger.Level = logrus.WarnLevel
+	logger.Logger.Out = loggerBuffer
+	err = m.captureFifoToFile(logger, fifoPath, buf)
+	assert.NoError(t, err, "failed to capture fifo to file")
+	close(m.exitCh)
+
+	// wait sometime for the logs to populate
+	time.Sleep(250 * time.Millisecond)
+	expected := `io.Copy failed to copy contents of fifo pipe: read testdata/TestCaptureFifoToFileLeak.fifo: file already closed`
+	assert.Contains(t, loggerBuffer.String(), expected)
 }
