@@ -60,7 +60,7 @@ With the following file at `/etc/cni/conf.d/fcnet.conflist`:
 {
   "name": "fcnet",
   "cniVersion": "0.3.1",
-  "plugins"": [
+  "plugins": [
     {
       "type": "ptp",
       "ipMasq": true,
