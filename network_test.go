@@ -353,6 +353,11 @@ func startCNIMachine(t *testing.T,
 	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(firecrackerSockPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
 	m, err := NewMachine(ctx, Config{
 		SocketPath:      firecrackerSockPath,
 		KernelImagePath: getVmlinuxPath(t),
@@ -379,7 +384,7 @@ func startCNIMachine(t *testing.T,
 			},
 		}},
 		VMID: vmID,
-	})
+	}, WithProcessRunner(cmd))
 	require.NoError(t, err, "failed to create machine with CNI network interface")
 
 	err = m.Start(context.Background())
