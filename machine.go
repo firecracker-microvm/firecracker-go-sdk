@@ -720,7 +720,7 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 		VsockID:  &dev.ID,
 	}
 
-	resp, err := m.client.PutGuestVsockByID(ctx, &vsockCfg)
+	resp, err := m.client.PutGuestVsock(ctx, &vsockCfg)
 	if err != nil {
 		return err
 	}

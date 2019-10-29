@@ -569,7 +569,7 @@ func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 	}
 	err := m.addVsock(ctx, dev)
 	if err != nil {
-		if badRequest, ok := err.(*operations.PutGuestVsockByIDBadRequest); ok &&
+		if badRequest, ok := err.(*operations.PutGuestVsockBadRequest); ok &&
 			strings.HasPrefix(badRequest.Payload.FaultMessage, "Invalid request method and/or path") {
 			t.Errorf(`attaching vsock failed: %s
 Does your Firecracker binary have vsock support?
