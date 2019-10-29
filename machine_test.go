@@ -167,7 +167,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			HtEnabled:   Bool(false),
 		},
 		Drives: []models.Drive{
-			models.Drive{
+			{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
@@ -705,7 +705,7 @@ func TestLogFiles(t *testing.T) {
 		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
 		Drives: []models.Drive{
-			models.Drive{
+			{
 				DriveID:      String("0"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
@@ -898,7 +898,7 @@ func TestPID(t *testing.T) {
 			HtEnabled:   Bool(false),
 		},
 		Drives: []models.Drive{
-			models.Drive{
+			{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),
