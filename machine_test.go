@@ -909,12 +909,19 @@ func TestPID(t *testing.T) {
 		DisableValidation: true,
 	}
 
-	m, err = NewMachine(context.Background(), cfg, WithLogger(fctesting.NewLogEntry(t)))
+	ctx := context.Background()
+
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
+	m, err = NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Errorf("expected no error during create machine, but received %v", err)
 	}
 
-	if err := m.Start(context.Background()); err != nil {
+	if err := m.Start(ctx); err != nil {
 		t.Errorf("expected no error during Start, but received %v", err)
 	}
 	defer m.StopVMM()
@@ -932,7 +939,7 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected clean kill, but received %v", err)
 	}
 
-	m.Wait(context.Background())
+	m.Wait(ctx)
 
 	if _, err := m.PID(); err == nil {
 		t.Errorf("expected an error, but received none")
