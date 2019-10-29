@@ -33,6 +33,9 @@ steps:
   # multiple go builds are downloading to the same cache.
   - wait
 
+  - label: gofmt -s
+    command: test -z $(gofmt -s -l .)
+
   - label: 'git log validation'
     command: './.buildkite/logcheck.sh'
 
