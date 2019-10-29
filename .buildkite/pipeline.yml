@@ -47,8 +47,8 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'ln -s /usr/local/bin/firecracker-v0.18.0 testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer-v0.18.0 testdata/jailer'
+      - 'ln -s /usr/local/bin/firecracker-v0.19.0 testdata/firecracker'
+      - 'ln -s /usr/local/bin/jailer-v0.19.0 testdata/jailer'
       - "DISABLE_ROOT_TESTS=true FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -57,8 +57,8 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'cp /usr/local/bin/firecracker-v0.18.0 testdata/firecracker'
-      - 'cp /usr/local/bin/jailer-v0.18.0 testdata/jailer'
+      - 'cp /usr/local/bin/firecracker-v0.19.0 testdata/firecracker'
+      - 'cp /usr/local/bin/jailer-v0.19.0 testdata/jailer'
       - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1'"
     agents:

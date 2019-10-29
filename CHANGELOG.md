@@ -1,3 +1,9 @@
+# 0.19.0
+* Firecracker v0.19 API: Vsock API call: PUT /vsocks/{id} changed to PUT /vsock and no longer
+  appear to support multiple vsock devices. Any subsequent calls to this API
+  endpoint will override the previous vsock device configuration.
+* Firecracker v0.19 API: Removed 'Halting' and 'Halted' instance states.
+
 # 0.18.0
 * Adds support for configuring Network Interfaces via CNI (#126)
 * Moves NetworkInterface.HostDevName and NetworkInterface.MacAddress fields to

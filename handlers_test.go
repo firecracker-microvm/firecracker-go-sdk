@@ -595,9 +595,9 @@ func TestHandlers(t *testing.T) {
 		{
 			Handler: AddVsocksHandler,
 			Client: fctesting.MockClient{
-				PutGuestVsockByIDFn: func(params *ops.PutGuestVsockByIDParams) (*ops.PutGuestVsockByIDNoContent, error) {
+				PutGuestVsockFn: func(params *ops.PutGuestVsockParams) (*ops.PutGuestVsockNoContent, error) {
 					called = AddVsocksHandler.Name
-					return &ops.PutGuestVsockByIDNoContent{}, nil
+					return &ops.PutGuestVsockNoContent{}, nil
 				},
 			},
 			Config: Config{
