@@ -153,13 +153,13 @@ func TestNetworkInterfacesValidation_CNI(t *testing.T) {
 
 func TestNetworkInterfacesValidation_MultipleStatic(t *testing.T) {
 	err := NetworkInterfaces([]NetworkInterface{
-		NetworkInterface{
+		{
 			StaticConfiguration: &StaticNetworkConfiguration{
 				MacAddress:  mockMacAddrString,
 				HostDevName: tapName,
 			},
 		},
-		NetworkInterface{
+		{
 			StaticConfiguration: &StaticNetworkConfiguration{
 				MacAddress:  "11:22:33:44:55:66",
 				HostDevName: "tap1",
@@ -172,7 +172,7 @@ func TestNetworkInterfacesValidation_MultipleStatic(t *testing.T) {
 func TestNetworkInterfacesValidationFails_MultipleCNI(t *testing.T) {
 	err := NetworkInterfaces([]NetworkInterface{
 		validCNIInterface,
-		NetworkInterface{
+		{
 			CNIConfiguration: &CNIConfiguration{
 				NetworkName: "something-else",
 				netNSPath:   "/a/different/netns",
@@ -185,7 +185,7 @@ func TestNetworkInterfacesValidationFails_MultipleCNI(t *testing.T) {
 func TestNetworkInterfacesValidationFails_IPWithMultiple(t *testing.T) {
 	err := NetworkInterfaces([]NetworkInterface{
 		validStaticNetworkInterface,
-		NetworkInterface{
+		{
 			StaticConfiguration: &StaticNetworkConfiguration{
 				MacAddress:  "11:22:33:44:55:66",
 				HostDevName: "tap1",
@@ -205,7 +205,7 @@ func TestNetworkInterfacesValidationFails_IPWithKernelArg(t *testing.T) {
 func TestNetworkInterfacesValidationFails_CNIWithMultiple(t *testing.T) {
 	err := NetworkInterfaces([]NetworkInterface{
 		validCNIInterface,
-		NetworkInterface{
+		{
 			StaticConfiguration: &StaticNetworkConfiguration{
 				MacAddress:  "11:22:33:44:55:66",
 				HostDevName: "tap1",
@@ -367,7 +367,7 @@ func startCNIMachine(t *testing.T,
 			HtEnabled:  Bool(true),
 		},
 		Drives: []models.Drive{
-			models.Drive{
+			{
 				DriveID:      String("1"),
 				IsRootDevice: Bool(true),
 				IsReadOnly:   Bool(false),

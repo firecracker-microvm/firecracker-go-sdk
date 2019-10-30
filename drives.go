@@ -66,27 +66,28 @@ func (b DrivesBuilder) Build() []models.Drive {
 
 // WithDriveID sets the ID of the drive
 func WithDriveID(id string) DriveOpt {
-	return func(d *models.Drive)  {
+	return func(d *models.Drive) {
 		d.DriveID = String(id)
 	}
 }
 
 // WithReadOnly sets the drive read-only
 func WithReadOnly(flag bool) DriveOpt {
-	return func(d *models.Drive)  {
+	return func(d *models.Drive) {
 		d.IsReadOnly = Bool(flag)
 	}
 }
 
 // WithPartuuid sets the unique ID of the boot partition
 func WithPartuuid(uuid string) DriveOpt {
-	return func(d *models.Drive)  {
+	return func(d *models.Drive) {
 		d.Partuuid = uuid
 	}
 }
+
 // WithRateLimiter sets the rate limitter of the drive
 func WithRateLimiter(limiter models.RateLimiter) DriveOpt {
-	return func(d *models.Drive)  {
+	return func(d *models.Drive) {
 		d.RateLimiter = &limiter
 	}
 }
