@@ -459,17 +459,19 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 	errCh := make(chan error)
 	go func() {
-		if err := m.cmd.Wait(); err != nil {
-			m.logger.Warnf("firecracker exited: %s", err.Error())
+		waitErr := m.cmd.Wait()
+		if waitErr != nil {
+			m.logger.Warnf("firecracker exited: %s", waitErr.Error())
 		} else {
 			m.logger.Printf("firecracker exited: status=0")
 		}
 
-		if err := m.doCleanup(); err != nil {
-			m.logger.Errorf("failed to cleanup after VM exit: %v", err)
+		cleanupErr := m.doCleanup()
+		if cleanupErr != nil {
+			m.logger.Errorf("failed to cleanup after VM exit: %v", cleanupErr)
 		}
 
-		errCh <- err
+		errCh <- multierror.Append(waitErr, cleanupErr).ErrorOrNil()
 
 		// Notify subscribers that there will be no more values.
 		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),

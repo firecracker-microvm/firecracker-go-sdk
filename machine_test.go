@@ -1075,3 +1075,55 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	expected := `io.Copy failed to copy contents of fifo pipe: read testdata/TestCaptureFifoToFileLeak.fifo: file already closed`
 	assert.Contains(t, loggerBuffer.String(), expected)
 }
+
+func TestWait(t *testing.T) {
+	fctesting.RequiresRoot(t)
+	ctx := context.Background()
+
+	socketPath := filepath.Join(testDataPath, t.Name())
+	defer os.Remove(socketPath)
+
+	cfg := Config{
+		SocketPath:      socketPath,
+		KernelImagePath: getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(2),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			MemSizeMib:  Int64(256),
+			HtEnabled:   Bool(false),
+		},
+		Drives: []models.Drive{
+			{
+				DriveID:      String("root"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(true),
+				PathOnHost:   String(testRootfs),
+			},
+		},
+	}
+
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	require.NoError(t, err)
+
+	err = m.Start(ctx)
+	require.NoError(t, err)
+
+	go func() {
+		pid, err := m.PID()
+		require.NoError(t, err)
+
+		process, err := os.FindProcess(pid)
+		require.NoError(t, err)
+
+		err = process.Kill()
+		require.NoError(t, err)
+	}()
+
+	err = m.Wait(ctx)
+	require.Error(t, err, "Firecracker was killed and it must be reported")
+}
