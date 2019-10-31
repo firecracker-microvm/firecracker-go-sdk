@@ -316,7 +316,11 @@ func TestNetworkMachineCNI(t *testing.T) {
 
 			require.NoError(t, m.StopVMM(), "failed to stop machine")
 			waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Second)
-			assert.NoError(t, m.Wait(waitCtx), "failed waiting for machine stop")
+
+			// Having an error is fine, since StopVM() kills a Firecracker process.
+			// Shutdown() uses SendCtrAltDel action, which doesn't work with the kernel we are using here.
+			// https://github.com/firecracker-microvm/firecracker/issues/1095
+			assert.NotEqual(t, m.Wait(waitCtx), context.DeadlineExceeded, "failed waiting for machine stop")
 			waitCancel()
 
 			_, err := os.Stat(expectedCacheDirPath)
