@@ -101,6 +101,12 @@ With the above configuration, when the Firecracker VM is started the SDK will in
 CNI and place the final VM inside the resultant network namespace. The end result being:
 * Outside the network namespace, a single veth endpoint created by the `ptp` plugin will
   exist with a static IP from the `host-local` plugin (i.e. `192.168.127.1`)
+  * Users can obtain the IP address and other static network configuration generated for
+    their machine via CNI by inspecting the network interface's `StaticConfiguration`
+    field, which will be automatically filled out after the machine has been started.
+  * The IP address, for example, can be obtained at
+    `NetworkInterfaces[0].StaticConfiguration.IPConfiguration.IPAddr` after a call to the
+    machine object's `Start` method succeeds.
 * Inside the VM's network namespace:
     * The other side of the veth device will exist with name `veth0`, as specified by the
       `IfName` parameter above, and a different IP (i.e. `192.168.127.2`)
