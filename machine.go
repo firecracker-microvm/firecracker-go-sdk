@@ -443,7 +443,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
+
+		m.err = err
 		close(m.exitCh)
+
 		return err
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
@@ -497,9 +500,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
-		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.Cfg.SocketPath, err)
-		err = errors.New(msg)
+		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
+		m.err = err
 		close(m.exitCh)
+
 		return err
 	}
 	go func() {
