@@ -835,7 +835,7 @@ func TestCaptureFifoToFile(t *testing.T) {
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
-	if err := m.captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -877,11 +877,18 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
-	if err := m.captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	defer os.Remove(logPath)
+
+	// we sleep here to check to see the io.Copy is working properly in
+	// captureFifoToFile. This is due to the fifo being opened with O_NONBLOCK,
+	// which causes io.Copy to exit immediately with no error.
+	//
+	// https://github.com/firecracker-microvm/firecracker-go-sdk/issues/156
+	time.Sleep(250 * time.Millisecond)
 
 	f, err := os.OpenFile(fifoPath, os.O_RDWR, 0600)
 	if err != nil {
@@ -1066,12 +1073,18 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	logger := fctesting.NewLogEntry(t)
 	logger.Logger.Level = logrus.WarnLevel
 	logger.Logger.Out = loggerBuffer
-	err = m.captureFifoToFile(logger, fifoPath, buf)
+	err = m.captureFifoToFile(context.Background(), logger, fifoPath, buf)
 	assert.NoError(t, err, "failed to capture fifo to file")
 	close(m.exitCh)
 
 	// wait sometime for the logs to populate
 	time.Sleep(250 * time.Millisecond)
-	expected := `io.Copy failed to copy contents of fifo pipe: read testdata/TestCaptureFifoToFileLeak.fifo: file already closed`
-	assert.Contains(t, loggerBuffer.String(), expected)
+	expectedClosedFifo := `reading from a closed fifo`
+	expectedClosedFile := `file already closed`
+	logs := loggerBuffer.String()
+	if !(strings.Contains(logs, expectedClosedFifo) ||
+		strings.Contains(logs, expectedClosedFile)) {
+
+		t.Errorf("logs did not container a closed fifo error or closed file")
+	}
 }
