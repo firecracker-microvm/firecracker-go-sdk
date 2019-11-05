@@ -576,28 +576,37 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	return nil
 }
 
-func captureFifoToFile(logger *log.Entry, fifoPath string, fifo io.Writer) error {
-	// create the fifo pipe which will be used
+func captureFifoToFile(logger *log.Entry, fifoPath string, w io.Writer) error {
+	// open the fifo pipe which will be used
 	// to write its contents to a file.
-	fifoPipe, err := os.OpenFile(fifoPath, os.O_RDONLY, 0600)
+	fd, err := syscall.Open(fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
 	if err != nil {
 		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
 	}
 
-	if err := syscall.Unlink(fifoPath); err != nil {
-		logger.Warnf("Failed to unlink %s", fifoPath)
+	fifoPipe := os.NewFile(uintptr(fd), fifoPath)
+	if fifoPipe == nil {
+		return fmt.Errorf("Invalid file descriptor")
 	}
 
 	logger.Debugf("Capturing %q to writer", fifoPath)
 
-	// Uses a go routine to do a non-blocking io.Copy. The fifo
-	// file should be closed when the appication has finished, since
-	// the forked firecracker application will be closed resulting
-	// in the pipe to return an io.EOF
+	// Uses a goroutine to copy the contents of the fifo pipe to the io.Writer.
+	// In the event that the goroutine finishes, which is caused by either the
+	// context being closed or the application being closed, we will close the
+	// pipe and unlink the fifo path.
 	go func() {
-		defer fifoPipe.Close()
+		defer func() {
+			if err := fifoPipe.Close(); err != nil {
+				logger.Warnf("Failed to close fifo pipe: %v", err)
+			}
 
-		if _, err := io.Copy(fifo, fifoPipe); err != nil {
+			if err := syscall.Unlink(fifoPath); err != nil {
+				logger.Warnf("Failed to unlink %s: %v", fifoPath, err)
+			}
+		}()
+
+		if _, err := io.Copy(w, fifoPipe); err != nil {
 			logger.Warnf("io.Copy failed to copy contents of fifo pipe: %v", err)
 		}
 	}()

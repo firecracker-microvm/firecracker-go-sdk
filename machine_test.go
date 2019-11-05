@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -146,7 +147,12 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
 	logFifo := filepath.Join(tmpDir, "firecracker.log")
 	metricsFifo := filepath.Join(tmpDir, "firecracker-metrics")
+	capturedLog := filepath.Join(tmpDir, "writer.fifo")
+	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
+	require.NoError(t, err, "failed to open fifo writer file")
 	defer func() {
+		fw.Close()
+		os.Remove(capturedLog)
 		os.Remove(socketPath)
 		os.Remove(logFifo)
 		os.Remove(metricsFifo)
@@ -183,6 +189,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			ExecFile:       getFirecrackerBinaryPath(),
 			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
 		},
+		FifoLogWriter: fw,
 	}
 
 	if _, err := os.Stat(vmlinuxPath); err != nil {
@@ -250,6 +257,10 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	m.StopVMM()
+
+	info, err := os.Stat(capturedLog)
+	assert.NoError(t, err, "failed to stat captured log file")
+	assert.NotEqual(t, 0, info.Size())
 }
 
 func TestMicroVMExecution(t *testing.T) {
@@ -263,7 +274,12 @@ func TestMicroVMExecution(t *testing.T) {
 	socketPath := filepath.Join(testDataPath, "TestMicroVMExecution.sock")
 	logFifo := filepath.Join(testDataPath, "firecracker.log")
 	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
+	capturedLog := filepath.Join(testDataPath, "writer.fifo")
+	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
+	require.NoError(t, err, "failed to open fifo writer file")
 	defer func() {
+		fw.Close()
+		os.Remove(capturedLog)
 		os.Remove(socketPath)
 		os.Remove(logFifo)
 		os.Remove(metricsFifo)
@@ -292,6 +308,7 @@ func TestMicroVMExecution(t *testing.T) {
 		Debug:             true,
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
+		FifoLogWriter:     fw,
 	}
 
 	ctx := context.Background()
@@ -353,6 +370,10 @@ func TestMicroVMExecution(t *testing.T) {
 	// didn't for some reason, we still need to terminate it:
 	m.StopVMM()
 	m.Wait(vmmCtx)
+
+	info, err := os.Stat(capturedLog)
+	assert.NoError(t, err, "failed to stat captured log file")
+	assert.NotEqual(t, 0, info.Size())
 }
 
 func TestStartVMM(t *testing.T) {
@@ -774,7 +795,7 @@ func TestLogFiles(t *testing.T) {
 }
 
 func TestCaptureFifoToFile(t *testing.T) {
-	fifoPath := filepath.Join(testDataPath, "fifo")
+	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFile")
 
 	if err := syscall.Mkfifo(fifoPath, 0700); err != nil {
 		t.Fatalf("Unexpected error during syscall.Mkfifo call: %v", err)
@@ -786,32 +807,90 @@ func TestCaptureFifoToFile(t *testing.T) {
 		t.Fatalf("Failed to open file, %q: %v", fifoPath, err)
 	}
 
-	f.Write([]byte("Hello world!"))
+	expectedBytes := []byte("Hello world!")
+	f.Write(expectedBytes)
 	defer f.Close()
 
-	go func() {
-		t := time.NewTicker(250 * time.Millisecond)
-		select {
-		case <-t.C:
-			f.Close()
-		}
-	}()
+	time.AfterFunc(250*time.Millisecond, func() { f.Close() })
 
-	fifoLogPath := fifoPath + ".log"
-	fifo, err := os.OpenFile(fifoLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	logPath := fifoPath + ".log"
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		t.Fatalf("Failed to create fifo file: %v", err)
+		t.Fatalf("Failed to create log file: %v", err)
 	}
 
-	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, fifo); err != nil {
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	testWriter := &fctesting.TestWriter{
+		WriteFn: func(b []byte) (int, error) {
+			defer wg.Done()
+
+			return logFile.Write(b)
+		},
+	}
+
+	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	defer os.Remove(fifoLogPath)
+	defer os.Remove(logPath)
 
-	if _, err := os.Stat(fifoLogPath); err != nil {
-		t.Errorf("Failed to stat file: %v", err)
+	wg.Wait()
+	_, err = os.Stat(logPath)
+	assert.NoError(t, err, "failed to stat file")
+	b, err := ioutil.ReadFile(logPath)
+	assert.NoError(t, err, "failed to read logPath")
+	assert.Equal(t, expectedBytes, b)
+}
+
+func TestCaptureFifoToFile_nonblock(t *testing.T) {
+	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFile_nonblock")
+
+	if err := syscall.Mkfifo(fifoPath, 0700); err != nil {
+		t.Fatalf("Unexpected error during syscall.Mkfifo call: %v", err)
 	}
+	defer os.Remove(fifoPath)
+
+	logPath := fifoPath + ".log"
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("Failed to create log file: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	testWriter := &fctesting.TestWriter{
+		WriteFn: func(b []byte) (int, error) {
+			defer wg.Done()
+
+			return logFile.Write(b)
+		},
+	}
+
+	if err := captureFifoToFile(fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	defer os.Remove(logPath)
+
+	f, err := os.OpenFile(fifoPath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatalf("Failed to open file, %q: %v", fifoPath, err)
+	}
+	expectedBytes := []byte("Hello world!")
+	f.Write(expectedBytes)
+	defer f.Close()
+
+	time.AfterFunc(250*time.Millisecond, func() { f.Close() })
+
+	wg.Wait()
+	_, err = os.Stat(logPath)
+	assert.NoError(t, err, "failed to stat file")
+	b, err := ioutil.ReadFile(logPath)
+	assert.NoError(t, err, "failed to read logPath")
+	assert.Equal(t, expectedBytes, b)
 }
 
 func TestSocketPathSet(t *testing.T) {
