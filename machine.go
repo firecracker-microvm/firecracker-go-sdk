@@ -173,8 +173,8 @@ type Machine struct {
 	startOnce sync.Once
 	// exitCh is a channel which gets closed when the VMM exits
 	exitCh chan struct{}
-	// err records any error executing the VMM
-	err error
+	// fatalErr records an error that either stops or prevent starting the VMM
+	fatalErr error
 
 	// callbacks that should be run when the machine is being torn down
 	cleanupOnce  sync.Once
@@ -349,7 +349,7 @@ func (m *Machine) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-m.exitCh:
-		return m.err
+		return m.fatalErr
 	}
 }
 
@@ -444,7 +444,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
 
-		m.err = err
+		m.fatalErr = err
 		close(m.exitCh)
 
 		return err
@@ -501,7 +501,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
 		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
-		m.err = err
+		m.fatalErr = err
 		close(m.exitCh)
 
 		return err
@@ -509,9 +509,9 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			m.err = ctx.Err()
+			m.fatalErr = ctx.Err()
 		case err := <-errCh:
-			m.err = err
+			m.fatalErr = err
 		}
 
 		signal.Stop(sigchan)
