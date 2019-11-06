@@ -1075,3 +1075,115 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	expected := `io.Copy failed to copy contents of fifo pipe: read testdata/TestCaptureFifoToFileLeak.fifo: file already closed`
 	assert.Contains(t, loggerBuffer.String(), expected)
 }
+
+func TestWaitWithKill(t *testing.T) {
+	fctesting.RequiresRoot(t)
+	ctx := context.Background()
+
+	socketPath := filepath.Join(testDataPath, t.Name())
+	defer os.Remove(socketPath)
+
+	cfg := createValidConfig(t, socketPath)
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	require.NoError(t, err)
+
+	err = m.Start(ctx)
+	require.NoError(t, err)
+
+	go func() {
+		pid, err := m.PID()
+		require.NoError(t, err)
+
+		process, err := os.FindProcess(pid)
+		require.NoError(t, err)
+
+		err = process.Kill()
+		require.NoError(t, err)
+	}()
+
+	err = m.Wait(ctx)
+	require.Error(t, err, "Firecracker was killed and it must be reported")
+}
+
+func TestWaitWithInvalidBinary(t *testing.T) {
+	ctx := context.Background()
+
+	socketPath := filepath.Join(testDataPath, t.Name())
+	defer os.Remove(socketPath)
+
+	cfg := createValidConfig(t, socketPath)
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(socketPath).
+		WithBin("invalid-bin").
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	require.NoError(t, err)
+
+	ch := make(chan error)
+
+	go func() {
+		err := m.Wait(ctx)
+		require.Error(t, err, "Wait() reports an error")
+		ch <- err
+	}()
+
+	err = m.Start(ctx)
+	require.Error(t, err, "Start() reports an error")
+
+	select {
+	case errFromWait := <-ch:
+		require.Equal(t, errFromWait, err)
+	}
+}
+
+func TestWaitWithNoSocket(t *testing.T) {
+	ctx := context.Background()
+
+	socketPath := filepath.Join(testDataPath, t.Name())
+	defer os.Remove(socketPath)
+	cfg := createValidConfig(t, socketPath)
+
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(exec.Command("sleep", "10")))
+	require.NoError(t, err)
+
+	ch := make(chan error)
+
+	go func() {
+		err := m.Wait(ctx)
+		require.Error(t, err, "Wait() reports an error")
+		ch <- err
+	}()
+
+	err = m.Start(ctx)
+	require.Error(t, err, "Start() reports an error")
+
+	select {
+	case errFromWait := <-ch:
+		require.Equal(t, errFromWait, err)
+	}
+}
+
+func createValidConfig(t *testing.T, socketPath string) Config {
+	return Config{
+		SocketPath:      socketPath,
+		KernelImagePath: getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(2),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			MemSizeMib:  Int64(256),
+			HtEnabled:   Bool(false),
+		},
+		Drives: []models.Drive{
+			{
+				DriveID:      String("root"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(true),
+				PathOnHost:   String(testRootfs),
+			},
+		},
+	}
+}

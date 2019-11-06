@@ -173,8 +173,8 @@ type Machine struct {
 	startOnce sync.Once
 	// exitCh is a channel which gets closed when the VMM exits
 	exitCh chan struct{}
-	// err records any error executing the VMM
-	err error
+	// fatalErr records an error that either stops or prevent starting the VMM
+	fatalErr error
 
 	// callbacks that should be run when the machine is being torn down
 	cleanupOnce  sync.Once
@@ -349,7 +349,7 @@ func (m *Machine) Wait(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-m.exitCh:
-		return m.err
+		return m.fatalErr
 	}
 }
 
@@ -443,7 +443,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 	if err != nil {
 		m.logger.Errorf("Failed to start VMM: %s", err)
+
+		m.fatalErr = err
 		close(m.exitCh)
+
 		return err
 	}
 	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
@@ -459,17 +462,19 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 	errCh := make(chan error)
 	go func() {
-		if err := m.cmd.Wait(); err != nil {
-			m.logger.Warnf("firecracker exited: %s", err.Error())
+		waitErr := m.cmd.Wait()
+		if waitErr != nil {
+			m.logger.Warnf("firecracker exited: %s", waitErr.Error())
 		} else {
 			m.logger.Printf("firecracker exited: status=0")
 		}
 
-		if err := m.doCleanup(); err != nil {
-			m.logger.Errorf("failed to cleanup after VM exit: %v", err)
+		cleanupErr := m.doCleanup()
+		if cleanupErr != nil {
+			m.logger.Errorf("failed to cleanup after VM exit: %v", cleanupErr)
 		}
 
-		errCh <- err
+		errCh <- multierror.Append(waitErr, cleanupErr).ErrorOrNil()
 
 		// Notify subscribers that there will be no more values.
 		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),
@@ -495,17 +500,18 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(3*time.Second, errCh)
 	if err != nil {
-		msg := fmt.Sprintf("Firecracker did not create API socket %s: %s", m.Cfg.SocketPath, err)
-		err = errors.New(msg)
+		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
+		m.fatalErr = err
 		close(m.exitCh)
+
 		return err
 	}
 	go func() {
 		select {
 		case <-ctx.Done():
-			m.err = ctx.Err()
+			m.fatalErr = ctx.Err()
 		case err := <-errCh:
-			m.err = err
+			m.fatalErr = err
 		}
 
 		signal.Stop(sigchan)
