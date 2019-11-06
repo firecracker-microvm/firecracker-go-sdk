@@ -295,19 +295,25 @@ func TestNetworkMachineCNI(t *testing.T) {
 	var vmWg sync.WaitGroup
 	for i := 0; i < numVMs; i++ {
 		vmWg.Add(1)
-		go func(vmID string) {
-			defer vmWg.Done()
 
-			ctx, cancel := context.WithCancel(context.Background())
+		vmID := fmt.Sprintf("%d-%s-%d", timestamp, networkName, i)
+
+		firecrackerSockPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.sock", vmID))
+		rootfsPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.img", vmID))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		// NewMachine cannot be in the goroutine below, since go-openapi/runtime has a globally-shared mutable logger...
+		// https://github.com/go-openapi/runtime/blob/553c9d1fb273d9550562d9f76949a413af265138/client/runtime.go#L463
+		m := newCNIMachine(t, ctx, firecrackerSockPath, rootfsPath, cniConfDir, cniCacheDir, networkName, ifName, vmID, cniBinPath)
+
+		go func(ctx context.Context, cancel func(), m *Machine, vmID string) {
+			defer vmWg.Done()
 			defer cancel()
 
-			firecrackerSockPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.sock", vmID))
-			rootfsPath := filepath.Join(testCNIDir, fmt.Sprintf("%s.img", vmID))
 			expectedCacheDirPath := filepath.Join(cniCacheDir, "results",
 				fmt.Sprintf("%s-%s-%s", networkName, vmID, ifName))
 
-			m, vmIP := startCNIMachine(t, ctx,
-				firecrackerSockPath, rootfsPath, cniConfDir, cniCacheDir, networkName, ifName, vmID, cniBinPath)
+			vmIP := startCNIMachine(t, ctx, m)
 			vmIPs <- vmIP
 
 			assert.FileExists(t, expectedCacheDirPath, "CNI cache dir doesn't exist after vm startup")
@@ -326,7 +332,7 @@ func TestNetworkMachineCNI(t *testing.T) {
 			_, err := os.Stat(expectedCacheDirPath)
 			assert.True(t, os.IsNotExist(err), "expected CNI cache dir to not exist after vm exit")
 
-		}(fmt.Sprintf("%d-%s-%d", timestamp, networkName, i))
+		}(ctx, cancel, m, vmID)
 	}
 	vmWg.Wait()
 	close(vmIPs)
@@ -341,7 +347,7 @@ func TestNetworkMachineCNI(t *testing.T) {
 	}
 }
 
-func startCNIMachine(t *testing.T,
+func newCNIMachine(t *testing.T,
 	ctx context.Context,
 	firecrackerSockPath,
 	rootfsPath,
@@ -351,7 +357,7 @@ func startCNIMachine(t *testing.T,
 	ifName,
 	vmID string,
 	cniBinPath []string,
-) (*Machine, string) {
+) *Machine {
 	rootfsBytes, err := ioutil.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
 	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
@@ -391,7 +397,11 @@ func startCNIMachine(t *testing.T,
 	}, WithProcessRunner(cmd))
 	require.NoError(t, err, "failed to create machine with CNI network interface")
 
-	err = m.Start(context.Background())
+	return m
+}
+
+func startCNIMachine(t *testing.T, ctx context.Context, m *Machine) string {
+	err := m.Start(ctx)
 	require.NoError(t, err, "failed to start machine")
 
 	staticConfig := m.Cfg.NetworkInterfaces[0].StaticConfiguration
@@ -406,7 +416,7 @@ func startCNIMachine(t *testing.T,
 	require.NotNil(t, ipConfig,
 		"cni configuration should have updated network interface ip configuration")
 
-	return m, ipConfig.IPAddr.IP.String()
+	return ipConfig.IPAddr.IP.String()
 }
 
 func testPing(t *testing.T, ip string, count int, timeout time.Duration) {
