@@ -152,7 +152,7 @@ var CreateLogFilesHandler = Handler{
 		)
 
 		if m.Cfg.FifoLogWriter != nil {
-			if err := m.captureFifoToFile(m.logger, logFifoPath, m.Cfg.FifoLogWriter); err != nil {
+			if err := m.captureFifoToFile(ctx, m.logger, logFifoPath, m.Cfg.FifoLogWriter); err != nil {
 				m.logger.Warnf("captureFifoToFile() returned %s. Continuing anyway.", err)
 			}
 		}

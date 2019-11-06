@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/fifo"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/gofrs/uuid"
 	"github.com/hashicorp/go-multierror"
@@ -582,17 +583,12 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	return nil
 }
 
-func (m *Machine) captureFifoToFile(logger *log.Entry, fifoPath string, w io.Writer) error {
+func (m *Machine) captureFifoToFile(ctx context.Context, logger *log.Entry, fifoPath string, w io.Writer) error {
 	// open the fifo pipe which will be used
 	// to write its contents to a file.
-	fd, err := syscall.Open(fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
+	fifoPipe, err := fifo.OpenFifo(ctx, fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
 	if err != nil {
 		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
-	}
-
-	fifoPipe := os.NewFile(uintptr(fd), fifoPath)
-	if fifoPipe == nil {
-		return fmt.Errorf("Invalid file descriptor")
 	}
 
 	logger.Debugf("Capturing %q to writer", fifoPath)
@@ -623,7 +619,7 @@ func (m *Machine) captureFifoToFile(logger *log.Entry, fifoPath string, w io.Wri
 		}()
 
 		if _, err := io.Copy(w, fifoPipe); err != nil {
-			logger.Warnf("io.Copy failed to copy contents of fifo pipe: %v", err)
+			logger.WithError(err).Warn("io.Copy failed to copy contents of fifo pipe")
 		}
 	}()
 
