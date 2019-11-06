@@ -71,6 +71,9 @@ With the following file at `/etc/cni/conf.d/fcnet.conflist`:
       }
     },
     {
+      "type": "firewall"
+    },
+    {
       "type": "tc-redirect-tap"
     }
   ]
@@ -79,7 +82,8 @@ With the following file at `/etc/cni/conf.d/fcnet.conflist`:
 
 and the 
 [`ptp`](https://github.com/containernetworking/plugins/tree/master/plugins/main/ptp), 
-[`host-local`](https://github.com/containernetworking/plugins/tree/master/plugins/ipam/host-local) 
+[`host-local`](https://github.com/containernetworking/plugins/tree/master/plugins/ipam/host-local),
+[`firewall`](https://github.com/containernetworking/plugins/tree/master/plugins/meta/firewall),
 and [`tc-redirect-tap`](cni/Makefile)
 CNI plugin binaries installed under `/opt/cni/bin`, you can specify, in the Go SDK API, 
 a `Machine` with the following `NetworkInterface`:
