@@ -1073,20 +1073,19 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	logger := fctesting.NewLogEntry(t)
 	logger.Logger.Level = logrus.WarnLevel
 	logger.Logger.Out = loggerBuffer
-	err = m.captureFifoToFile(context.Background(), logger, fifoPath, buf)
+
+	done := make(chan error)
+	err = m.captureFifoToFileWithChannel(context.Background(), logger, fifoPath, buf, done)
 	assert.NoError(t, err, "failed to capture fifo to file")
+
+	// Stopping the machine will close the FIFO
 	close(m.exitCh)
 
-	// wait sometime for the logs to populate
-	time.Sleep(250 * time.Millisecond)
-	expectedClosedFifo := `reading from a closed fifo`
-	expectedClosedFile := `file already closed`
-	logs := loggerBuffer.String()
-	if !(strings.Contains(logs, expectedClosedFifo) ||
-		strings.Contains(logs, expectedClosedFile)) {
+	// Waiting the channel to make sure that the contents of the FIFO has been copied
+	copyErr := <-done
 
-		t.Errorf("logs did not container a closed fifo error or closed file")
-	}
+	assert.Contains(t, copyErr.Error(), `file already closed`, "error")
+	assert.Contains(t, loggerBuffer.String(), `file already closed`, "log")
 }
 
 func TestWaitWithKill(t *testing.T) {
