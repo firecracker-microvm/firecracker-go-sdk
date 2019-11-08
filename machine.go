@@ -584,6 +584,10 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 }
 
 func (m *Machine) captureFifoToFile(ctx context.Context, logger *log.Entry, fifoPath string, w io.Writer) error {
+	return m.captureFifoToFileWithChannel(ctx, logger, fifoPath, w, make(chan error, 1))
+}
+
+func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.Entry, fifoPath string, w io.Writer, done chan error) error {
 	// open the fifo pipe which will be used
 	// to write its contents to a file.
 	fifoPipe, err := fifo.OpenFifo(ctx, fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
@@ -620,7 +624,10 @@ func (m *Machine) captureFifoToFile(ctx context.Context, logger *log.Entry, fifo
 
 		if _, err := io.Copy(w, fifoPipe); err != nil {
 			logger.WithError(err).Warn("io.Copy failed to copy contents of fifo pipe")
+			done <- err
 		}
+
+		close(done)
 	}()
 
 	return nil
