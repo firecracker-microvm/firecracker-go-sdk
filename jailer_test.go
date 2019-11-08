@@ -11,6 +11,7 @@ var testCases = []struct {
 	name             string
 	jailerCfg        JailerConfig
 	expectedArgs     []string
+	netns            string
 	expectedSockPath string
 }{
 	{
@@ -69,7 +70,8 @@ var testCases = []struct {
 		expectedSockPath: filepath.Join(defaultJailerPath, "my-test-id", rootfsFolderName, "api.socket"),
 	},
 	{
-		name: "optional fields",
+		name:  "optional fields",
+		netns: "/path/to/netns",
 		jailerCfg: JailerConfig{
 			ID:             "my-test-id",
 			UID:            Int(123),
@@ -77,7 +79,6 @@ var testCases = []struct {
 			NumaNode:       Int(1),
 			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
 			ExecFile:       "/path/to/firecracker",
-			NetNS:          "/net/namespace",
 			ChrootBaseDir:  "/tmp",
 			SeccompLevel:   SeccompLevelAdvanced,
 			JailerBinary:   "/path/to/the/jailer",
@@ -97,7 +98,7 @@ var testCases = []struct {
 			"--chroot-base-dir",
 			"/tmp",
 			"--netns",
-			"/net/namespace",
+			"/path/to/netns",
 			"--seccomp-level",
 			"2",
 		},
@@ -124,8 +125,8 @@ func TestJailerBuilder(t *testing.T) {
 				b = b.WithChrootBaseDir(c.jailerCfg.ChrootBaseDir)
 			}
 
-			if len(c.jailerCfg.NetNS) > 0 {
-				b = b.WithNetNS(c.jailerCfg.NetNS)
+			if c.netns != "" {
+				b = b.WithNetNS(c.netns)
 			}
 
 			if c.jailerCfg.Daemonize {
@@ -150,6 +151,7 @@ func TestJail(t *testing.T) {
 			}
 			cfg := &Config{
 				JailerCfg: &c.jailerCfg,
+				NetNS:     c.netns,
 			}
 			jail(context.Background(), m, cfg)
 

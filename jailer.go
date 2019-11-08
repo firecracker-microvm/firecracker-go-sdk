@@ -86,10 +86,6 @@ type JailerConfig struct {
 	// default is /srv/jailer
 	ChrootBaseDir string
 
-	// NetNS represents the path to a network namespace handle. If present, the
-	// jailer will use this to join the associated network namespace
-	NetNS string
-
 	//  Daemonize is set to true, call setsid() and redirect STDIN, STDOUT, and
 	//  STDERR to /dev/null
 	Daemonize bool
@@ -112,13 +108,6 @@ type JailerConfig struct {
 	Stderr io.Writer
 	// Stdin specifies the IO reader for STDIN to use when spawning the jailer.
 	Stdin io.Reader
-}
-
-func (jailerCfg *JailerConfig) netNSPath() string {
-	if jailerCfg == nil {
-		return ""
-	}
-	return jailerCfg.NetNS
 }
 
 // JailerCommandBuilder will build a jailer command. This can be used to
@@ -348,8 +337,8 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		builder = builder.WithBin(jailerBinary)
 	}
 
-	if netNS := cfg.JailerCfg.NetNS; netNS != "" {
-		builder = builder.WithNetNS(netNS)
+	if cfg.NetNS != "" {
+		builder = builder.WithNetNS(cfg.NetNS)
 	}
 
 	if stdin := cfg.JailerCfg.Stdin; stdin != nil {

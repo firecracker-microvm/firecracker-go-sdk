@@ -108,6 +108,10 @@ type Config struct {
 	// set the CNI ContainerID and create a network namespace path if
 	// CNI configuration is provided as part of NetworkInterfaces
 	VMID string
+
+	// NetNS represents the path to a network namespace handle. If present, the
+	// application will use this to join the associated network namespace
+	NetNS string
 }
 
 // Validate will ensure that the required fields are set and that
@@ -297,6 +301,10 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	m.machineConfig = cfg.MachineCfg
 	m.Cfg = cfg
 
+	if cfg.NetNS == "" && cfg.NetworkInterfaces.cniInterface() != nil {
+		m.Cfg.NetNS = m.defaultNetNSPath()
+	}
+
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
 }
@@ -354,24 +362,8 @@ func (m *Machine) Wait(ctx context.Context) error {
 	}
 }
 
-func (m *Machine) netNSPath() string {
-	// If the jailer specifies a netns, use that
-	if jailerNetNS := m.Cfg.JailerCfg.netNSPath(); jailerNetNS != "" {
-		return jailerNetNS
-	}
-
-	// If there isn't a jailer netns but there is a network
-	// interface with CNI configuration, use a default netns path
-	if m.Cfg.NetworkInterfaces.cniInterface() != nil {
-		return filepath.Join(defaultNetNSDir, m.Cfg.VMID)
-	}
-
-	// else, just don't use a netns for the VM
-	return ""
-}
-
 func (m *Machine) setupNetwork(ctx context.Context) error {
-	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.netNSPath(), m.logger)
+	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
 	return err
 }
@@ -421,19 +413,20 @@ func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) erro
 	return nil
 }
 
+func (m *Machine) defaultNetNSPath() string {
+	return filepath.Join(defaultNetNSDir, m.Cfg.VMID)
+}
+
 // startVMM starts the firecracker vmm process and configures logging.
 func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.Cfg.SocketPath)
-
-	hasNetNS := m.netNSPath() != ""
-	jailerProvidedNetNS := m.Cfg.JailerCfg.netNSPath() != ""
 	startCmd := m.cmd.Start
 
 	var err error
-	if hasNetNS && !jailerProvidedNetNS {
+	if m.Cfg.NetNS != "" && m.Cfg.JailerCfg == nil {
 		// If the VM needs to be started in a netns but no jailer netns was configured,
 		// start the vmm child process in the netns directly here.
-		err = ns.WithNetNSPath(m.netNSPath(), func(_ ns.NetNS) error {
+		err = ns.WithNetNSPath(m.Cfg.NetNS, func(_ ns.NetNS) error {
 			return startCmd()
 		})
 	} else {
