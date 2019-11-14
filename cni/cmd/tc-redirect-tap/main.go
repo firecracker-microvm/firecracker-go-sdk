@@ -152,7 +152,7 @@ func newPlugin(args *skel.CmdArgs) (*plugin, error) {
 		plugin.tapUID = tapUID
 	}
 
-	if tapGIDVal, wasDefined := parsedArgs[pluginargs.TCRedirectTapGUID]; wasDefined {
+	if tapGIDVal, wasDefined := parsedArgs[pluginargs.TCRedirectTapGID]; wasDefined {
 		tapGID, err := strconv.Atoi(tapGIDVal)
 		if err != nil {
 			return nil, errors.Wrapf(err, "tapGID should be numeric convertible, got %q", tapGIDVal)
