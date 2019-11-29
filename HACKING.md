@@ -12,7 +12,7 @@ environment variable.
 
 You need some external resources in order to run the tests, as described below:
 
-1. A firecracker and jailer binary (tested with 0.12.0) must either be
+1. A firecracker and jailer binary (tested with 0.20.0) must either be
    installed as `./testdata/firecracker` or the path must be specified through
    the `FC_TEST_BIN` environment variable. The jailer requires go test to be
    run with sudo and can also be turned off by setting the `DISABLE_ROOT_TESTS`
@@ -61,7 +61,6 @@ Amazon EC2 Bare Metal Instances.
 The instance is pre-configured to have
 
   - firecracker and jailer under /usr/local/bin.
-    Both of them are currently v0.17.0 and built with
-    `cargo build --features vsock --release` to enable vsock support
+    Both of them are currently v0.20.0.
   - vmlinux.bin from
     https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
