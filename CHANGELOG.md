@@ -1,3 +1,9 @@
+# 0.20.0
+* Moves the NetNS field to `Config` from `JailerConfig` (#155).
+* Supports forcing CNI network creation (#130).
+* Adds `FIRECRACKER_GO_SDK_INIT_TIMEOUT_SECONDS` and `FIRECRACKER_GO_SDK_REQUEST_TIMEOUT_MILLISECONDS` environment variables to configure timeouts (#165).
+* Adds `ForwardSignals` to explicitly configure signal handling (#166).
+
 # 0.19.0
 * Firecracker v0.19 API: Vsock API call: PUT /vsocks/{id} changed to PUT /vsock and no longer
   appear to support multiple vsock devices. Any subsequent calls to this API
