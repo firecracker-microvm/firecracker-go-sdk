@@ -26,7 +26,12 @@ import (
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 )
 
-const firecrackerRequestTimeout = 500 * time.Millisecond
+const (
+	// env name to make firecracker request timeout configurable
+	firecrackerRequestTimeoutEnv = "FIRECRACKER_GO_SDK_REQUEST_TIMEOUT_MILLISECONDS"
+
+	defaultFirecrackerRequestTimeout = 500
+)
 
 // newFirecrackerClient creates a FirecrackerClient
 func newFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *client.Firecracker {
@@ -51,13 +56,18 @@ func WithOpsClient(opsClient ops.ClientIface) ClientOpt {
 
 // Client is a client for interacting with the Firecracker API
 type Client struct {
-	client *client.Firecracker
+	client                    *client.Firecracker
+	firecrackerRequestTimeout int
+	firecrackerInitTimeout    int
 }
 
 // NewClient creates a Client
 func NewClient(socketPath string, logger *logrus.Entry, debug bool, opts ...ClientOpt) *Client {
 	httpClient := newFirecrackerClient(socketPath, logger, debug)
 	c := &Client{client: httpClient}
+	c.firecrackerRequestTimeout = envValueOrDefaultInt(firecrackerRequestTimeoutEnv, defaultFirecrackerRequestTimeout)
+	c.firecrackerInitTimeout = envValueOrDefaultInt(firecrackerInitTimeoutEnv, defaultFirecrackerInitTimeoutSeconds)
+
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -72,7 +82,7 @@ type PutLoggerOpt func(*ops.PutLoggerParams)
 // PutLogger is a wrapper for the swagger generated client to make calling of
 // the API easier.
 func (f *Client) PutLogger(ctx context.Context, logger *models.Logger, opts ...PutLoggerOpt) (*ops.PutLoggerNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
 	loggerParams := ops.NewPutLoggerParamsWithContext(timeout)
@@ -91,7 +101,7 @@ type PutMachineConfigurationOpt func(*ops.PutMachineConfigurationParams)
 // PutMachineConfiguration is a wrapper for the swagger generated client to
 // make calling of the API easier.
 func (f *Client) PutMachineConfiguration(ctx context.Context, cfg *models.MachineConfiguration, opts ...PutMachineConfigurationOpt) (*ops.PutMachineConfigurationNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
 	mc := ops.NewPutMachineConfigurationParamsWithContext(timeout)
@@ -110,7 +120,7 @@ type PutGuestBootSourceOpt func(*ops.PutGuestBootSourceParams)
 // PutGuestBootSource is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) PutGuestBootSource(ctx context.Context, source *models.BootSource, opts ...PutGuestBootSourceOpt) (*ops.PutGuestBootSourceNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
 	bootSource := ops.NewPutGuestBootSourceParamsWithContext(timeout)
@@ -129,7 +139,7 @@ type PutGuestNetworkInterfaceByIDOpt func(*ops.PutGuestNetworkInterfaceByIDParam
 // PutGuestNetworkInterfaceByID is a wrapper for the swagger generated client
 // to make calling of the API easier.
 func (f *Client) PutGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.NetworkInterface, opts ...PutGuestNetworkInterfaceByIDOpt) (*ops.PutGuestNetworkInterfaceByIDNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
 	cfg := ops.NewPutGuestNetworkInterfaceByIDParamsWithContext(timeout)
@@ -149,7 +159,7 @@ type PatchGuestNetworkInterfaceByIDOpt func(*ops.PatchGuestNetworkInterfaceByIDP
 // PatchGuestNetworkInterfaceByID is a wrapper for the swagger generated client to make calling of the
 // API easier.
 func (f *Client) PatchGuestNetworkInterfaceByID(ctx context.Context, ifaceID string, ifaceCfg *models.PartialNetworkInterface, opts ...PatchGuestNetworkInterfaceByIDOpt) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, firecrackerRequestTimeout)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
 	defer cancel()
 
 	cfg := ops.NewPatchGuestNetworkInterfaceByIDParamsWithContext(timeout)
@@ -170,7 +180,7 @@ type PutGuestDriveByIDOpt func(*ops.PutGuestDriveByIDParams)
 // PutGuestDriveByID is a wrapper for the swagger generated client to make
 // calling of the API easier.
 func (f *Client) PutGuestDriveByID(ctx context.Context, driveID string, drive *models.Drive, opts ...PutGuestDriveByIDOpt) (*ops.PutGuestDriveByIDNoContent, error) {
-	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)/2*time.Millisecond)
 	defer cancel()
 
 	params := ops.NewPutGuestDriveByIDParamsWithContext(timeout)
@@ -275,7 +285,7 @@ type GetMachineConfigurationOpt func(*ops.GetMachineConfigurationParams)
 // calling of the API easier.
 func (f *Client) GetMachineConfiguration(opts ...GetMachineConfigurationOpt) (*ops.GetMachineConfigurationOK, error) {
 	p := ops.NewGetMachineConfigurationParams()
-	p.SetTimeout(firecrackerRequestTimeout)
+	p.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
 	for _, opt := range opts {
 		opt(p)
 	}

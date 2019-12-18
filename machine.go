@@ -42,6 +42,11 @@ const (
 
 	// as specified in http://man7.org/linux/man-pages/man8/ip-netns.8.html
 	defaultNetNSDir = "/var/run/netns"
+
+	// env name to make firecracker init timeout configurable
+	firecrackerInitTimeoutEnv = "FIRECRACKER_GO_SDK_INIT_TIMEOUT_SECONDS"
+
+	defaultFirecrackerInitTimeoutSeconds = 3
 )
 
 // ErrAlreadyStarted signifies that the Machine has already started and cannot
@@ -492,7 +497,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(3*time.Second, errCh)
+	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
 	if err != nil {
 		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
 		m.fatalErr = err
