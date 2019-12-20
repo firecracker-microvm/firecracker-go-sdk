@@ -117,6 +117,10 @@ type Config struct {
 	// NetNS represents the path to a network namespace handle. If present, the
 	// application will use this to join the associated network namespace
 	NetNS string
+
+	// ForwardSignals is an optional list of signals to catch and forward to
+	// firecracker. If not provided, the default signals will be used.
+	ForwardSignals []os.Signal
 }
 
 // Validate will ensure that the required fields are set and that
@@ -481,20 +485,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		close(errCh)
 	}()
 
-	// Set up a signal handler and pass INT, QUIT, and TERM through to firecracker
-	sigchan := make(chan os.Signal)
-	signal.Notify(sigchan, os.Interrupt,
-		syscall.SIGQUIT,
-		syscall.SIGTERM,
-		syscall.SIGHUP,
-		syscall.SIGABRT)
-	m.logger.Debugf("Setting up signal handler")
-	go func() {
-		if sig, ok := <-sigchan; ok {
-			m.logger.Printf("Caught signal %s", sig)
-			m.cmd.Process.Signal(sig)
-		}
-	}()
+	m.setupSignals()
 
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
@@ -513,8 +504,6 @@ func (m *Machine) startVMM(ctx context.Context) error {
 			m.fatalErr = err
 		}
 
-		signal.Stop(sigchan)
-		close(sigchan)
 		close(m.exitCh)
 	}()
 
@@ -884,4 +873,39 @@ func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) erro
 			return nil
 		}
 	}
+}
+
+// Set up a signal handler to pass through to firecracker
+func (m *Machine) setupSignals() {
+	signals := m.Cfg.ForwardSignals
+
+	if signals == nil {
+		signals = []os.Signal{
+			os.Interrupt,
+			syscall.SIGQUIT,
+			syscall.SIGTERM,
+			syscall.SIGHUP,
+			syscall.SIGABRT,
+		}
+	}
+
+	if len(signals) == 0 {
+		return
+	}
+
+	m.logger.Debugf("Setting up signal handler: %v", signals)
+	sigchan := make(chan os.Signal)
+	signal.Notify(sigchan, signals...)
+
+	go func() {
+		select {
+		case sig := <-sigchan:
+			m.logger.Printf("Caught signal %s", sig)
+			m.cmd.Process.Signal(sig)
+		case <-m.exitCh:
+		}
+
+		signal.Stop(sigchan)
+		close(sigchan)
+	}()
 }
