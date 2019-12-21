@@ -307,6 +307,16 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		cfg.VMID = randomID.String()
 	}
 
+	if cfg.ForwardSignals == nil {
+		cfg.ForwardSignals = []os.Signal{
+			os.Interrupt,
+			syscall.SIGQUIT,
+			syscall.SIGTERM,
+			syscall.SIGHUP,
+			syscall.SIGABRT,
+		}
+	}
+
 	m.machineConfig = cfg.MachineCfg
 	m.Cfg = cfg
 
@@ -878,16 +888,6 @@ func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) erro
 // Set up a signal handler to pass through to firecracker
 func (m *Machine) setupSignals() {
 	signals := m.Cfg.ForwardSignals
-
-	if signals == nil {
-		signals = []os.Signal{
-			os.Interrupt,
-			syscall.SIGQUIT,
-			syscall.SIGTERM,
-			syscall.SIGHUP,
-			syscall.SIGABRT,
-		}
-	}
 
 	if len(signals) == 0 {
 		return
