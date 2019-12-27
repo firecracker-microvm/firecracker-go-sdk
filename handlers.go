@@ -192,7 +192,7 @@ var CreateMachineHandler = Handler{
 var CreateBootSourceHandler = Handler{
 	Name: CreateBootSourceHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.createBootSource(ctx, m.Cfg.KernelImagePath, m.Cfg.KernelArgs)
+		return m.createBootSource(ctx, m.Cfg.KernelImagePath, m.Cfg.InitrdPath, m.Cfg.KernelArgs)
 	},
 }
 

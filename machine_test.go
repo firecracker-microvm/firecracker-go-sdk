@@ -507,7 +507,7 @@ func testCreateBootSource(ctx context.Context, t *testing.T, m *Machine, vmlinux
 	//          filesystem available to the guest.
 	// Kernel command-line options can be found in the kernel source tree at
 	// Documentation/admin-guide/kernel-parameters.txt.
-	err := m.createBootSource(ctx, vmlinuxPath, "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
+	err := m.createBootSource(ctx, vmlinuxPath, "", "ro console=ttyS0 noapic reboot=k panic=0 pci=off nomodules")
 	if err != nil {
 		t.Errorf("failed to create boot source: %s", err)
 	}
