@@ -894,7 +894,7 @@ func (m *Machine) setupSignals() {
 	}
 
 	m.logger.Debugf("Setting up signal handler: %v", signals)
-	sigchan := make(chan os.Signal)
+	sigchan := make(chan os.Signal, len(signals))
 	signal.Notify(sigchan, signals...)
 
 	go func() {
