@@ -898,11 +898,14 @@ func (m *Machine) setupSignals() {
 	signal.Notify(sigchan, signals...)
 
 	go func() {
-		select {
-		case sig := <-sigchan:
-			m.logger.Printf("Caught signal %s", sig)
-			m.cmd.Process.Signal(sig)
-		case <-m.exitCh:
+		for {
+			select {
+			case sig := <-sigchan:
+				m.logger.Printf("Caught signal %s", sig)
+				m.cmd.Process.Signal(sig)
+			case <-m.exitCh:
+				break
+			}
 		}
 
 		signal.Stop(sigchan)
