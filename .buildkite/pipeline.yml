@@ -16,11 +16,17 @@ steps:
     command:
       - uname -a
       - go version
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: ':go: go mod download'
     command: 'go mod download'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: ':linux: setup taps'
     commands:
@@ -28,6 +34,8 @@ steps:
       - 'sudo ip tuntap add fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap user $(sudo id -u buildkite-agent)'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   # We use a "wait" step here, because Go's module logic freaks out when
   # multiple go builds are downloading to the same cache.
@@ -35,9 +43,17 @@ steps:
 
   - label: gofmt -s
     command: test -z $(gofmt -s -l .)
+    # This should run in the same queue, but we don't care whether it runs on
+    # the same host.
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
   - label: 'git log validation'
     command: './.buildkite/logcheck.sh'
+    # This should run in the same queue, but we don't care whether it runs on
+    # the same host.
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
   - label: 'build'
     commands:
@@ -45,6 +61,9 @@ steps:
       - 'make -C cni'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
 
   - label: ':hammer: tests'
     commands:
@@ -55,6 +74,9 @@ steps:
       - "FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS=true"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
 
   - label: ':hammer: root tests'
     commands:
@@ -66,6 +88,9 @@ steps:
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
 
   # This allows the cleanup step to always run, regardless of test failure
   - wait: ~
@@ -77,4 +102,7 @@ steps:
       - 'sudo ip tuntap del fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
 
