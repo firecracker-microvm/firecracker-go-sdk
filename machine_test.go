@@ -1202,6 +1202,8 @@ func createValidConfig(t *testing.T, socketPath string) Config {
 }
 
 func TestSignalForwarding(t *testing.T) {
+	socketPath := filepath.Join(testDataPath, "TestSignalForwarding.sock")
+
 	forwardedSignals := []os.Signal{
 		syscall.SIGUSR1,
 		syscall.SIGUSR2,
@@ -1216,7 +1218,7 @@ func TestSignalForwarding(t *testing.T) {
 	cfg := Config{
 		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"),
-		SocketPath:      "/tmp/TestSignalForwarding.sock",
+		SocketPath:      socketPath,
 		Drives: []models.Drive{
 			{
 				DriveID:      String("0"),
@@ -1228,7 +1230,7 @@ func TestSignalForwarding(t *testing.T) {
 		DisableValidation: true,
 		ForwardSignals:    forwardedSignals,
 	}
-	defer os.RemoveAll("/tmp/TestSignalForwarding.sock")
+	defer os.RemoveAll(socketPath)
 
 	opClient := fctesting.MockClient{}
 
