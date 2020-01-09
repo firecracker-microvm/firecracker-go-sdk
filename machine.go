@@ -134,16 +134,15 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("failed to stat kernel image path, %q: %v", cfg.KernelImagePath, err)
 	}
 
-	rootPath := ""
 	for _, drive := range cfg.Drives {
 		if BoolValue(drive.IsRootDevice) {
-			rootPath = StringValue(drive.PathOnHost)
+			rootPath := StringValue(drive.PathOnHost)
+			if _, err := os.Stat(rootPath); err != nil {
+				return fmt.Errorf("failed to stat host path, %q: %v", rootPath, err)
+			}
+
 			break
 		}
-	}
-
-	if _, err := os.Stat(rootPath); err != nil {
-		return fmt.Errorf("failed to stat host path, %q: %v", rootPath, err)
 	}
 
 	// Check the non-existence of some files:
