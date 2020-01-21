@@ -101,6 +101,9 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+    # TODO: Remove this once v0.21.0 has been released
+    soft_fail: # we softfail here since v0.20.0 jailer tests will be broken.
+      - exit_status: "*"
 
   - label: ':hammer: test against firecracker master'
     env:
@@ -120,8 +123,7 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    soft_fail:
-      - exit_status: "*"
+    # TODO: move soft_fail here once v0.21.0 of firecracker has been released
 
   - label: 'go mod tidy'
     commands:
