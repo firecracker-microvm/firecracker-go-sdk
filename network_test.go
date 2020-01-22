@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containernetworking/cni/libcni"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 	"github.com/sparrc/go-ping"
@@ -238,7 +239,15 @@ func TestNetworkInterfacesValidationFails_BothSpecified(t *testing.T) {
 	assert.Error(t, err, "invalid network config with both static and cni configuration did not result in validation error")
 }
 
-func TestNetworkMachineCNI(t *testing.T) {
+func TestNetworkMachineCNIWithConfFile(t *testing.T) {
+	testNetworkMachineCNI(t, true)
+}
+
+func TestNetworkMachineCNIWithParsedConfig(t *testing.T) {
+	testNetworkMachineCNI(t, false)
+}
+
+func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -281,10 +290,23 @@ func TestNetworkMachineCNI(t *testing.T) {
   ]
 }`, networkName)
 
+	var networkConf *libcni.NetworkConfigList
+
 	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
-	require.NoError(t,
-		ioutil.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
-		"failed to write cni conf file")
+	if useConfFile {
+		require.NoError(t,
+			ioutil.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
+			"failed to write cni conf file")
+	} else {
+		// make sure config file doesn't exist
+		err := os.Remove(cniConfPath)
+		if err != nil && !os.IsNotExist(err) {
+			require.NoError(t, err, "failed to delete cni conf file")
+		}
+
+		networkConf, err = libcni.ConfListFromBytes([]byte(cniConf))
+		require.NoError(t, err, "cni conf should parse")
+	}
 
 	numVMs := 10
 	vmIPs := make(chan string, numVMs)
@@ -304,7 +326,7 @@ func TestNetworkMachineCNI(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		// NewMachine cannot be in the goroutine below, since go-openapi/runtime has a globally-shared mutable logger...
 		// https://github.com/go-openapi/runtime/blob/553c9d1fb273d9550562d9f76949a413af265138/client/runtime.go#L463
-		m := newCNIMachine(t, ctx, firecrackerSockPath, rootfsPath, cniConfDir, cniCacheDir, networkName, ifName, vmID, cniBinPath)
+		m := newCNIMachine(t, ctx, firecrackerSockPath, rootfsPath, cniConfDir, cniCacheDir, networkName, ifName, vmID, cniBinPath, networkConf)
 
 		go func(ctx context.Context, cancel func(), m *Machine, vmID string) {
 			defer vmWg.Done()
@@ -357,11 +379,16 @@ func newCNIMachine(t *testing.T,
 	ifName,
 	vmID string,
 	cniBinPath []string,
+	networkConf *libcni.NetworkConfigList,
 ) *Machine {
 	rootfsBytes, err := ioutil.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
 	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
+
+	if networkConf != nil {
+		networkName = ""
+	}
 
 	cmd := VMCommandBuilder{}.
 		WithSocketPath(firecrackerSockPath).
@@ -386,12 +413,13 @@ func newCNIMachine(t *testing.T,
 		},
 		NetworkInterfaces: []NetworkInterface{{
 			CNIConfiguration: &CNIConfiguration{
-				ConfDir:     cniConfDir,
-				BinPath:     cniBinPath,
-				CacheDir:    cniCacheDir,
-				NetworkName: networkName,
-				IfName:      ifName,
-				VMIfName:    "eth0",
+				ConfDir:       cniConfDir,
+				BinPath:       cniBinPath,
+				CacheDir:      cniCacheDir,
+				NetworkName:   networkName,
+				NetworkConfig: networkConf,
+				IfName:        ifName,
+				VMIfName:      "eth0",
 			},
 		}},
 		VMID: vmID,
