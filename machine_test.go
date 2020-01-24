@@ -231,25 +231,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		}
 	}
 
-	jailerBin := defaultJailerBinary
-	if _, err := os.Stat(filepath.Join(testDataPath, defaultJailerBinary)); err == nil {
-		jailerBin = filepath.Join(testDataPath, defaultJailerBinary)
-	}
-
 	ctx := context.Background()
-	cmd := NewJailerCommandBuilder().
-		WithBin(jailerBin).
-		WithGID(IntValue(cfg.JailerCfg.GID)).
-		WithUID(IntValue(cfg.JailerCfg.UID)).
-		WithNumaNode(IntValue(cfg.JailerCfg.NumaNode)).
-		WithID(cfg.JailerCfg.ID).
-		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
-		WithExecFile(cfg.JailerCfg.ExecFile).
-		WithStdout(os.Stdout).
-		WithStderr(os.Stderr).
-		Build(ctx)
-
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithLogger(fctesting.NewLogEntry(t)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
