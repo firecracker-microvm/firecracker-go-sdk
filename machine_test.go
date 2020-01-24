@@ -46,7 +46,8 @@ const (
 	firecrackerBinaryPath        = "firecracker"
 	firecrackerBinaryOverrideEnv = "FC_TEST_BIN"
 
-	defaultJailerBinary = "jailer"
+	defaultJailerBinary     = "jailer"
+	jailerBinaryOverrideEnv = "FC_TEST_JAILER_BIN"
 
 	defaultTuntapName = "fc-test-tap0"
 	tuntapOverrideEnv = "FC_TEST_TAP"
@@ -184,6 +185,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			},
 		},
 		JailerCfg: &JailerConfig{
+			JailerBinary:   getJailerBinaryPath(),
 			GID:            Int(jailerGID),
 			UID:            Int(jailerUID),
 			NumaNode:       Int(0),
@@ -471,6 +473,13 @@ func getFirecrackerBinaryPath() string {
 		return val
 	}
 	return filepath.Join(testDataPath, firecrackerBinaryPath)
+}
+
+func getJailerBinaryPath() string {
+	if val := os.Getenv(jailerBinaryOverrideEnv); val != "" {
+		return val
+	}
+	return filepath.Join(testDataPath, defaultJailerBinary)
 }
 
 func getVmlinuxPath(t *testing.T) string {
