@@ -1,6 +1,7 @@
 firecracker
 jailer
 firecracker-*
+jailer-*
 vmlinux
 root-drive.img
 TestPID.img

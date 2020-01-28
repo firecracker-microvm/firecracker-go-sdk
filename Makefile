@@ -12,8 +12,14 @@
 # permissions and limitations under the License.
 
 # Set this to pass additional commandline flags to the go compiler, e.g. "make test EXTRAGOARGS=-v"
-EXTRAGOARGS:=
+CARGO_CACHE_VOLUME_NAME?=cargocache
 DISABLE_ROOT_TESTS?=1
+DOCKER_IMAGE_TAG?=latest
+EXTRAGOARGS:=
+FIRECRACKER_BUILDER_NAME=firecracker-builder
+FIRECRACKER_BIN=testdata/firecracker-master
+JAILER_BIN=testdata/jailer-master
+FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 
 # The below files are needed and can be downloaded from the internet
 testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/firecracker
@@ -40,6 +46,7 @@ generate build clean:
 
 distclean: clean
 	rm -rf $(testdata_objects)
+	docker volume rm -f $(CARGO_CACHE_VOLUME_NAME)
 
 testdata/vmlinux:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
@@ -50,5 +57,34 @@ testdata/firecracker:
 
 testdata/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
+
+tools/firecracker-builder-stamp: tools/docker/Dockerfile
+	docker build \
+		-t localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
+		-f tools/docker/Dockerfile \
+		.
+	touch $@
+
+.PHONY: test-images
+test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
+
+$(FIRECRACKER_BIN) $(JAILER_BIN): tools/firecracker-builder-stamp
+	docker run --rm -it \
+		--privileged \
+		--volume $(CURDIR)/testdata:/artifacts \
+		--volume $(CARGO_CACHE_VOLUME_NAME):/usr/local/cargo/registry \
+		-e HOME=/tmp \
+		--workdir=/firecracker \
+		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
+		$(FIRECRACKER_TARGET)	
+
+.PHONY: firecracker-clean
+firecracker-clean:
+	- docker run --rm -it \
+		--privileged \
+		--workdir /firecracker\
+		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
+		cargo clean
+	- rm $(FIRECRACKER_BIN) $(JAILER_BIN)
 
 .PHONY: all generate clean distclean build test unit-tests all-tests check-kvm
