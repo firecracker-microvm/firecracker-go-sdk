@@ -49,18 +49,18 @@ func RequiresRoot(t testing.TB) {
 
 func newLogger(t testing.TB) *log.Logger {
 	str := os.Getenv(logLevelEnvName)
+	l := log.New()
 	if str == "" {
-		return log.New()
+		return l
 	}
 
 	logLevel, err := log.ParseLevel(str)
 	if err != nil {
 		t.Fatalf("Failed to parse %q as Log Level: %v", str, err)
 	}
-	return &log.Logger{
-		Out:   os.Stdout,
-		Level: logLevel,
-	}
+
+	l.SetLevel(logLevel)
+	return l
 }
 
 // NewLogEntry creates log.Entry. The level is specified by "FC_TEST_LOG_LEVEL" environment variable
