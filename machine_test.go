@@ -1114,6 +1114,54 @@ func TestWaitWithKill(t *testing.T) {
 	require.Error(t, err, "Firecracker was killed and it must be reported")
 }
 
+func isProcessAlive(pid int) (bool, error) {
+	// Using kill(2) with signal=0 to check the existence of the process,
+	// because os.FindProcess always returns a process, regardless of whether the process is
+	// alive or not.
+	// https://golang.org/pkg/os/#FindProcess
+	err := syscall.Kill(pid, syscall.Signal(0))
+	if err != nil {
+		if errno, ok := err.(syscall.Errno); ok {
+			if errno == syscall.ESRCH {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func TestWaitWithCancel(t *testing.T) {
+	fctesting.RequiresRoot(t)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	socketPath := filepath.Join(testDataPath, t.Name())
+	defer os.Remove(socketPath)
+
+	cfg := createValidConfig(t, socketPath)
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+	require.NoError(t, err)
+
+	err = m.Start(ctx)
+	require.NoError(t, err)
+
+	pid, err := m.PID()
+	require.NoError(t, err)
+
+	go func() {
+		cancel()
+	}()
+
+	err = m.Wait(context.Background())
+	require.Error(t, err, "Firecracker was killed and it must be reported")
+
+	alive, err := isProcessAlive(pid)
+	require.False(t, alive, "The process must not be there")
+}
+
 func TestWaitWithInvalidBinary(t *testing.T) {
 	ctx := context.Background()
 
