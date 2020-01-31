@@ -516,14 +516,19 @@ func (m *Machine) startVMM(ctx context.Context) error {
 
 		return err
 	}
-	go func() {
-		select {
-		case <-ctx.Done():
-			m.fatalErr = ctx.Err()
-		case err := <-errCh:
-			m.fatalErr = err
-		}
 
+	// This goroutine is used to kill the process by context cancelletion,
+	// but doesn't tell anyone about that.
+	go func() {
+		<-ctx.Done()
+		m.stopVMM()
+	}()
+
+	// This goroutine is used to tell clients that the process is stopped
+	// (gracefully or not).
+	go func() {
+		m.fatalErr = <-errCh
+		m.logger.Debugf("closing the exitCh %v", m.fatalErr)
 		close(m.exitCh)
 	}()
 
