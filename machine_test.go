@@ -1081,37 +1081,76 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	assert.Contains(t, loggerBuffer.String(), `file already closed`, "log")
 }
 
-func TestWaitWithKill(t *testing.T) {
+// Replace filesystem-unsafe characters (such as /) which are often seen in Go's test names
+var fsSafeTestName = strings.NewReplacer("/", "_")
+
+func TestWait(t *testing.T) {
 	fctesting.RequiresRoot(t)
-	ctx := context.Background()
 
-	socketPath := filepath.Join(testDataPath, t.Name())
-	defer os.Remove(socketPath)
+	cases := []struct {
+		name string
+		stop func(m *Machine)
+	}{
+		{
+			name: "StopVMM",
+			stop: func(m *Machine) {
+				err := m.StopVMM()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Kill",
+			stop: func(m *Machine) {
+				pid, err := m.PID()
+				require.NoError(t, err)
 
-	cfg := createValidConfig(t, socketPath)
-	cmd := VMCommandBuilder{}.
-		WithSocketPath(cfg.SocketPath).
-		WithBin(getFirecrackerBinaryPath()).
-		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
-	require.NoError(t, err)
+				process, err := os.FindProcess(pid)
+				err = process.Kill()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Context Cancel",
+		},
+	}
 
-	err = m.Start(ctx)
-	require.NoError(t, err)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			vmContext, vmCancel := context.WithCancel(context.Background())
 
-	go func() {
-		pid, err := m.PID()
-		require.NoError(t, err)
+			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
+			defer os.Remove(socketPath)
 
-		process, err := os.FindProcess(pid)
-		require.NoError(t, err)
+			cfg := createValidConfig(t, socketPath)
+			cmd := VMCommandBuilder{}.
+				WithSocketPath(cfg.SocketPath).
+				WithBin(getFirecrackerBinaryPath()).
+				Build(vmContext)
+			m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+			require.NoError(t, err)
 
-		err = process.Kill()
-		require.NoError(t, err)
-	}()
+			err = m.Start(ctx)
+			require.NoError(t, err)
 
-	err = m.Wait(ctx)
-	require.Error(t, err, "Firecracker was killed and it must be reported")
+			pid, err := m.PID()
+			require.NoError(t, err)
+
+			go func() {
+				if c.stop != nil {
+					c.stop(m)
+				} else {
+					vmCancel()
+				}
+			}()
+
+			err = m.Wait(ctx)
+			require.Error(t, err, "Firecracker was killed and it must be reported")
+
+			alive, err := isProcessAlive(pid)
+			require.False(t, alive, "pid=%d is still there", pid)
+		})
+	}
 }
 
 func isProcessAlive(pid int) (bool, error) {
@@ -1128,38 +1167,6 @@ func isProcessAlive(pid int) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func TestWaitWithCancel(t *testing.T) {
-	fctesting.RequiresRoot(t)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	socketPath := filepath.Join(testDataPath, t.Name())
-	defer os.Remove(socketPath)
-
-	cfg := createValidConfig(t, socketPath)
-	cmd := VMCommandBuilder{}.
-		WithSocketPath(cfg.SocketPath).
-		WithBin(getFirecrackerBinaryPath()).
-		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
-	require.NoError(t, err)
-
-	err = m.Start(ctx)
-	require.NoError(t, err)
-
-	pid, err := m.PID()
-	require.NoError(t, err)
-
-	go func() {
-		cancel()
-	}()
-
-	err = m.Wait(context.Background())
-	require.Error(t, err, "Firecracker was killed and it must be reported")
-
-	alive, err := isProcessAlive(pid)
-	require.False(t, alive, "The process must not be there")
 }
 
 func TestWaitWithInvalidBinary(t *testing.T) {
