@@ -391,6 +391,7 @@ func newCNIMachine(t *testing.T,
 				CacheDir:    cniCacheDir,
 				NetworkName: networkName,
 				IfName:      ifName,
+				VMIfName:    "eth0",
 			},
 		}},
 		VMID: vmID,
@@ -415,6 +416,10 @@ func startCNIMachine(t *testing.T, ctx context.Context, m *Machine) string {
 	ipConfig := staticConfig.IPConfiguration
 	require.NotNil(t, ipConfig,
 		"cni configuration should have updated network interface ip configuration")
+
+	require.Equal(t, m.Cfg.NetworkInterfaces[0].CNIConfiguration.VMIfName,
+		staticConfig.IPConfiguration.IfName,
+		"interface name should be propagated to static conf")
 
 	return ipConfig.IPAddr.IP.String()
 }

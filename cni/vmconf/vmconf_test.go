@@ -66,6 +66,7 @@ func TestIPBootParams(t *testing.T) {
 		TapName:   "taptaptap",
 		NetNSPath: "/my/lil/netns",
 		VMMacAddr: "00:11:22:33:44:55",
+		VMIfName:  "eth0",
 		VMMTU:     1337,
 		VMIPConfig: &current.IPConfig{
 			Version: "4",
@@ -88,7 +89,7 @@ func TestIPBootParams(t *testing.T) {
 		VMResolverOptions: []string{"choice", "is", "an", "illusion"},
 	}
 
-	expectedIPBootParam := "10.0.0.2::10.0.0.1:255.255.255.0:::off:1.1.1.1:8.8.8.8:"
+	expectedIPBootParam := "10.0.0.2::10.0.0.1:255.255.255.0::eth0:off:1.1.1.1:8.8.8.8:"
 	actualIPBootParam := staticNetworkConf.IPBootParam()
 	assert.Equal(t, expectedIPBootParam, actualIPBootParam)
 }
