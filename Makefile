@@ -12,7 +12,7 @@
 # permissions and limitations under the License.
 
 # Set this to pass additional commandline flags to the go compiler, e.g. "make test EXTRAGOARGS=-v"
-CARGO_CACHE_VOLUME_NAME?=cargocache
+CARGO_CACHE_VOLUME_NAME?=firecracker-go-sdk--cargocache
 DISABLE_ROOT_TESTS?=1
 DOCKER_IMAGE_TAG?=latest
 EXTRAGOARGS:=
