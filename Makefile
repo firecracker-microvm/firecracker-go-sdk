@@ -21,6 +21,9 @@ FIRECRACKER_BIN=testdata/firecracker-master
 JAILER_BIN=testdata/jailer-master
 FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 
+UID = $(shell id -u)
+GID = $(shell id -g)
+
 # The below files are needed and can be downloaded from the internet
 testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/firecracker
 
@@ -70,18 +73,18 @@ test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
 
 $(FIRECRACKER_BIN) $(JAILER_BIN): tools/firecracker-builder-stamp
 	docker run --rm -it \
-		--privileged \
+		--user $(UID):$(GID) \
 		--volume $(CURDIR)/testdata:/artifacts \
 		--volume $(CARGO_CACHE_VOLUME_NAME):/usr/local/cargo/registry \
 		-e HOME=/tmp \
 		--workdir=/firecracker \
 		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
-		$(FIRECRACKER_TARGET)	
+		$(FIRECRACKER_TARGET)
 
 .PHONY: firecracker-clean
 firecracker-clean:
 	- docker run --rm -it \
-		--privileged \
+		--user $(UID):$(GID) \
 		--workdir /firecracker\
 		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
 		cargo clean
