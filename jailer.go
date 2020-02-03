@@ -381,6 +381,19 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 				return err
 			}
 
+			initrdFilename := ""
+			if m.Cfg.InitrdPath != "" {
+				initrdFilename := filepath.Base(m.Cfg.InitrdPath)
+				// copy initrd to root fs
+				if err := linkFileToRootFS(
+					m.Cfg.JailerCfg,
+					filepath.Join(rootfs, initrdFilename),
+					m.Cfg.InitrdPath,
+				); err != nil {
+					return err
+				}
+			}
+
 			// copy all drives to the root fs
 			for i, drive := range m.Cfg.Drives {
 				hostPath := StringValue(drive.PathOnHost)
@@ -398,6 +411,9 @@ func LinkFilesHandler(rootfs, kernelImageFileName string) Handler {
 			}
 
 			m.Cfg.KernelImagePath = kernelImageFileName
+			if m.Cfg.InitrdPath != "" {
+				m.Cfg.InitrdPath = initrdFilename
+			}
 
 			for _, fifoPath := range []*string{&m.Cfg.LogFifo, &m.Cfg.MetricsFifo} {
 				if fifoPath == nil || *fifoPath == "" {

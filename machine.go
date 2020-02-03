@@ -75,6 +75,11 @@ type Config struct {
 	// The kernel image must be an uncompressed ELF image.
 	KernelImagePath string
 
+	// InitrdPath defines the file path where initrd image is located.
+	//
+	// This parameter is optional.
+	InitrdPath string
+
 	// KernelArgs defines the command-line arguments that should be passed to
 	// the kernel.
 	KernelArgs string
@@ -132,6 +137,12 @@ func (cfg *Config) Validate() error {
 
 	if _, err := os.Stat(cfg.KernelImagePath); err != nil {
 		return fmt.Errorf("failed to stat kernel image path, %q: %v", cfg.KernelImagePath, err)
+	}
+
+	if cfg.InitrdPath != "" {
+		if _, err := os.Stat(cfg.InitrdPath); err != nil {
+			return fmt.Errorf("failed to stat initrd image path, %q: %v", cfg.InitrdPath, err)
+		}
 	}
 
 	for _, drive := range cfg.Drives {
@@ -645,9 +656,10 @@ func (m *Machine) createMachine(ctx context.Context) error {
 	return err
 }
 
-func (m *Machine) createBootSource(ctx context.Context, imagePath, kernelArgs string) error {
+func (m *Machine) createBootSource(ctx context.Context, imagePath, initrdPath, kernelArgs string) error {
 	bsrc := models.BootSource{
 		KernelImagePath: &imagePath,
+		InitrdPath:      initrdPath,
 		BootArgs:        kernelArgs,
 	}
 
