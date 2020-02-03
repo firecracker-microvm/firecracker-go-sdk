@@ -1089,18 +1089,18 @@ func TestWait(t *testing.T) {
 
 	cases := []struct {
 		name string
-		stop func(m *Machine)
+		stop func(m *Machine, cancel context.CancelFunc)
 	}{
 		{
 			name: "StopVMM",
-			stop: func(m *Machine) {
+			stop: func(m *Machine, _ context.CancelFunc) {
 				err := m.StopVMM()
 				require.NoError(t, err)
 			},
 		},
 		{
 			name: "Kill",
-			stop: func(m *Machine) {
+			stop: func(m *Machine, cancel context.CancelFunc) {
 				pid, err := m.PID()
 				require.NoError(t, err)
 
@@ -1111,6 +1111,17 @@ func TestWait(t *testing.T) {
 		},
 		{
 			name: "Context Cancel",
+			stop: func(m *Machine, cancel context.CancelFunc) {
+				cancel()
+			},
+		},
+		{
+			name: "StopVMM + Context Cancel",
+			stop: func(m *Machine, cancel context.CancelFunc) {
+				m.StopVMM()
+				time.Sleep(1 * time.Second)
+				cancel()
+			},
 		},
 	}
 
@@ -1123,50 +1134,42 @@ func TestWait(t *testing.T) {
 			defer os.Remove(socketPath)
 
 			cfg := createValidConfig(t, socketPath)
-			cmd := VMCommandBuilder{}.
-				WithSocketPath(cfg.SocketPath).
-				WithBin(getFirecrackerBinaryPath()).
-				Build(vmContext)
-			m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+			m, err := NewMachine(ctx, cfg, func(m *Machine) {
+				// Rewriting m.cmd partially wouldn't work since Cmd has
+				// some unexported members
+				args := m.cmd.Args[1:]
+				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+			})
 			require.NoError(t, err)
 
-			err = m.Start(ctx)
+			err = m.Start(vmContext)
 			require.NoError(t, err)
 
 			pid, err := m.PID()
 			require.NoError(t, err)
 
+			var wg sync.WaitGroup
+			wg.Add(1)
 			go func() {
-				if c.stop != nil {
-					c.stop(m)
-				} else {
-					vmCancel()
-				}
+				defer wg.Done()
+				c.stop(m, vmCancel)
 			}()
 
 			err = m.Wait(ctx)
 			require.Error(t, err, "Firecracker was killed and it must be reported")
+			t.Logf("err = %v", err)
 
-			alive, err := isProcessAlive(pid)
-			require.False(t, alive, "pid=%d is still there", pid)
+			proc, err := os.FindProcess(pid)
+			// Having an error here doesn't mean the process is not there.
+			// In fact it won't be non-nil on Unix systems
+			require.NoError(t, err)
+
+			err = proc.Signal(syscall.Signal(0))
+			require.Equal(t, "os: process already finished", err.Error())
+
+			wg.Wait()
 		})
 	}
-}
-
-func isProcessAlive(pid int) (bool, error) {
-	// Using kill(2) with signal=0 to check the existence of the process,
-	// because os.FindProcess always returns a process, regardless of whether the process is
-	// alive or not.
-	// https://golang.org/pkg/os/#FindProcess
-	err := syscall.Kill(pid, syscall.Signal(0))
-	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok {
-			if errno == syscall.ESRCH {
-				return false, nil
-			}
-		}
-	}
-	return true, nil
 }
 
 func TestWaitWithInvalidBinary(t *testing.T) {

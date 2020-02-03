@@ -338,7 +338,10 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	return m, nil
 }
 
-// Start will iterate through the handler list and call each handler. If an
+// Start actually start a Firecracker microVM.
+// The context must not be cancelled while the microVM is running.
+//
+// It will iterate through the handler list and call each handler. If an
 // error occurred during handler execution, that error will be returned. If the
 // handlers succeed, then this will start the VMM instance.
 // Start may only be called once per Machine.  Subsequent calls will return
@@ -521,7 +524,10 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// but doesn't tell anyone about that.
 	go func() {
 		<-ctx.Done()
-		m.stopVMM()
+		err := m.stopVMM()
+		if err != nil {
+			m.logger.WithError(err).Errorf("failed to stop vm %q", m.Cfg.VMID)
+		}
 	}()
 
 	// This goroutine is used to tell clients that the process is stopped
