@@ -5,3 +5,5 @@ jailer-*
 vmlinux
 root-drive.img
 TestPID.img
+build/
+
