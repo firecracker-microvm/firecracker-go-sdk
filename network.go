@@ -227,10 +227,17 @@ type NetworkInterface struct {
 // Currently, CNIConfiguration can only be specified for VMs that have a
 // single network interface.
 type CNIConfiguration struct {
-	// NetworkName (required) corresponds to the "name" parameter in the
-	// CNI spec's Network Configuration List structure. It selects the name
+	// NetworkName (either NetworkName or NetworkConfig are required)
+	// corresponds to the "name" parameter in the CNI spec's
+	// Network Configuration List structure. It selects the name
 	// of the network whose configuration will be used when invoking CNI.
 	NetworkName string
+
+	// NetworkConfig (either NetworkName or NetworkConfig are required)
+	// replaces the NetworkName with parsed CNI network configuration
+	// skipping the requirement to store network config file in CNI
+	// configuration directory.
+	NetworkConfig *libcni.NetworkConfigList
 
 	// IfName (optional) corresponds to the CNI_IFNAME parameter as specified
 	// in the CNI spec. It generally specifies the name of the interface to be
@@ -282,8 +289,12 @@ type CNIConfiguration struct {
 }
 
 func (cniConf CNIConfiguration) validate() error {
-	if cniConf.NetworkName == "" {
-		return errors.Errorf("must specify NetworkName in CNIConfiguration: %+v", cniConf)
+	if cniConf.NetworkName == "" && cniConf.NetworkConfig == nil {
+		return errors.Errorf("must specify either NetworkName or NetworkConfig in CNIConfiguration: %+v", cniConf)
+	}
+
+	if cniConf.NetworkName != "" && cniConf.NetworkConfig != nil {
+		return errors.Errorf("must not specify both NetworkName and NetworkConfig in CNIConfiguration: %+v", cniConf)
 	}
 
 	return nil
@@ -317,10 +328,16 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 
 	cniPlugin := libcni.NewCNIConfigWithCacheDir(cniConf.BinPath, cniConf.CacheDir, nil)
 
-	networkConf, err := libcni.LoadConfList(cniConf.ConfDir, cniConf.NetworkName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load CNI configuration from dir %q for network %q",
-			cniConf.ConfDir, cniConf.NetworkName), cleanupFuncs
+	networkConf := cniConf.NetworkConfig
+
+	var err error
+
+	if networkConf == nil {
+		networkConf, err = libcni.LoadConfList(cniConf.ConfDir, cniConf.NetworkName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load CNI configuration from dir %q for network %q",
+				cniConf.ConfDir, cniConf.NetworkName), cleanupFuncs
+		}
 	}
 
 	runtimeConf := cniConf.asCNIRuntimeConf()
