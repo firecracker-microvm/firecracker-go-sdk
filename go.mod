@@ -6,7 +6,7 @@ require (
 	github.com/containerd/fifo v0.0.0-20190816180239-bda0ff6ed73c
 	github.com/containernetworking/cni v0.7.2-0.20190807151350-8c6c47d1c7fc
 	github.com/containernetworking/plugins v0.8.2
-	github.com/go-openapi/errors v0.17.1
+	github.com/go-openapi/errors v0.19.3
 	github.com/go-openapi/runtime v0.17.1
 	github.com/go-openapi/strfmt v0.17.1
 	github.com/go-openapi/swag v0.17.1
