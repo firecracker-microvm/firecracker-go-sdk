@@ -25,6 +25,4 @@ RUN mkdir --mode=0777 --parents /usr/local/cargo/registry
 VOLUME /usr/local/cargo/registry
 
 RUN git clone https://github.com/firecracker-microvm/firecracker.git
-COPY tools/docker/entrypoint.sh /usr/local/bin
 WORKDIR firecracker
-ENTRYPOINT ["entrypoint.sh"]

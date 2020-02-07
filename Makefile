@@ -44,8 +44,11 @@ check-kvm:
 	@test -w /dev/kvm || \
 		(echo "In order to run firecracker, $(shell whoami) must have write permission to /dev/kvm"; false)
 
-generate build clean:
+generate build clean::
 	go $@ $(EXTRAGOARGS)
+
+clean::
+	rm -fr build/
 
 distclean: clean
 	rm -rf $(testdata_objects)
@@ -65,21 +68,25 @@ tools/firecracker-builder-stamp: tools/docker/Dockerfile
 	docker build \
 		-t localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
 		-f tools/docker/Dockerfile \
-		.
+		tools/docker
 	touch $@
 
 .PHONY: test-images
 test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
 
 $(FIRECRACKER_BIN) $(JAILER_BIN): tools/firecracker-builder-stamp
+	mkdir -p build
 	docker run --rm -it \
 		--user $(UID):$(GID) \
-		--volume $(CURDIR)/testdata:/artifacts \
+		--volume $(CURDIR)/build:/artifacts \
 		--volume $(CARGO_CACHE_VOLUME_NAME):/usr/local/cargo/registry \
 		-e HOME=/tmp \
 		--workdir=/firecracker \
 		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
-		$(FIRECRACKER_TARGET)
+		cargo build --release \
+		--target-dir=/artifacts --target $(FIRECRACKER_TARGET)
+	cp build/$(FIRECRACKER_TARGET)/release/firecracker $(FIRECRACKER_BIN)
+	cp build/$(FIRECRACKER_TARGET)/release/jailer $(JAILER_BIN)
 
 .PHONY: firecracker-clean
 firecracker-clean:
