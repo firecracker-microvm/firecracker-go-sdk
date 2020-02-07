@@ -14,7 +14,7 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/pkg/errors v0.8.1
-	github.com/sirupsen/logrus v1.1.1
+	github.com/sirupsen/logrus v1.4.2
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
 	github.com/stretchr/testify v1.3.0
 	github.com/vishvananda/netlink v0.0.0-20181108222139-023a6dafdcdf
