@@ -453,12 +453,23 @@ func startCNIMachine(t *testing.T, ctx context.Context, m *Machine) string {
 }
 
 func testPing(t *testing.T, ip string, count int, timeout time.Duration) {
+	// First, send one ping to make sure the machine is up
 	pinger, err := ping.NewPinger(ip)
 	require.NoError(t, err, "failed to create pinger")
+	pinger.SetPrivileged(true)
+
+	pinger.Count = 1
+	pinger.Timeout = 5 * time.Second
+	pinger.Run()
+
+	// Then send multiple pings to check that the network is working correctly
+	pinger, err = ping.NewPinger(ip)
+	require.NoError(t, err, "failed to create pinger")
+	pinger.SetPrivileged(true)
 	pinger.Count = count
 	pinger.Timeout = timeout
-	pinger.SetPrivileged(true)
 	pinger.Run()
+
 	pingStats := pinger.Statistics()
 	assert.Equal(t, pinger.Count, pingStats.PacketsRecv, "machine did not respond to all pings")
 }
