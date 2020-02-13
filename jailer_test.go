@@ -7,106 +7,116 @@ import (
 	"testing"
 )
 
-var testCases = []struct {
-	name             string
-	jailerCfg        JailerConfig
-	expectedArgs     []string
-	netns            string
-	expectedSockPath string
-}{
-	{
-		name: "required fields",
-		jailerCfg: JailerConfig{
-			ID:             "my-test-id",
-			UID:            Int(123),
-			GID:            Int(100),
-			NumaNode:       Int(0),
-			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
-			ExecFile:       "/path/to/firecracker",
-		},
-		expectedArgs: []string{
-			defaultJailerBin,
-			"--id",
-			"my-test-id",
-			"--uid",
-			"123",
-			"--gid",
-			"100",
-			"--exec-file",
-			"/path/to/firecracker",
-			"--node",
-			"0",
-			"--seccomp-level",
-			"0",
-		},
-		expectedSockPath: filepath.Join(defaultJailerPath, "my-test-id", rootfsFolderName, "api.socket"),
-	},
-	{
-		name: "other jailer binary name",
-		jailerCfg: JailerConfig{
-			ID:             "my-test-id",
-			UID:            Int(123),
-			GID:            Int(100),
-			NumaNode:       Int(0),
-			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
-			ExecFile:       "/path/to/firecracker",
-			JailerBinary:   "imprisoner",
-		},
-		expectedArgs: []string{
-			"imprisoner",
-			"--id",
-			"my-test-id",
-			"--uid",
-			"123",
-			"--gid",
-			"100",
-			"--exec-file",
-			"/path/to/firecracker",
-			"--node",
-			"0",
-			"--seccomp-level",
-			"0",
-		},
-		expectedSockPath: filepath.Join(defaultJailerPath, "my-test-id", rootfsFolderName, "api.socket"),
-	},
-	{
-		name:  "optional fields",
-		netns: "/path/to/netns",
-		jailerCfg: JailerConfig{
-			ID:             "my-test-id",
-			UID:            Int(123),
-			GID:            Int(100),
-			NumaNode:       Int(1),
-			ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
-			ExecFile:       "/path/to/firecracker",
-			ChrootBaseDir:  "/tmp",
-			SeccompLevel:   SeccompLevelAdvanced,
-			JailerBinary:   "/path/to/the/jailer",
-		},
-		expectedArgs: []string{
-			"/path/to/the/jailer",
-			"--id",
-			"my-test-id",
-			"--uid",
-			"123",
-			"--gid",
-			"100",
-			"--exec-file",
-			"/path/to/firecracker",
-			"--node",
-			"1",
-			"--chroot-base-dir",
-			"/tmp",
-			"--netns",
-			"/path/to/netns",
-			"--seccomp-level",
-			"2",
-		},
-		expectedSockPath: filepath.Join("/tmp", "firecracker", "my-test-id", rootfsFolderName, "api.socket"),
-	},
-}
-
 func TestJailerBuilder(t *testing.T) {
+	var testCases = []struct {
+		name             string
+		jailerCfg        JailerConfig
+		expectedArgs     []string
+		netns            string
+		expectedSockPath string
+	}{
+		{
+			name: "required fields",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+			},
+			expectedArgs: []string{
+				defaultJailerBin,
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"0",
+			},
+			expectedSockPath: filepath.Join(
+				defaultJailerPath,
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+		{
+			name: "other jailer binary name",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+				JailerBinary:   "imprisoner",
+			},
+			expectedArgs: []string{
+				"imprisoner",
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"0",
+			},
+			expectedSockPath: filepath.Join(
+				defaultJailerPath,
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+		{
+			name:  "optional fields",
+			netns: "/path/to/netns",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(1),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+				ChrootBaseDir:  "/tmp",
+				JailerBinary:   "/path/to/the/jailer",
+			},
+			expectedArgs: []string{
+				"/path/to/the/jailer",
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"1",
+				"--chroot-base-dir",
+				"/tmp",
+				"--netns",
+				"/path/to/netns",
+			},
+			expectedSockPath: filepath.Join(
+				"/tmp",
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+	}
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			b := NewJailerCommandBuilder().
@@ -114,7 +124,6 @@ func TestJailerBuilder(t *testing.T) {
 				WithUID(IntValue(c.jailerCfg.UID)).
 				WithGID(IntValue(c.jailerCfg.GID)).
 				WithNumaNode(IntValue(c.jailerCfg.NumaNode)).
-				WithSeccompLevel(c.jailerCfg.SeccompLevel).
 				WithExecFile(c.jailerCfg.ExecFile)
 
 			if len(c.jailerCfg.JailerBinary) > 0 {
@@ -142,6 +151,124 @@ func TestJailerBuilder(t *testing.T) {
 }
 
 func TestJail(t *testing.T) {
+	var testCases = []struct {
+		name             string
+		jailerCfg        JailerConfig
+		expectedArgs     []string
+		netns            string
+		expectedSockPath string
+	}{
+		{
+			name: "required fields",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+			},
+			expectedArgs: []string{
+				defaultJailerBin,
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"0",
+				"--",
+				"--seccomp-level",
+				"0",
+			},
+			expectedSockPath: filepath.Join(
+				defaultJailerPath,
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+		{
+			name: "other jailer binary name",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+				JailerBinary:   "imprisoner",
+			},
+			expectedArgs: []string{
+				"imprisoner",
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"0",
+				"--",
+				"--seccomp-level",
+				"0",
+			},
+			expectedSockPath: filepath.Join(
+				defaultJailerPath,
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+		{
+			name:  "optional fields",
+			netns: "/path/to/netns",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(1),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+				ChrootBaseDir:  "/tmp",
+				JailerBinary:   "/path/to/the/jailer",
+			},
+			expectedArgs: []string{
+				"/path/to/the/jailer",
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"1",
+				"--chroot-base-dir",
+				"/tmp",
+				"--netns",
+				"/path/to/netns",
+				"--",
+				"--seccomp-level",
+				"0",
+			},
+			expectedSockPath: filepath.Join(
+				"/tmp",
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"run",
+				"firecracker.socket"),
+		},
+	}
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			m := &Machine{

@@ -59,9 +59,10 @@ const (
 )
 
 var (
-	skipTuntap   bool
-	testDataPath = "./testdata"
-	testDataBin  = filepath.Join(testDataPath, "bin")
+	skipTuntap      bool
+	testDataPath    = "./testdata"
+	testDataLogPath = filepath.Join(testDataPath, "logs")
+	testDataBin     = filepath.Join(testDataPath, "bin")
 
 	testRootfs = filepath.Join(testDataPath, "root-drive.img")
 )
@@ -71,6 +72,10 @@ func init() {
 
 	if val := os.Getenv(testDataPathEnv); val != "" {
 		testDataPath = val
+	}
+
+	if err := os.MkdirAll(testDataLogPath, 0777); err != nil {
+		panic(err)
 	}
 }
 
@@ -106,9 +111,12 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 	fctesting.RequiresRoot(t)
 
+	logPath := filepath.Join(testDataLogPath, "TestJailerMicroVMExecution")
+	err := os.MkdirAll(logPath, 0777)
+	require.NoError(t, err, "unable to create %s path", logPath)
+
 	jailerUID := 123
 	jailerGID := 100
-	var err error
 	if v := os.Getenv(sudoUID); v != "" {
 		if jailerUID, err = strconv.Atoi(v); err != nil {
 			t.Fatalf("Failed to parse %q", sudoUID)
@@ -145,7 +153,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	// short names and directory to prevent SUN_LEN error
 	id := "b"
 	jailerTestPath := tmpDir
-	jailerFullRootPath := filepath.Join(jailerTestPath, "firecracker", id)
+	jailerFullRootPath := filepath.Join(jailerTestPath, filepath.Base(getFirecrackerBinaryPath()), id)
 	os.MkdirAll(jailerTestPath, 0777)
 
 	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
@@ -156,12 +164,20 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	require.NoError(t, err, "failed to open fifo writer file")
 	defer func() {
 		fw.Close()
+		exec.Command("cp", capturedLog, logPath).Run()
 		os.Remove(capturedLog)
 		os.Remove(socketPath)
 		os.Remove(logFifo)
 		os.Remove(metricsFifo)
 		os.RemoveAll(tmpDir)
 	}()
+
+	logFd, err := os.OpenFile(
+		filepath.Join(logPath, "TestJailerMicroVMExecution.log"),
+		os.O_CREATE|os.O_RDWR,
+		0666)
+	require.NoError(t, err, "failed to create log file")
+	defer logFd.Close()
 
 	cfg := Config{
 		Debug:           true,
@@ -193,6 +209,8 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			ChrootBaseDir:  jailerTestPath,
 			ExecFile:       getFirecrackerBinaryPath(),
 			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
+			Stdout:         logFd,
+			Stderr:         logFd,
 		},
 		FifoLogWriter: fw,
 	}

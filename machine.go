@@ -49,6 +49,24 @@ const (
 	defaultFirecrackerInitTimeoutSeconds = 3
 )
 
+// SeccompLevelValue represents a secure computing level type.
+type SeccompLevelValue int
+
+// secure computing levels
+const (
+	// SeccompLevelDisable is the default value.
+	SeccompLevelDisable SeccompLevelValue = iota
+	// SeccompLevelBasic prohibits syscalls not whitelisted by Firecracker.
+	SeccompLevelBasic
+	// SeccompLevelAdvanced adds further checks on some of the parameters of the
+	// allowed syscalls.
+	SeccompLevelAdvanced
+)
+
+func (level SeccompLevelValue) String() string {
+	return strconv.Itoa(int(level))
+}
+
 // ErrAlreadyStarted signifies that the Machine has already started and cannot
 // be started again.
 var ErrAlreadyStarted = errors.New("firecracker: machine already started")
@@ -126,6 +144,15 @@ type Config struct {
 	// ForwardSignals is an optional list of signals to catch and forward to
 	// firecracker. If not provided, the default signals will be used.
 	ForwardSignals []os.Signal
+
+	// SeccompLevel specifies whether seccomp filters should be installed and how
+	// restrictive they should be. Possible values are:
+	//
+	//	0 : (default): disabled.
+	//	1 : basic filtering. This prohibits syscalls not whitelisted by Firecracker.
+	//	2 : advanced filtering. This adds further checks on some of the
+	//			parameters of the allowed syscalls.
+	SeccompLevel SeccompLevelValue
 }
 
 // Validate will ensure that the required fields are set and that
@@ -289,6 +316,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
 		m.cmd = defaultFirecrackerVMMCommandBuilder.
 			WithSocketPath(cfg.SocketPath).
+			AddArgs("--seccomp-level", cfg.SeccompLevel.String()).
 			Build(ctx)
 	}
 
