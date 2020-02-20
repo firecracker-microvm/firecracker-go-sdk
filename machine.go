@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -578,7 +579,11 @@ func (m *Machine) StopVMM() error {
 func (m *Machine) stopVMM() error {
 	if m.cmd != nil && m.cmd.Process != nil {
 		m.logger.Debug("stopVMM(): sending sigterm to firecracker")
-		return m.cmd.Process.Signal(syscall.SIGTERM)
+		err := m.cmd.Process.Signal(syscall.SIGTERM)
+		if err != nil && !strings.Contains(err.Error(), "os: process already finished") {
+			return err
+		}
+		return nil
 	}
 	m.logger.Debug("stopVMM(): no firecracker process running, not sending a signal")
 

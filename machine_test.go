@@ -1139,6 +1139,7 @@ func TestWait(t *testing.T) {
 				m.StopVMM()
 				time.Sleep(1 * time.Second)
 				cancel()
+				time.Sleep(1 * time.Second)
 			},
 		},
 	}
@@ -1151,13 +1152,18 @@ func TestWait(t *testing.T) {
 			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
 			defer os.Remove(socketPath)
 
+			// Tee logs for validation:
+			var logBuffer bytes.Buffer
+			machineLogger := logrus.New()
+			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
 			cfg := createValidConfig(t, socketPath)
 			m, err := NewMachine(ctx, cfg, func(m *Machine) {
 				// Rewriting m.cmd partially wouldn't work since Cmd has
 				// some unexported members
 				args := m.cmd.Args[1:]
 				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-			})
+			}, WithLogger(logrus.NewEntry(machineLogger)))
 			require.NoError(t, err)
 
 			err = m.Start(vmContext)
@@ -1186,6 +1192,10 @@ func TestWait(t *testing.T) {
 			require.Equal(t, "os: process already finished", err.Error())
 
 			wg.Wait()
+
+			machineLogs := logBuffer.String()
+			assert.NotContains(t, machineLogs, "level=error")
+			assert.NotContains(t, machineLogs, "process already finished")
 		})
 	}
 }
