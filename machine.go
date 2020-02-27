@@ -948,13 +948,16 @@ func (m *Machine) setupSignals() {
 	signal.Notify(sigchan, signals...)
 
 	go func() {
+	ForLoop:
 		for {
 			select {
 			case sig := <-sigchan:
-				m.logger.Printf("Caught signal %s", sig)
+				m.logger.Debugf("Caught signal %s", sig)
+				// Some signals kill the process, some of them are not.
 				m.cmd.Process.Signal(sig)
 			case <-m.exitCh:
-				break
+				// And if a signal kills the process, we can stop this for loop and remove sigchan.
+				break ForLoop
 			}
 		}
 
