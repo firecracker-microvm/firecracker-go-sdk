@@ -32,6 +32,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/fifo"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1095,8 +1096,14 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	// Waiting the channel to make sure that the contents of the FIFO has been copied
 	copyErr := <-done
 
-	assert.Contains(t, copyErr.Error(), `file already closed`, "error")
-	assert.Contains(t, loggerBuffer.String(), `file already closed`, "log")
+	if copyErr == fifo.ErrReadClosed {
+		// If the fifo package is aware about that the fifo is closed, we can get the error below.
+		assert.Contains(t, loggerBuffer.String(), fifo.ErrReadClosed.Error(), "log")
+	} else {
+		// If not, the error would be something like "read /proc/self/fd/9: file already closed"
+		assert.Contains(t, copyErr.Error(), `file already closed`, "error")
+		assert.Contains(t, loggerBuffer.String(), `file already closed`, "log")
+	}
 }
 
 // Replace filesystem-unsafe characters (such as /) which are often seen in Go's test names
