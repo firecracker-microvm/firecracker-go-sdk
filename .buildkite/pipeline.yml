@@ -80,8 +80,8 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'ln -s /usr/local/bin/firecracker-v0.20.0 testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer-v0.20.0 testdata/jailer'
+      - 'ln -s /usr/local/bin/firecracker-v0.21.0 testdata/firecracker'
+      - 'ln -s /usr/local/bin/jailer-v0.21.0 testdata/jailer'
       - "FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS=true"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -93,17 +93,14 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'cp /usr/local/bin/firecracker-v0.20.0 testdata/firecracker'
-      - 'cp /usr/local/bin/jailer-v0.20.0 testdata/jailer'
+      - 'cp /usr/local/bin/firecracker-v0.21.0 testdata/firecracker'
+      - 'cp /usr/local/bin/jailer-v0.21.0 testdata/jailer'
       - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    # TODO: Remove this once v0.21.0 has been released
-    soft_fail: # we softfail here since v0.20.0 jailer tests will be broken.
-      - exit_status: "*"
 
   - label: ':hammer: test against firecracker master'
     env:
@@ -123,7 +120,8 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    # TODO: move soft_fail here once v0.21.0 of firecracker has been released
+    soft_fail:
+      - exit_status: "*"
 
   - label: 'go mod tidy'
     commands:
