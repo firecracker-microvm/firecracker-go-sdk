@@ -618,7 +618,6 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		MetricsFifo:   String(m.Cfg.MetricsFifo),
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
-		Options:       []string{},
 	}
 
 	_, err := m.client.PutLogger(ctx, &l)
