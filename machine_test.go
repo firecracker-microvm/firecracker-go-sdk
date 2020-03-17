@@ -157,7 +157,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	jailerFullRootPath := filepath.Join(jailerTestPath, filepath.Base(getFirecrackerBinaryPath()), id)
 	os.MkdirAll(jailerTestPath, 0777)
 
-	socketPath := "TestJailerMicroVMExecution.socket"
+	socketPath := "/api/TestJailerMicroVMExecution.socket"
 	logFifo := filepath.Join(tmpDir, "firecracker.log")
 	metricsFifo := filepath.Join(tmpDir, "firecracker-metrics")
 	capturedLog := filepath.Join(tmpDir, "writer.fifo")

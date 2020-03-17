@@ -76,6 +76,7 @@ var ErrAlreadyStarted = errors.New("firecracker: machine already started")
 type Config struct {
 	// SocketPath defines the file path where the Firecracker control socket
 	// should be created.
+	// Note: if used with the jailer, this path is relative to the jail
 	SocketPath string
 
 	// LogFifo defines the file path where the Firecracker log named-pipe should

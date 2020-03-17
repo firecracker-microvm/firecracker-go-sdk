@@ -277,7 +277,7 @@ func TestJail(t *testing.T) {
 		},
 		{
 			name:       "custom socket path",
-			socketPath: "api.sock",
+			socketPath: "/api/firecracker.sock",
 			jailerCfg: JailerConfig{
 				ID:             "my-test-id",
 				UID:            Int(123),
@@ -302,14 +302,14 @@ func TestJail(t *testing.T) {
 				"--seccomp-level",
 				"0",
 				"--api-sock",
-				"api.sock",
+				"/api/firecracker.sock",
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
 				"firecracker",
 				"my-test-id",
 				rootfsFolderName,
-				"api.sock"),
+				"/api/firecracker.sock"),
 		},
 	}
 	for _, c := range testCases {

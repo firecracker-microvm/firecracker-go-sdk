@@ -299,6 +299,10 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 
 	cfg.SocketPath = filepath.Join(jailerWorkspaceDir, machineSocketPath)
 
+	if err := os.MkdirAll(filepath.Dir(cfg.SocketPath), 0600); err != nil {
+		return err
+	}
+
 	stdout := cfg.JailerCfg.Stdout
 	if stdout == nil {
 		stdout = os.Stdout
