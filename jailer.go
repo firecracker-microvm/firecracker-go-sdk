@@ -299,7 +299,13 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 
 	cfg.SocketPath = filepath.Join(jailerWorkspaceDir, machineSocketPath)
 
-	if err := os.MkdirAll(filepath.Dir(cfg.SocketPath), 0600); err != nil {
+	jailedSocketBasePath := filepath.Dir(cfg.SocketPath)
+
+	if err := os.MkdirAll(jailedSocketBasePath, 0600); err != nil {
+		return err
+	}
+
+	if err := os.Chown(jailedSocketBasePath, *m.Cfg.JailerCfg.UID, *m.Cfg.JailerCfg.GID); err != nil {
 		return err
 	}
 
