@@ -21,6 +21,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -302,11 +304,11 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	jailedSocketBasePath := filepath.Dir(cfg.SocketPath)
 
 	if err := os.MkdirAll(jailedSocketBasePath, 0600); err != nil {
-		return err
+		return errors.Wrap(err, "failed to create socket path directories")
 	}
 
 	if err := os.Chown(jailedSocketBasePath, *m.Cfg.JailerCfg.UID, *m.Cfg.JailerCfg.GID); err != nil {
-		return err
+		return errors.Wrap(err, "failed to chown socket path directories")
 	}
 
 	stdout := cfg.JailerCfg.Stdout
