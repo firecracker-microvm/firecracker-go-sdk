@@ -307,7 +307,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		return errors.Wrap(err, "failed to create socket path directories")
 	}
 
-	if err := os.Chown(jailedSocketBasePath, *m.Cfg.JailerCfg.UID, *m.Cfg.JailerCfg.GID); err != nil {
+	if err := os.Chown(jailedSocketBasePath, *cfg.JailerCfg.UID, *cfg.JailerCfg.GID); err != nil {
 		return errors.Wrap(err, "failed to chown socket path directories")
 	}
 
