@@ -365,6 +365,7 @@ func TestNewPlugin(t *testing.T) {
 		},
 	}
 	rawPrevResultBytes, err := json.Marshal(netConf)
+	require.NoError(t, err, "failed to marshal JSON")
 	testArgs := skel.CmdArgs{
 		ContainerID: "continer-id",
 		Netns:       nspath,
