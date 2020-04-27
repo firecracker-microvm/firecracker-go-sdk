@@ -80,8 +80,6 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'ln -s /usr/local/bin/firecracker-v0.21.0 testdata/firecracker'
-      - 'ln -s /usr/local/bin/jailer-v0.21.0 testdata/jailer'
       - "FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS=true"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -93,8 +91,7 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'cp /usr/local/bin/firecracker-v0.21.0 testdata/firecracker'
-      - 'cp /usr/local/bin/jailer-v0.21.0 testdata/jailer'
+      - 'mkdir -p $(pwd)/testdata/bin'
       - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
@@ -110,6 +107,7 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
+      - 'mkdir -p $(pwd)/testdata/bin'
       - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - 'buildkite-agent artifact download testdata/firecracker-master .'
       - 'chmod +x testdata/firecracker-master'
