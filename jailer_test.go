@@ -156,6 +156,7 @@ func TestJail(t *testing.T) {
 		jailerCfg        JailerConfig
 		expectedArgs     []string
 		netns            string
+		socketPath       string
 		expectedSockPath string
 	}{
 		{
@@ -183,6 +184,8 @@ func TestJail(t *testing.T) {
 				"--",
 				"--seccomp-level",
 				"0",
+				"--api-sock",
+				"/run/firecracker.socket",
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -218,6 +221,8 @@ func TestJail(t *testing.T) {
 				"--",
 				"--seccomp-level",
 				"0",
+				"--api-sock",
+				"/run/firecracker.socket",
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -259,6 +264,8 @@ func TestJail(t *testing.T) {
 				"--",
 				"--seccomp-level",
 				"0",
+				"--api-sock",
+				"/run/firecracker.socket",
 			},
 			expectedSockPath: filepath.Join(
 				"/tmp",
@@ -267,6 +274,42 @@ func TestJail(t *testing.T) {
 				rootfsFolderName,
 				"run",
 				"firecracker.socket"),
+		},
+		{
+			name:       "custom socket path",
+			socketPath: "api.sock",
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("path", "kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+			},
+			expectedArgs: []string{
+				defaultJailerBin,
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--node",
+				"0",
+				"--",
+				"--seccomp-level",
+				"0",
+				"--api-sock",
+				"api.sock",
+			},
+			expectedSockPath: filepath.Join(
+				defaultJailerPath,
+				"firecracker",
+				"my-test-id",
+				rootfsFolderName,
+				"api.sock"),
 		},
 	}
 	for _, c := range testCases {
@@ -277,8 +320,9 @@ func TestJail(t *testing.T) {
 				},
 			}
 			cfg := &Config{
-				JailerCfg: &c.jailerCfg,
-				NetNS:     c.netns,
+				JailerCfg:  &c.jailerCfg,
+				NetNS:      c.netns,
+				SocketPath: c.socketPath,
 			}
 			jail(context.Background(), m, cfg)
 

@@ -157,7 +157,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	jailerFullRootPath := filepath.Join(jailerTestPath, filepath.Base(getFirecrackerBinaryPath()), id)
 	os.MkdirAll(jailerTestPath, 0777)
 
-	socketPath := filepath.Join(jailerTestPath, "firecracker", "TestJailerMicroVMExecution.socket")
+	socketPath := "TestJailerMicroVMExecution.socket"
 	logFifo := filepath.Join(tmpDir, "firecracker.log")
 	metricsFifo := filepath.Join(tmpDir, "firecracker-metrics")
 	capturedLog := filepath.Join(tmpDir, "writer.fifo")
@@ -167,7 +167,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		fw.Close()
 		exec.Command("cp", capturedLog, logPath).Run()
 		os.Remove(capturedLog)
-		os.Remove(socketPath)
+		os.Remove(filepath.Join(jailerTestPath, "firecracker", socketPath))
 		os.Remove(logFifo)
 		os.Remove(metricsFifo)
 		os.RemoveAll(tmpDir)

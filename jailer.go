@@ -30,6 +30,8 @@ const (
 	defaultJailerBin  = "jailer"
 
 	rootfsFolderName = "root"
+
+	defaultSocketPath = "/run/firecracker.socket"
 )
 
 var (
@@ -288,7 +290,14 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		jailerWorkspaceDir = filepath.Join(defaultJailerPath, filepath.Base(cfg.JailerCfg.ExecFile), cfg.JailerCfg.ID, rootfsFolderName)
 	}
 
-	cfg.SocketPath = filepath.Join(jailerWorkspaceDir, "run", "firecracker.socket")
+	var machineSocketPath string
+	if cfg.SocketPath != "" {
+		machineSocketPath = cfg.SocketPath
+	} else {
+		machineSocketPath = defaultSocketPath
+	}
+
+	cfg.SocketPath = filepath.Join(jailerWorkspaceDir, machineSocketPath)
 
 	stdout := cfg.JailerCfg.Stdout
 	if stdout == nil {
@@ -310,6 +319,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithFirecrackerArgs(
 			"--seccomp-level", cfg.SeccompLevel.String(),
+			"--api-sock", machineSocketPath,
 		).
 		WithStdout(stdout).
 		WithStderr(stderr)
