@@ -607,9 +607,8 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 	}
 
 	l := models.Logger{
-		LogFifo:       String(m.Cfg.LogFifo),
+		LogPath:       String(m.Cfg.LogFifo),
 		Level:         String(m.Cfg.LogLevel),
-		MetricsFifo:   String(m.Cfg.MetricsFifo),
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
 	}
