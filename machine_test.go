@@ -419,6 +419,61 @@ func TestStartVMM(t *testing.T) {
 	assert.False(t, closed)
 }
 
+func TestLogAndMetrics(t *testing.T) {
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	socketPath := filepath.Join(dir, "fc.sock")
+
+	cfg := Config{
+		SocketPath:        socketPath,
+		DisableValidation: true,
+		KernelImagePath:   getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(1),
+			MemSizeMib:  Int64(64),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			HtEnabled:   Bool(false),
+		},
+		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
+		LogPath:     filepath.Join(dir, "fc.log"),
+		LogLevel:    "Debug",
+	}
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	require.NoError(t, err)
+
+	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+
+	err = m.Start(timeout)
+	require.NoError(t, err)
+	defer m.StopVMM()
+
+	select {
+	case <-timeout.Done():
+		if timeout.Err() == context.DeadlineExceeded {
+			t.Log("firecracker ran for 250ms")
+			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
+		} else {
+			t.Errorf("startVMM returned %s", m.Wait(ctx))
+		}
+	}
+
+	metrics, err := os.Stat(cfg.MetricsPath)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, metrics.Size())
+
+	log, err := os.Stat(cfg.LogPath)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, log.Size())
+}
+
 func TestStartVMMOnce(t *testing.T) {
 	socketPath := filepath.Join("testdata", "TestStartVMMOnce.sock")
 	defer os.Remove(socketPath)
