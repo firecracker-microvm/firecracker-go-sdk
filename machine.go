@@ -177,7 +177,7 @@ func (cfg *Config) Validate() error {
 		if BoolValue(drive.IsRootDevice) {
 			rootPath := StringValue(drive.PathOnHost)
 			if _, err := os.Stat(rootPath); err != nil {
-				return fmt.Errorf("failed to stat host path, %q: %v", rootPath, err)
+				return fmt.Errorf("failed to stat host drive path, %q: %v", rootPath, err)
 			}
 
 			break
