@@ -119,9 +119,6 @@ type Config struct {
 	// the microVM.
 	VsockDevices []VsockDevice
 
-	// Debug enables debug-level logging for the SDK.
-	Debug bool
-
 	// MachineCfg represents the firecracker microVM process configuration
 	MachineCfg models.MachineConfiguration
 
@@ -327,15 +324,12 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	if m.logger == nil {
 		logger := log.New()
-		if cfg.Debug {
-			logger.SetLevel(log.DebugLevel)
-		}
 
 		m.logger = log.NewEntry(logger)
 	}
 
 	if m.client == nil {
-		m.client = NewClient(cfg.SocketPath, m.logger, cfg.Debug)
+		m.client = NewClient(cfg.SocketPath, m.logger, false)
 	}
 
 	if cfg.VMID == "" {
