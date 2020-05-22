@@ -85,7 +85,6 @@ func TestNewMachine(t *testing.T) {
 	m, err := NewMachine(
 		context.Background(),
 		Config{
-			Debug:             true,
 			DisableValidation: true,
 			MachineCfg: models.MachineConfiguration{
 				VcpuCount:   Int64(1),
@@ -181,7 +180,6 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	defer logFd.Close()
 
 	cfg := Config{
-		Debug:           true,
 		SocketPath:      socketPath,
 		LogFifo:         logFifo,
 		MetricsFifo:     metricsFifo,
@@ -312,7 +310,6 @@ func TestMicroVMExecution(t *testing.T) {
 			MemSizeMib:  Int64(memSz),
 			HtEnabled:   Bool(false),
 		},
-		Debug:             true,
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
 		FifoLogWriter:     fw,
@@ -737,7 +734,6 @@ func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 
 func TestLogFiles(t *testing.T) {
 	cfg := Config{
-		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"), SocketPath: filepath.Join(testDataPath, "socket-path"),
 		Drives: []models.Drive{
 			{
@@ -1011,7 +1007,6 @@ func TestPID(t *testing.T) {
 				PathOnHost:   String(rootfsPath),
 			},
 		},
-		Debug:             true,
 		DisableValidation: true,
 	}
 
@@ -1301,7 +1296,6 @@ func TestSignalForwarding(t *testing.T) {
 	}
 
 	cfg := Config{
-		Debug:           true,
 		KernelImagePath: filepath.Join(testDataPath, "vmlinux"),
 		SocketPath:      socketPath,
 		Drives: []models.Drive{

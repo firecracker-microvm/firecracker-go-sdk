@@ -18,5 +18,7 @@ require (
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
 	github.com/stretchr/testify v1.5.1
 	github.com/vishvananda/netlink v1.1.0
+	golang.org/x/crypto v0.0.0-20190617133340-57b3e21c3d56 // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449
+	golang.org/x/tools v0.0.0-20190617190820-da514acc4774 // indirect
 )
