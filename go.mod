@@ -6,11 +6,11 @@ require (
 	github.com/containerd/fifo v0.0.0-20191213151349-ff969a566b00
 	github.com/containernetworking/cni v0.7.2-0.20190807151350-8c6c47d1c7fc
 	github.com/containernetworking/plugins v0.8.6
-	github.com/go-openapi/errors v0.19.4
-	github.com/go-openapi/runtime v0.19.15
+	github.com/go-openapi/errors v0.19.6
+	github.com/go-openapi/runtime v0.19.16
 	github.com/go-openapi/strfmt v0.19.5
 	github.com/go-openapi/swag v0.19.9
-	github.com/go-openapi/validate v0.19.8
+	github.com/go-openapi/validate v0.19.10
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/pkg/errors v0.9.1
@@ -18,5 +18,5 @@ require (
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
 	github.com/stretchr/testify v1.6.1
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449
+	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 )
