@@ -11,7 +11,7 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-FROM rust:1.39-stretch
+FROM rust:1.43.1-buster
 
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get update && apt-get install --yes --no-install-recommends \
