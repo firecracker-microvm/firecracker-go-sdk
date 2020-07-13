@@ -759,7 +759,13 @@ func TestLogFiles(t *testing.T) {
 	stdoutPath := filepath.Join(testDataPath, "stdout.log")
 	stderrPath := filepath.Join(testDataPath, "stderr.log")
 	stdout, err := os.Create(stdoutPath)
+	if err != nil {
+		t.Fatalf("error creating %q: %v", stdoutPath, err)
+	}
 	stderr, err := os.Create(stderrPath)
+	if err != nil {
+		t.Fatalf("error creating %q: %v", stderrPath, err)
+	}
 
 	fd, err := net.Listen("unix", cfg.SocketPath)
 	if err != nil {
