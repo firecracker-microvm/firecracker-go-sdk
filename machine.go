@@ -78,6 +78,9 @@ type Config struct {
 	// should be created.
 	SocketPath string
 
+	// LogPath defines the file path where the Firecracker log is located.
+	LogPath string
+
 	// LogFifo defines the file path where the Firecracker log named-pipe should
 	// be located.
 	LogFifo string
@@ -85,6 +88,10 @@ type Config struct {
 	// LogLevel defines the verbosity of Firecracker logging.  Valid values are
 	// "Error", "Warning", "Info", and "Debug", and are case-sensitive.
 	LogLevel string
+
+	// MetricsPath defines the file path where the Firecracker metrics
+	// is located.
+	MetricsPath string
 
 	// MetricsFifo defines the file path where the Firecracker metrics
 	// named-pipe should be located.
@@ -585,31 +592,30 @@ func (m *Machine) stopVMM() error {
 	return nil
 }
 
-// createFifos sets up the firecracker logging and metrics FIFOs
-func createFifos(logFifo, metricsFifo string) error {
-	log.Debugf("Creating FIFO %s", logFifo)
-	if err := syscall.Mkfifo(logFifo, 0700); err != nil {
+// createFifo sets up a FIFOs
+func createFifo(path string) error {
+	log.Debugf("Creating FIFO %s", path)
+	if err := syscall.Mkfifo(path, 0700); err != nil {
 		return fmt.Errorf("Failed to create log fifo: %v", err)
-	}
-
-	log.Debugf("Creating metric FIFO %s", metricsFifo)
-	if err := syscall.Mkfifo(metricsFifo, 0700); err != nil {
-		return fmt.Errorf("Failed to create metric fifo: %v", err)
 	}
 	return nil
 }
 
 func (m *Machine) setupLogging(ctx context.Context) error {
-	if len(m.Cfg.LogFifo) == 0 || len(m.Cfg.MetricsFifo) == 0 {
+	path := m.Cfg.LogPath
+	if len(m.Cfg.LogFifo) > 0 {
+		path = m.Cfg.LogFifo
+	}
+
+	if len(path) == 0 {
 		// No logging configured
-		m.logger.Printf("VMM logging and metrics disabled.")
+		m.logger.Printf("VMM logging disabled.")
 		return nil
 	}
 
 	l := models.Logger{
-		LogFifo:       String(m.Cfg.LogFifo),
+		LogPath:       String(path),
 		Level:         String(m.Cfg.LogLevel),
-		MetricsFifo:   String(m.Cfg.MetricsFifo),
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
 	}
@@ -619,10 +625,31 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		return err
 	}
 
-	m.logger.Debugf("Configured VMM logging to %s, metrics to %s",
-		m.Cfg.LogFifo,
-		m.Cfg.MetricsFifo,
-	)
+	m.logger.Debugf("Configured VMM logging to %s", path)
+
+	return nil
+}
+
+func (m *Machine) setupMetrics(ctx context.Context) error {
+	path := m.Cfg.MetricsPath
+	if len(m.Cfg.MetricsFifo) > 0 {
+		path = m.Cfg.MetricsFifo
+	}
+
+	if len(path) == 0 {
+		// No logging configured
+		m.logger.Printf("VMM metrics disabled.")
+		return nil
+	}
+
+	_, err := m.client.PutMetrics(ctx, &models.Metrics{
+		MetricsPath: String(path),
+	})
+	if err != nil {
+		return err
+	}
+
+	m.logger.Debugf("Configured VMM metrics to %s", path)
 
 	return nil
 }

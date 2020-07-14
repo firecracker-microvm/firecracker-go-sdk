@@ -358,14 +358,14 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
 	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
-	t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
-	t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-timer.C:
+		t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
+		t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
 		t.Run("TestShutdown", func(t *testing.T) { testShutdown(ctx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
@@ -417,6 +417,61 @@ func TestStartVMM(t *testing.T) {
 	// Make sure exitCh close
 	_, closed := <-m.exitCh
 	assert.False(t, closed)
+}
+
+func TestLogAndMetrics(t *testing.T) {
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	socketPath := filepath.Join(dir, "fc.sock")
+
+	cfg := Config{
+		SocketPath:        socketPath,
+		DisableValidation: true,
+		KernelImagePath:   getVmlinuxPath(t),
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(1),
+			MemSizeMib:  Int64(64),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			HtEnabled:   Bool(false),
+		},
+		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
+		LogPath:     filepath.Join(dir, "fc.log"),
+		LogLevel:    "Debug",
+	}
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	require.NoError(t, err)
+
+	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	defer cancel()
+
+	err = m.Start(timeout)
+	require.NoError(t, err)
+	defer m.StopVMM()
+
+	select {
+	case <-timeout.Done():
+		if timeout.Err() == context.DeadlineExceeded {
+			t.Log("firecracker ran for 250ms")
+			t.Run("TestStopVMM", func(t *testing.T) { testStopVMM(ctx, t, m) })
+		} else {
+			t.Errorf("startVMM returned %s", m.Wait(ctx))
+		}
+	}
+
+	metrics, err := os.Stat(cfg.MetricsPath)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, metrics.Size())
+
+	log, err := os.Stat(cfg.LogPath)
+	require.NoError(t, err)
+	assert.NotEqual(t, 0, log.Size())
 }
 
 func TestStartVMMOnce(t *testing.T) {
