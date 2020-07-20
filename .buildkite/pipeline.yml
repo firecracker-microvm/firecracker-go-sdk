@@ -130,6 +130,10 @@ steps:
       - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 42
     soft_fail:
       - exit_status: 42 # Dependabot doesn't modify go.mod and go.sum
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   # This allows the cleanup step to always run, regardless of test failure
   - wait: ~
