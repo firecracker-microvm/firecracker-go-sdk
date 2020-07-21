@@ -10,6 +10,8 @@
 # on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
+env:
+  PATH: "/usr/lib/go-1.13/bin:/usr/bin"
 
 steps:
   - label: ':ec2: environment'
@@ -94,7 +96,7 @@ steps:
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
       - 'mkdir -p $(pwd)/testdata/bin'
       - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
-      - "sudo FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -116,7 +118,7 @@ steps:
       - 'chmod +x testdata/firecracker-master'
       - 'buildkite-agent artifact download testdata/jailer-master .'
       - 'chmod +x testdata/jailer-master'
-      - "sudo -E FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - "sudo -E PATH=$PATH FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -128,6 +130,10 @@ steps:
       - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 42
     soft_fail:
       - exit_status: 42 # Dependabot doesn't modify go.mod and go.sum
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   # This allows the cleanup step to always run, regardless of test failure
   - wait: ~
