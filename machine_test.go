@@ -1186,6 +1186,7 @@ func TestWait(t *testing.T) {
 				require.NoError(t, err)
 
 				process, err := os.FindProcess(pid)
+				require.NoError(t, err)
 				err = process.Kill()
 				require.NoError(t, err)
 			},
