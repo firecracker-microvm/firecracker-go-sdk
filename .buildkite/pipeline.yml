@@ -68,10 +68,22 @@ steps:
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
+  - label: ':package: install'
+    commands:
+      # Install tc-redirect-tap.
+      - 'mkdir -p testdata/bin'
+      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
+      # Copy vmlinux and root-drive.img.
+      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
+      - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
   - label: 'build'
     commands:
       - 'make'
-      - 'make -C cni'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -95,7 +107,6 @@ steps:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
       - 'mkdir -p $(pwd)/testdata/bin'
-      - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -112,12 +123,13 @@ steps:
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'mkdir -p $(pwd)/testdata/bin'
-      - 'make -C cni install CNI_BIN_ROOT=$(pwd)/testdata/bin'
       - 'buildkite-agent artifact download testdata/firecracker-master .'
       - 'chmod +x testdata/firecracker-master'
       - 'buildkite-agent artifact download testdata/jailer-master .'
       - 'chmod +x testdata/jailer-master'
+      # Install tc-redirect-tap.
+      - 'mkdir -p testdata/bin'
+      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       - "sudo -E PATH=$PATH FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
