@@ -137,9 +137,9 @@ type Config struct {
 	JailerCfg *JailerConfig
 
 	// (Optional) VMID is a unique identifier for this VM. It's set to a
-	// random uuid if not provided by the user. It's currently used to
-	// set the CNI ContainerID and create a network namespace path if
-	// CNI configuration is provided as part of NetworkInterfaces
+	// random uuid if not provided by the user. It's used to set Firecracker's instance ID.
+	// If CNI configuration is provided as part of NetworkInterfaces,
+	// the VMID is used to set CNI ContainerID and create a network namespace path.
 	VMID string
 
 	// NetNS represents the path to a network namespace handle. If present, the
@@ -303,11 +303,25 @@ func (m *Machine) LogLevel() string {
 	return m.Cfg.LogLevel
 }
 
+func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
+	return builder.
+		WithSocketPath(cfg.SocketPath).
+		AddArgs("--seccomp-level", cfg.SeccompLevel.String(), "--id", cfg.VMID)
+}
+
 // NewMachine initializes a new Machine instance and performs validation of the
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
 	m := &Machine{
 		exitCh: make(chan struct{}),
+	}
+
+	if cfg.VMID == "" {
+		randomID, err := uuid.NewV4()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create random ID for VMID")
+		}
+		cfg.VMID = randomID.String()
 	}
 
 	m.Handlers = defaultHandlers
@@ -319,10 +333,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		}
 	} else {
 		m.Handlers.Validation = m.Handlers.Validation.Append(ConfigValidationHandler)
-		m.cmd = defaultFirecrackerVMMCommandBuilder.
-			WithSocketPath(cfg.SocketPath).
-			AddArgs("--seccomp-level", cfg.SeccompLevel.String()).
-			Build(ctx)
+		m.cmd = configureBuilder(defaultFirecrackerVMMCommandBuilder, cfg).Build(ctx)
 	}
 
 	for _, opt := range opts {
@@ -337,14 +348,6 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	if m.client == nil {
 		m.client = NewClient(cfg.SocketPath, m.logger, false)
-	}
-
-	if cfg.VMID == "" {
-		randomID, err := uuid.NewV4()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create random ID for VMID")
-		}
-		cfg.VMID = randomID.String()
 	}
 
 	if cfg.ForwardSignals == nil {
