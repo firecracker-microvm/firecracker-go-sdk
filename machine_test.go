@@ -420,6 +420,9 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestLogAndMetrics(t *testing.T) {
+	const logLevel = "DEBUG"
+	const vmID = "UserSuppliedVMID"
+
 	dir, err := ioutil.TempDir("", t.Name())
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
@@ -427,6 +430,7 @@ func TestLogAndMetrics(t *testing.T) {
 	socketPath := filepath.Join(dir, "fc.sock")
 
 	cfg := Config{
+		VMID:              vmID,
 		SocketPath:        socketPath,
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
@@ -438,13 +442,10 @@ func TestLogAndMetrics(t *testing.T) {
 		},
 		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
 		LogPath:     filepath.Join(dir, "fc.log"),
-		LogLevel:    "Debug",
+		LogLevel:    logLevel,
 	}
 	ctx := context.Background()
-	cmd := VMCommandBuilder{}.
-		WithSocketPath(cfg.SocketPath).
-		WithBin(getFirecrackerBinaryPath()).
-		Build(ctx)
+	cmd := configureBuilder(VMCommandBuilder{}.WithBin(getFirecrackerBinaryPath()), cfg).Build(ctx)
 	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
 	require.NoError(t, err)
 
@@ -472,6 +473,10 @@ func TestLogAndMetrics(t *testing.T) {
 	log, err := os.Stat(cfg.LogPath)
 	require.NoError(t, err)
 	assert.NotEqual(t, 0, log.Size())
+
+	content, err := ioutil.ReadFile(cfg.LogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "["+vmID+":"+logLevel+"]")
 }
 
 func TestStartVMMOnce(t *testing.T) {

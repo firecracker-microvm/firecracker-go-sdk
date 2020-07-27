@@ -320,6 +320,7 @@ func TestJail(t *testing.T) {
 				},
 			}
 			cfg := &Config{
+				VMID:       "vmid",
 				JailerCfg:  &c.jailerCfg,
 				NetNS:      c.netns,
 				SocketPath: c.socketPath,
