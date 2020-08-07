@@ -87,8 +87,6 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    soft_fail:
-      - exit_status: "*"
 
   - label: ':hammer: root tests'
     commands:
@@ -101,8 +99,6 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    soft_fail:
-      - exit_status: "*"
 
   - label: ':hammer: test against firecracker master'
     env:
