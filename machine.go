@@ -487,6 +487,8 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.Cfg.SocketPath)
 	startCmd := m.cmd.Start
 
+	m.logger.Debugf("Starting %v", m.cmd.Args)
+
 	var err error
 	if m.Cfg.NetNS != "" && m.Cfg.JailerCfg == nil {
 		// If the VM needs to be started in a netns but no jailer netns was configured,
