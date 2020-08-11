@@ -420,10 +420,29 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestLogAndMetrics(t *testing.T) {
-	const logLevel = "DEBUG"
+	tests := []struct {
+		logLevel string
+		quiet    bool
+	}{
+		{logLevel: "Info", quiet: false},
+		{logLevel: "Error", quiet: true},
+	}
+	for _, test := range tests {
+		t.Run(test.logLevel, func(t *testing.T) {
+			out := testLogAndMetrics(t, test.logLevel)
+			if test.quiet {
+				assert.Regexp(t, `^Running Firecracker v0\.\d+\.0`, out)
+			} else {
+				assert.Contains(t, string(out), ":"+strings.ToUpper(test.logLevel)+"]")
+			}
+		})
+	}
+}
+
+func testLogAndMetrics(t *testing.T, logLevel string) string {
 	const vmID = "UserSuppliedVMID"
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -476,7 +495,7 @@ func TestLogAndMetrics(t *testing.T) {
 
 	content, err := ioutil.ReadFile(cfg.LogPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "["+vmID+":"+logLevel+"]")
+	return string(content)
 }
 
 func TestStartVMMOnce(t *testing.T) {

@@ -26,6 +26,7 @@ GID = $(shell id -g)
 
 # The below files are needed and can be downloaded from the internet
 testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/firecracker testdata/jailer
+firecracker_version = v0.22.0
 
 # --location is needed to follow redirects on github.com
 curl = curl --location
@@ -58,11 +59,11 @@ testdata/vmlinux:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
 
 testdata/firecracker:
-	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/v0.21.1/firecracker-v0.21.1-x86_64
+	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-x86_64
 	chmod +x $@
 
 testdata/jailer:
-	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/v0.21.1/jailer-v0.21.1-x86_64
+	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/jailer-$(firecracker_version)-x86_64
 	chmod +x $@
 
 testdata/root-drive.img:

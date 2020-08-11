@@ -24,15 +24,12 @@ type MockClient struct {
 	PatchMmdsFn                      func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
 	PutMmdsFn                        func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error)
 	PutMmdsConfigFn                  func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error)
-	CreateSnapshotFn                 func(params *ops.CreateSnapshotParams) (*ops.CreateSnapshotNoContent, error)
 	CreateSyncActionFn               func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
 	DescribeInstanceFn               func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
 	GetMachineConfigurationFn        func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error)
-	LoadSnapshotFn                   func(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error)
 	PatchGuestDriveByIDFn            func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByIDFn func(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfigurationFn      func(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error)
-	PatchVMFn                        func(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error)
 	PutGuestBootSourceFn             func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
 	PutGuestDriveByIDFn              func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByIDFn   func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
@@ -74,14 +71,6 @@ func (c *MockClient) PutMmdsConfig(params *ops.PutMmdsConfigParams) (*ops.PutMmd
 	return nil, nil
 }
 
-func (c *MockClient) CreateSnapshot(params *ops.CreateSnapshotParams) (*ops.CreateSnapshotNoContent, error) {
-	if c.CreateSnapshotFn != nil {
-		return c.CreateSnapshotFn(params)
-	}
-
-	return nil, nil
-}
-
 func (c *MockClient) CreateSyncAction(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error) {
 	if c.CreateSyncActionFn != nil {
 		return c.CreateSyncActionFn(params)
@@ -106,14 +95,6 @@ func (c *MockClient) GetMachineConfiguration(params *ops.GetMachineConfiguration
 	return nil, nil
 }
 
-func (c *MockClient) LoadSnapshot(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error) {
-	if c.LoadSnapshotFn != nil {
-		return c.LoadSnapshotFn(params)
-	}
-
-	return nil, nil
-}
-
 func (c *MockClient) PatchGuestDriveByID(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error) {
 	if c.PatchGuestDriveByIDFn != nil {
 		return c.PatchGuestDriveByIDFn(params)
@@ -133,14 +114,6 @@ func (c *MockClient) PatchGuestNetworkInterfaceByID(params *ops.PatchGuestNetwor
 func (c *MockClient) PatchMachineConfiguration(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error) {
 	if c.PatchMachineConfigurationFn != nil {
 		return c.PatchMachineConfigurationFn(params)
-	}
-
-	return nil, nil
-}
-
-func (c *MockClient) PatchVM(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error) {
-	if c.PatchVMFn != nil {
-		return c.PatchVMFn(params)
 	}
 
 	return nil, nil
