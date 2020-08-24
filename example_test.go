@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -224,7 +223,6 @@ func ExampleJailerConfig_enablingJailer() {
 
 	const id = "my-jailer-test"
 	const path = "/path/to/jailer-workspace"
-	pathToWorkspace := filepath.Join(path, "firecracker", id)
 	const kernelImagePath = "/path/to/kernel-image"
 
 	uid := 123
@@ -247,7 +245,7 @@ func ExampleJailerConfig_enablingJailer() {
 			ID:             id,
 			NumaNode:       firecracker.Int(0),
 			ChrootBaseDir:  path,
-			ChrootStrategy: firecracker.NewNaiveChrootStrategy(pathToWorkspace, kernelImagePath),
+			ChrootStrategy: firecracker.NewNaiveChrootStrategy(kernelImagePath),
 			ExecFile:       "/path/to/firecracker-binary",
 		},
 	}

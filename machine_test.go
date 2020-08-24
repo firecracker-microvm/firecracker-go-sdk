@@ -153,7 +153,6 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	// short names and directory to prevent SUN_LEN error
 	id := "b"
 	jailerTestPath := tmpDir
-	jailerFullRootPath := filepath.Join(jailerTestPath, filepath.Base(getFirecrackerBinaryPath()), id)
 	os.MkdirAll(jailerTestPath, 0777)
 
 	socketPath := "TestJailerMicroVMExecution.socket"
@@ -207,7 +206,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			ID:             id,
 			ChrootBaseDir:  jailerTestPath,
 			ExecFile:       getFirecrackerBinaryPath(),
-			ChrootStrategy: NewNaiveChrootStrategy(jailerFullRootPath, vmlinuxPath),
+			ChrootStrategy: NewNaiveChrootStrategy(vmlinuxPath),
 			Stdout:         logFd,
 			Stderr:         logFd,
 		},
