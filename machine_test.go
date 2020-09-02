@@ -424,6 +424,7 @@ func TestLogAndMetrics(t *testing.T) {
 		logLevel string
 		quiet    bool
 	}{
+		{logLevel: "", quiet: false},
 		{logLevel: "Info", quiet: false},
 		{logLevel: "Error", quiet: true},
 	}
@@ -432,9 +433,15 @@ func TestLogAndMetrics(t *testing.T) {
 			out := testLogAndMetrics(t, test.logLevel)
 			if test.quiet {
 				assert.Regexp(t, `^Running Firecracker v0\.\d+\.0`, out)
-			} else {
-				assert.Contains(t, string(out), ":"+strings.ToUpper(test.logLevel)+"]")
+				return
 			}
+
+			// By default, Firecracker's log level is Warn.
+			logLevel := "WARN"
+			if test.logLevel != "" {
+				logLevel = strings.ToUpper(test.logLevel)
+			}
+			assert.Contains(t, out, ":"+logLevel+"]")
 		})
 	}
 }

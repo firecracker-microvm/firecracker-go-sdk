@@ -616,9 +616,16 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		return nil
 	}
 
+	// m.Cfg.LogLevel cannot be nil, but Firecracker allows setting a logger
+	// without its level. Converting "" to nil to support the corner case.
+	level := String(m.Cfg.LogLevel)
+	if StringValue(level) == "" {
+		level = nil
+	}
+
 	l := models.Logger{
 		LogPath:       String(path),
-		Level:         String(m.Cfg.LogLevel),
+		Level:         level,
 		ShowLevel:     Bool(true),
 		ShowLogOrigin: Bool(false),
 	}
