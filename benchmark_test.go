@@ -3,11 +3,11 @@ package firecracker
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -106,25 +106,34 @@ func benchmarkForwardSignals(b *testing.B, forwardSignals []os.Signal) {
 	b.Logf("%s: %d", b.Name(), b.N)
 
 	for i := 0; i < b.N; i++ {
-		var wg sync.WaitGroup
+		errCh := make(chan error, numberOfVMs)
 		for j := 0; j < numberOfVMs; j++ {
-			wg.Add(1)
 			go func() {
-				defer wg.Done()
+				var err error
+				defer func() { errCh <- err }()
 
 				machine, cleanup, err := createMachine(ctx, b.Name(), forwardSignals)
 				if err != nil {
-					b.Fatalf("failed to create a VM: %s", err)
+					err = fmt.Errorf("failed to create a VM: %v", err)
+					return // anonymous defer func() will deliver the error
 				}
 				defer cleanup()
 
 				err = startAndWaitVM(ctx, machine)
 				if err != nil && !strings.Contains(err.Error(), "signal: terminated") {
-					b.Fatalf("failed to start the VM: %s", err)
+					err = fmt.Errorf("failed to start the VM: %v", err)
+					return // anonymous defer func() will deliver the error
 				}
+				return // anonymous defer func() will deliver this nil error
 			}()
 		}
-		wg.Wait()
+		for k := 0; k < numberOfVMs; k++ {
+			err := <-errCh
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		close(errCh)
 	}
 }
 func BenchmarkForwardSignalsDefault(t *testing.B) {
