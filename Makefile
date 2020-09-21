@@ -89,7 +89,8 @@ $(FIRECRACKER_BIN) $(JAILER_BIN): tools/firecracker-builder-stamp
 		--workdir=/firecracker \
 		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
 		cargo build --release \
-		--target-dir=/artifacts --target $(FIRECRACKER_TARGET)
+		--target-dir=/artifacts --target $(FIRECRACKER_TARGET) \
+		-p firecracker -p jailer
 	cp build/$(FIRECRACKER_TARGET)/release/firecracker $(FIRECRACKER_BIN)
 	cp build/$(FIRECRACKER_TARGET)/release/jailer $(JAILER_BIN)
 
