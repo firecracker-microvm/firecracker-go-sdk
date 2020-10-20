@@ -105,6 +105,7 @@ steps:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
       - 'mkdir -p $(pwd)/testdata/bin'
+      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
