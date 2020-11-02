@@ -398,6 +398,56 @@ paths:
           description: Internal server error
           schema:
             $ref: "#/definitions/Error"
+  /vm:
+    patch:
+      summary: Updates the microVM state.
+      description:
+        Sets the desired state (Paused or Resumed) for the microVM.
+      operationId: patchVm
+      parameters:
+        - name: body
+          in: body
+          description: The microVM state
+          required: true
+          schema:
+            $ref: "#/definitions/Vm"
+      responses:
+        204:
+          description: Vm state updated
+        400:
+          description: Vm state cannot be updated due to bad input
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+
+  /snapshot/create:
+    put:
+      summary: Creates a full snapshot. Post-boot only.
+      description:
+        Creates a snapshot of the microVM state. The microVM should be
+        in the `Paused` state.
+      operationId: createSnapshot
+      parameters:
+        - name: body
+          in: body
+          description: The configuration used for creating a snaphot.
+          required: true
+          schema:
+            $ref: "#/definitions/SnapshotCreateParams"
+      responses:
+        204:
+          description: Snapshot created
+        400:
+          description: Snapshot cannot be created due to bad input
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
 
   /vsock:
     put:
@@ -668,6 +718,31 @@ definitions:
         $ref: "#/definitions/TokenBucket"
         description: Token bucket with operations as tokens
 
+  SnapshotCreateParams:
+    type: object
+    required:
+      - mem_file_path
+      - snapshot_path
+    properties:
+      mem_file_path:
+        type: string
+        description: Path to the file that will contain the guest memory.
+      snapshot_path:
+        type: string
+        description: Path to the file that will contain the microVM state.
+      snapshot_type:
+        type: string
+        enum:
+          - Full
+        description:
+          Type of snapshot to create. It is optional and by default, a full
+          snapshot is created.
+      version:
+        type: string
+        description:
+          The microVM version for which we want to create the snapshot.
+          It is optional and it defaults to the current version.
+          
   TokenBucket:
     type: object
     description:
@@ -699,6 +774,19 @@ definitions:
         description: The amount of milliseconds it takes for the bucket to refill.
         minimum: 0
 
+  Vm:
+    type: object
+    description:
+      Defines the microVM running state. It is especially useful in the snapshotting context.
+    required:
+      - state
+    properties:
+      state:
+        type: string
+        enum:
+          - Paused
+          - Resumed
+
   Vsock:
     type: object
     description:
@@ -725,3 +813,4 @@ definitions:
       uds_path:
         type: string
         description: Path to UNIX domain socket, used to proxy vsock connections.
+
