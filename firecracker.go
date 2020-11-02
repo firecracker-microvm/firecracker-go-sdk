@@ -229,6 +229,42 @@ func (f *Client) PutGuestVsock(ctx context.Context, vsock *models.Vsock, opts ..
 	return f.client.Operations.PutGuestVsock(params)
 }
 
+// PatchVMOpt is a functional option to be used for the
+// PatchVM API in setting any additional optional fields.
+type PatchVMOpt func(*ops.PatchVMParams)
+
+// PatchVM is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) PatchVM(ctx context.Context, vm *models.VM, opts ...PatchVMOpt) (*ops.PatchVMNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPatchVMParamsWithContext(timeout)
+	params.SetBody(vm)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PatchVM(params)
+}
+
+// CreateSnapshotOpt is a functional option to be used for the
+// CreateSnapshot API in setting any additional optional fields.
+type CreateSnapshotOpt func(*ops.CreateSnapshotParams)
+
+// CreateSnapshot is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) CreateSnapshot(ctx context.Context, snapshotParams *models.SnapshotCreateParams, opts ...CreateSnapshotOpt) (*ops.CreateSnapshotNoContent, error) {
+	params := ops.NewCreateSnapshotParamsWithContext(ctx)
+	params.SetBody(snapshotParams)
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.CreateSnapshot(params)
+}
+
 // CreateSyncActionOpt is a functional option to be used for the
 // CreateSyncAction API in setting any additional optional fields.
 type CreateSyncActionOpt func(*ops.CreateSyncActionParams)
