@@ -28,6 +28,7 @@ type MockClient struct {
 	CreateSyncActionFn               func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
 	DescribeInstanceFn               func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
 	GetMachineConfigurationFn        func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error)
+	LoadSnapshotFn                   func(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error)
 	PatchGuestDriveByIDFn            func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByIDFn func(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfigurationFn      func(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error)
@@ -100,6 +101,14 @@ func (c *MockClient) DescribeInstance(params *ops.DescribeInstanceParams) (*ops.
 func (c *MockClient) GetMachineConfiguration(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
 	if c.GetMachineConfigurationFn != nil {
 		return c.GetMachineConfigurationFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) LoadSnapshot(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error) {
+	if c.LoadSnapshotFn != nil {
+		return c.LoadSnapshotFn(params)
 	}
 
 	return nil, nil

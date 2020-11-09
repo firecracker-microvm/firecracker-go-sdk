@@ -276,6 +276,36 @@ func (a *Client) GetMachineConfiguration(params *GetMachineConfigurationParams) 
 }
 
 /*
+LoadSnapshot loads a snapshot pre boot only
+
+Loads the microVM state from a snapshot. Only accepted on a fresh Firecracker process (before configuring any resource other than the Logger and Metrics).
+*/
+func (a *Client) LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewLoadSnapshotParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "loadSnapshot",
+		Method:             "PUT",
+		PathPattern:        "/snapshot/load",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &LoadSnapshotReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*LoadSnapshotNoContent), nil
+
+}
+
+/*
 PatchGuestDriveByID updates the properties of a drive post boot only
 
 Updates the properties of the drive with the ID specified by drive_id path parameter. Will fail if update is not possible.
@@ -617,6 +647,7 @@ type ClientIface interface {
 	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
 	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
 	GetMachineConfiguration(params *GetMachineConfigurationParams) (*GetMachineConfigurationOK, error)
+	LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error)
 	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfiguration(params *PatchMachineConfigurationParams) (*PatchMachineConfigurationNoContent, error)

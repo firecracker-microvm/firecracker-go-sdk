@@ -1003,7 +1003,7 @@ func (m *Machine) setupSignals() {
 	}()
 }
 
-// PauseVM Pauses the VM
+// PauseVM pauses the VM
 func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
 		State: String(models.VMStatePaused),
@@ -1018,7 +1018,7 @@ func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	return nil
 }
 
-// ResumeVM Resumes the VM
+// ResumeVM resumes the VM
 func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	vm := &models.VM{
 		State: String(models.VMStateResumed),
@@ -1033,7 +1033,7 @@ func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	return nil
 }
 
-// CreateSnapshot Creates a snapshot of the VM
+// CreateSnapshot creates a snapshot of the VM
 func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...CreateSnapshotOpt) error {
 	snapshotParams := &models.SnapshotCreateParams{
 		MemFilePath:  String(memFilePath),
@@ -1046,6 +1046,5 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	m.logger.Debug("snapshot created successfully")
-
 	return nil
 }
