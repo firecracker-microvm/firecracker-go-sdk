@@ -1476,3 +1476,172 @@ func TestSignalForwarding(t *testing.T) {
 
 	assert.ElementsMatch(t, forwardedSignals, receivedSignals)
 }
+
+func TestPauseResume(t *testing.T) {
+	fctesting.RequiresRoot(t)
+
+	cases := []struct {
+		name  string
+		state func(m *Machine, ctx context.Context)
+	}{
+		{
+			name: "PauseVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.PauseVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "ResumeVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.ResumeVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Consecutive PauseVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.PauseVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Consecutive ResumeVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.ResumeVM(ctx)
+				require.NoError(t, err)
+
+				err = m.ResumeVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "ResumeVM PauseVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.ResumeVM(ctx)
+				require.NoError(t, err)
+
+				err = m.PauseVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "PauseVM ResumeVM",
+			state: func(m *Machine, ctx context.Context) {
+				err := m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.ResumeVM(ctx)
+				require.NoError(t, err)
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
+			defer os.Remove(socketPath)
+
+			// Tee logs for validation:
+			var logBuffer bytes.Buffer
+			machineLogger := logrus.New()
+			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
+			cfg := createValidConfig(t, socketPath)
+			m, err := NewMachine(ctx, cfg, func(m *Machine) {
+				// Rewriting m.cmd partially wouldn't work since Cmd has
+				// some unexported members
+				args := m.cmd.Args[1:]
+				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+			}, WithLogger(logrus.NewEntry(machineLogger)))
+			require.NoError(t, err)
+
+			err = m.PauseVM(ctx)
+			require.Error(t, err, "PauseVM must fail before Start is called")
+
+			err = m.ResumeVM(ctx)
+			require.Error(t, err, "ResumeVM must fail before Start is called")
+
+			err = m.Start(ctx)
+			require.NoError(t, err)
+
+			c.state(m, ctx)
+
+			err = m.StopVMM()
+			require.NoError(t, err)
+
+			err = m.PauseVM(ctx)
+			require.Error(t, err, "PauseVM must fail after StopVMM is called")
+
+			err = m.ResumeVM(ctx)
+			require.Error(t, err, "ResumeVM must fail after StopVMM is called")
+		})
+	}
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	fctesting.RequiresRoot(t)
+
+	cases := []struct {
+		name           string
+		createSnapshot func(m *Machine, ctx context.Context, memPath, snapPath string)
+	}{
+		{
+			name: "CreateSnapshot",
+			createSnapshot: func(m *Machine, ctx context.Context, memPath, snapPath string) {
+				err := m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.CreateSnapshot(ctx, memPath, snapPath)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "CreateSnapshot before pause",
+			createSnapshot: func(m *Machine, ctx context.Context, memPath, snapPath string) {
+				err := m.CreateSnapshot(ctx, memPath, snapPath)
+				require.Error(t, err)
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
+			snapPath := socketPath + "SnapFile"
+			memPath := socketPath + "MemFile"
+			defer os.Remove(socketPath)
+			defer os.Remove(snapPath)
+			defer os.Remove(memPath)
+
+			// Tee logs for validation:
+			var logBuffer bytes.Buffer
+			machineLogger := logrus.New()
+			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
+			cfg := createValidConfig(t, socketPath)
+			m, err := NewMachine(ctx, cfg, func(m *Machine) {
+				// Rewriting m.cmd partially wouldn't work since Cmd has
+				// some unexported members
+				args := m.cmd.Args[1:]
+				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+			}, WithLogger(logrus.NewEntry(machineLogger)))
+			require.NoError(t, err)
+
+			err = m.Start(ctx)
+			require.NoError(t, err)
+
+			c.createSnapshot(m, ctx, memPath, snapPath)
+
+			err = m.StopVMM()
+			require.NoError(t, err)
+		})
+	}
+}
