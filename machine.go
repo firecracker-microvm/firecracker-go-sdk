@@ -1002,3 +1002,49 @@ func (m *Machine) setupSignals() {
 		close(sigchan)
 	}()
 }
+
+// PauseVM pauses the VM
+func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
+	vm := &models.VM{
+		State: String(models.VMStatePaused),
+	}
+
+	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
+		m.logger.Errorf("failed to pause the VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("VM paused successfully")
+	return nil
+}
+
+// ResumeVM resumes the VM
+func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
+	vm := &models.VM{
+		State: String(models.VMStateResumed),
+	}
+
+	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
+		m.logger.Errorf("failed to resume the VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("VM resumed successfully")
+	return nil
+}
+
+// CreateSnapshot creates a snapshot of the VM
+func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...CreateSnapshotOpt) error {
+	snapshotParams := &models.SnapshotCreateParams{
+		MemFilePath:  String(memFilePath),
+		SnapshotPath: String(snapshotPath),
+	}
+
+	if _, err := m.client.CreateSnapshot(ctx, snapshotParams, opts...); err != nil {
+		m.logger.Errorf("failed to create a snapshot of the VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("snapshot created successfully")
+	return nil
+}

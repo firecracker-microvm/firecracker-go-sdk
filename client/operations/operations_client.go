@@ -160,6 +160,36 @@ func (a *Client) PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoCon
 }
 
 /*
+CreateSnapshot creates a full snapshot post boot only
+
+Creates a snapshot of the microVM state. The microVM should be in the `Paused` state.
+*/
+func (a *Client) CreateSnapshot(params *CreateSnapshotParams) (*CreateSnapshotNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateSnapshotParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "createSnapshot",
+		Method:             "PUT",
+		PathPattern:        "/snapshot/create",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateSnapshotReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*CreateSnapshotNoContent), nil
+
+}
+
+/*
 CreateSyncAction creates a synchronous action
 */
 func (a *Client) CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error) {
@@ -242,6 +272,36 @@ func (a *Client) GetMachineConfiguration(params *GetMachineConfigurationParams) 
 		return nil, err
 	}
 	return result.(*GetMachineConfigurationOK), nil
+
+}
+
+/*
+LoadSnapshot loads a snapshot pre boot only
+
+Loads the microVM state from a snapshot. Only accepted on a fresh Firecracker process (before configuring any resource other than the Logger and Metrics).
+*/
+func (a *Client) LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewLoadSnapshotParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "loadSnapshot",
+		Method:             "PUT",
+		PathPattern:        "/snapshot/load",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &LoadSnapshotReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*LoadSnapshotNoContent), nil
 
 }
 
@@ -332,6 +392,36 @@ func (a *Client) PatchMachineConfiguration(params *PatchMachineConfigurationPara
 		return nil, err
 	}
 	return result.(*PatchMachineConfigurationNoContent), nil
+
+}
+
+/*
+PatchVM updates the micro VM state
+
+Sets the desired state (Paused or Resumed) for the microVM.
+*/
+func (a *Client) PatchVM(params *PatchVMParams) (*PatchVMNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPatchVMParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "patchVm",
+		Method:             "PATCH",
+		PathPattern:        "/vm",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PatchVMReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PatchVMNoContent), nil
 
 }
 
@@ -553,12 +643,15 @@ type ClientIface interface {
 	PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error)
 	PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error)
 	PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error)
+	CreateSnapshot(params *CreateSnapshotParams) (*CreateSnapshotNoContent, error)
 	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
 	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
 	GetMachineConfiguration(params *GetMachineConfigurationParams) (*GetMachineConfigurationOK, error)
+	LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error)
 	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfiguration(params *PatchMachineConfigurationParams) (*PatchMachineConfigurationNoContent, error)
+	PatchVM(params *PatchVMParams) (*PatchVMNoContent, error)
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
 	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)
