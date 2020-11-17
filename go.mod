@@ -10,7 +10,7 @@ require (
 	github.com/go-openapi/runtime v0.19.24
 	github.com/go-openapi/strfmt v0.19.10
 	github.com/go-openapi/swag v0.19.11
-	github.com/go-openapi/validate v0.19.12
+	github.com/go-openapi/validate v0.19.13
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/pkg/errors v0.9.1
@@ -18,5 +18,5 @@ require (
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
 	github.com/stretchr/testify v1.6.1
 	github.com/vishvananda/netlink v1.1.0
-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
+	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 )
