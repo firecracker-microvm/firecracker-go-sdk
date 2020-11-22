@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 )
 
@@ -30,6 +31,7 @@ const (
 	CreateNetworkInterfacesHandlerName = "fcinit.CreateNetworkInterfaces"
 	AddVsocksHandlerName               = "fcinit.AddVsocks"
 	SetMetadataHandlerName             = "fcinit.SetMetadata"
+	ConfigMmdsHandlerName              = "fcinit.ConfigMmds"
 	LinkFilesToRootFSHandlerName       = "fcinit.LinkFilesToRootFS"
 	SetupNetworkHandlerName            = "fcinit.SetupNetwork"
 	SetupKernelArgsHandlerName         = "fcinit.SetupKernelArgs"
@@ -254,6 +256,17 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 		Name: SetMetadataHandlerName,
 		Fn: func(ctx context.Context, m *Machine) error {
 			return m.SetMetadata(ctx, metadata)
+		},
+	}
+}
+
+// NewConfigMmdsHandler is a named handler that puts the MMDS config into the
+// firecracker process.
+func NewConfigMmdsHandler(address net.IP) Handler {
+	return Handler{
+		Name: ConfigMmdsHandlerName,
+		Fn: func(ctx context.Context, m *Machine) error {
+			return m.setMmdsConfig(ctx, address)
 		},
 	}
 }

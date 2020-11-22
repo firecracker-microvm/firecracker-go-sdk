@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -868,6 +869,19 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 		m.logger.Errorf("Unable to send CtrlAltDel: %s", err)
 	}
 	return err
+}
+
+func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP) error {
+	mmdsCfg := models.MmdsConfig{
+		IPV4Address: String(address.String()),
+	}
+	if _, err := m.client.PutMmdsConfig(ctx, &mmdsCfg); err != nil {
+		m.logger.Errorf("Setting mmds configuration failed: %s: %v", address, err)
+		return err
+	}
+
+	m.logger.Debug("SetMmdsConfig successful")
+	return nil
 }
 
 // SetMetadata sets the machine's metadata for MDDS

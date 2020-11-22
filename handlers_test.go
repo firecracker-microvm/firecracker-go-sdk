@@ -3,6 +3,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -515,6 +516,8 @@ func TestHandlers(t *testing.T) {
 		"foo": "bar",
 		"baz": "qux",
 	}
+	mmdsAddress := net.IPv4(169, 254, 169, 254)
+	mmdsConfig := &models.MmdsConfig{IPV4Address: String(mmdsAddress.String())}
 
 	cases := []struct {
 		Handler Handler
@@ -615,6 +618,19 @@ func TestHandlers(t *testing.T) {
 						return nil, fmt.Errorf("incorrect metadata value: %v", params.Body)
 					}
 					return &ops.PutMmdsNoContent{}, nil
+				},
+			},
+			Config: Config{},
+		},
+		{
+			Handler: NewConfigMmdsHandler(mmdsAddress),
+			Client: fctesting.MockClient{
+				PutMmdsConfigFn: func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error) {
+					called = ConfigMmdsHandlerName
+					if !reflect.DeepEqual(mmdsConfig, params.Body) {
+						return nil, fmt.Errorf("incorrect mmds config value: %v", params.Body)
+					}
+					return &ops.PutMmdsConfigNoContent{}, nil
 				},
 			},
 			Config: Config{},
