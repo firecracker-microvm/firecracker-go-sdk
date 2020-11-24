@@ -16,7 +16,6 @@ package firecracker
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 )
 
@@ -260,15 +259,13 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 	}
 }
 
-// NewConfigMmdsHandler is a named handler that puts the MMDS config into the
+// ConfigMmdsHandler is a named handler that puts the MMDS config into the
 // firecracker process.
-func NewConfigMmdsHandler(address net.IP) Handler {
-	return Handler{
-		Name: ConfigMmdsHandlerName,
-		Fn: func(ctx context.Context, m *Machine) error {
-			return m.setMmdsConfig(ctx, address)
-		},
-	}
+var ConfigMmdsHandler = Handler{
+	Name: ConfigMmdsHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress)
+	},
 }
 
 var defaultFcInitHandlerList = HandlerList{}.Append(

@@ -623,7 +623,7 @@ func TestHandlers(t *testing.T) {
 			Config: Config{},
 		},
 		{
-			Handler: NewConfigMmdsHandler(mmdsAddress),
+			Handler: ConfigMmdsHandler,
 			Client: fctesting.MockClient{
 				PutMmdsConfigFn: func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error) {
 					called = ConfigMmdsHandlerName
@@ -633,7 +633,9 @@ func TestHandlers(t *testing.T) {
 					return &ops.PutMmdsConfigNoContent{}, nil
 				},
 			},
-			Config: Config{},
+			Config: Config{
+				MmdsAddress: mmdsAddress,
+			},
 		},
 	}
 
