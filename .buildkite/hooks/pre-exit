@@ -1,4 +1,11 @@
 #!/bin/bash
+# Since some tests are running as root, they may create root-owned files.
+# These files cannot be deleted by BuildKite Agent since the agent is running
+# as non-root.
 set -euo pipefail
 
-find . -user root -print0 | xargs -0 sudo rm -rf '{}'
+files=$(sudo sh -c "find $BUILDKITE_BUILD_CHECKOUT_PATH -user root -print0 | xargs -0 rm -rfv '{}'")
+
+# If the command above removes files, show and exit with 1.
+echo "$files" | tr "\0" "\n"
+test -z "$files"
