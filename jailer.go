@@ -373,7 +373,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 
 			initrdFilename := ""
 			if m.Cfg.InitrdPath != "" {
-				initrdFilename := filepath.Base(m.Cfg.InitrdPath)
+				initrdFilename = filepath.Base(m.Cfg.InitrdPath)
 				// copy initrd to root fs
 				if err := os.Link(
 					m.Cfg.InitrdPath,
