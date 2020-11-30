@@ -6,11 +6,11 @@ require (
 	github.com/containerd/fifo v0.0.0-20191213151349-ff969a566b00
 	github.com/containernetworking/cni v0.8.0
 	github.com/containernetworking/plugins v0.8.7
-	github.com/go-openapi/errors v0.19.8
+	github.com/go-openapi/errors v0.19.9
 	github.com/go-openapi/runtime v0.19.24
 	github.com/go-openapi/strfmt v0.19.11
 	github.com/go-openapi/swag v0.19.12
-	github.com/go-openapi/validate v0.19.14
+	github.com/go-openapi/validate v0.19.15
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/pkg/errors v0.9.1
