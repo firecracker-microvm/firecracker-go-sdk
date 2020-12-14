@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -158,6 +159,11 @@ type Config struct {
 	//	2 : advanced filtering. This adds further checks on some of the
 	//			parameters of the allowed syscalls.
 	SeccompLevel SeccompLevelValue
+
+	// MmdsAddress is IPv4 address used by guest applications when issuing requests to MMDS.
+	// It is possible to use a valid IPv4 link-local address (169.254.0.0/16).
+	// If not provided, the default address (169.254.169.254) will be used.
+	MmdsAddress net.IP
 }
 
 // Validate will ensure that the required fields are set and that
@@ -868,6 +874,19 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 		m.logger.Errorf("Unable to send CtrlAltDel: %s", err)
 	}
 	return err
+}
+
+func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP) error {
+	mmdsCfg := models.MmdsConfig{
+		IPV4Address: String(address.String()),
+	}
+	if _, err := m.client.PutMmdsConfig(ctx, &mmdsCfg); err != nil {
+		m.logger.Errorf("Setting mmds configuration failed: %s: %v", address, err)
+		return err
+	}
+
+	m.logger.Debug("SetMmdsConfig successful")
+	return nil
 }
 
 // SetMetadata sets the machine's metadata for MDDS

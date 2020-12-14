@@ -30,6 +30,7 @@ const (
 	CreateNetworkInterfacesHandlerName = "fcinit.CreateNetworkInterfaces"
 	AddVsocksHandlerName               = "fcinit.AddVsocks"
 	SetMetadataHandlerName             = "fcinit.SetMetadata"
+	ConfigMmdsHandlerName              = "fcinit.ConfigMmds"
 	LinkFilesToRootFSHandlerName       = "fcinit.LinkFilesToRootFS"
 	SetupNetworkHandlerName            = "fcinit.SetupNetwork"
 	SetupKernelArgsHandlerName         = "fcinit.SetupKernelArgs"
@@ -256,6 +257,15 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 			return m.SetMetadata(ctx, metadata)
 		},
 	}
+}
+
+// ConfigMmdsHandler is a named handler that puts the MMDS config into the
+// firecracker process.
+var ConfigMmdsHandler = Handler{
+	Name: ConfigMmdsHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress)
+	},
 }
 
 var defaultFcInitHandlerList = HandlerList{}.Append(

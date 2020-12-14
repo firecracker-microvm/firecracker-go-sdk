@@ -332,6 +332,16 @@ func (f *Client) PatchMmds(ctx context.Context, metadata interface{}, opts ...Pa
 	return f.client.Operations.PatchMmds(params)
 }
 
+// PutMmdsConfig is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) PutMmdsConfig(ctx context.Context, config *models.MmdsConfig) (*ops.PutMmdsConfigNoContent, error) {
+	params := ops.NewPutMmdsConfigParams()
+	params.SetContext(ctx)
+	params.SetBody(config)
+
+	return f.client.Operations.PutMmdsConfig(params)
+}
+
 // GetMachineConfigurationOpt  is a functional option to be used for the
 // GetMachineConfiguration API in setting any additional optional fields.
 type GetMachineConfigurationOpt func(*ops.GetMachineConfigurationParams)
