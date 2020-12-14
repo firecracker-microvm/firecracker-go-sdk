@@ -63,7 +63,7 @@ var JailerConfigValidationHandler = Handler{
 			return nil
 		}
 
-		hasRoot := false
+		hasRoot := m.Cfg.InitrdPath != ""
 		for _, drive := range m.Cfg.Drives {
 			if BoolValue(drive.IsRootDevice) {
 				hasRoot = true
