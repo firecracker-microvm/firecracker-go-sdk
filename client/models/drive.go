@@ -30,6 +30,9 @@ import (
 // swagger:model Drive
 type Drive struct {
 
+	// Represents the caching strategy for the block device.
+	CacheType *string `json:"cache_type,omitempty"`
+
 	// drive id
 	// Required: true
 	DriveID *string `json:"drive_id"`

@@ -26,7 +26,7 @@ GID = $(shell id -g)
 
 # The below files are needed and can be downloaded from the internet
 testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/firecracker testdata/jailer
-firecracker_version = v0.23.0
+firecracker_version = v0.24.0
 
 # --location is needed to follow redirects on github.com
 curl = curl --location

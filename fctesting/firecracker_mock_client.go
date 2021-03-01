@@ -26,13 +26,18 @@ type MockClient struct {
 	PutMmdsConfigFn                  func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error)
 	CreateSnapshotFn                 func(params *ops.CreateSnapshotParams) (*ops.CreateSnapshotNoContent, error)
 	CreateSyncActionFn               func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
+	DescribeBalloonConfigFn          func(params *ops.DescribeBalloonConfigParams) (*ops.DescribeBalloonConfigOK, error)
+	DescribeBalloonStatsFn           func(params *ops.DescribeBalloonStatsParams) (*ops.DescribeBalloonStatsOK, error)
 	DescribeInstanceFn               func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
 	GetMachineConfigurationFn        func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error)
 	LoadSnapshotFn                   func(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error)
+	PatchBalloonFn                   func(params *ops.PatchBalloonParams) (*ops.PatchBalloonNoContent, error)
+	PatchBalloonStatsIntervalFn      func(params *ops.PatchBalloonStatsIntervalParams) (*ops.PatchBalloonStatsIntervalNoContent, error)
 	PatchGuestDriveByIDFn            func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByIDFn func(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfigurationFn      func(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error)
 	PatchVMFn                        func(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error)
+	PutBalloonFn                     func(params *ops.PutBalloonParams) (*ops.PutBalloonNoContent, error)
 	PutGuestBootSourceFn             func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
 	PutGuestDriveByIDFn              func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByIDFn   func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
@@ -90,6 +95,22 @@ func (c *MockClient) CreateSyncAction(params *ops.CreateSyncActionParams) (*ops.
 	return nil, nil
 }
 
+func (c *MockClient) DescribeBalloonConfig(params *ops.DescribeBalloonConfigParams) (*ops.DescribeBalloonConfigOK, error) {
+	if c.DescribeBalloonConfigFn != nil {
+		return c.DescribeBalloonConfigFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) DescribeBalloonStats(params *ops.DescribeBalloonStatsParams) (*ops.DescribeBalloonStatsOK, error) {
+	if c.DescribeBalloonStatsFn != nil {
+		return c.DescribeBalloonStatsFn(params)
+	}
+
+	return nil, nil
+}
+
 func (c *MockClient) DescribeInstance(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error) {
 	if c.DescribeInstanceFn != nil {
 		return c.DescribeInstanceFn(params)
@@ -109,6 +130,22 @@ func (c *MockClient) GetMachineConfiguration(params *ops.GetMachineConfiguration
 func (c *MockClient) LoadSnapshot(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error) {
 	if c.LoadSnapshotFn != nil {
 		return c.LoadSnapshotFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PatchBalloon(params *ops.PatchBalloonParams) (*ops.PatchBalloonNoContent, error) {
+	if c.PatchBalloonFn != nil {
+		return c.PatchBalloonFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PatchBalloonStatsInterval(params *ops.PatchBalloonStatsIntervalParams) (*ops.PatchBalloonStatsIntervalNoContent, error) {
+	if c.PatchBalloonStatsIntervalFn != nil {
+		return c.PatchBalloonStatsIntervalFn(params)
 	}
 
 	return nil, nil
@@ -141,6 +178,14 @@ func (c *MockClient) PatchMachineConfiguration(params *ops.PatchMachineConfigura
 func (c *MockClient) PatchVM(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error) {
 	if c.PatchVMFn != nil {
 		return c.PatchVMFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PutBalloon(params *ops.PutBalloonParams) (*ops.PutBalloonNoContent, error) {
+	if c.PutBalloonFn != nil {
+		return c.PutBalloonFn(params)
 	}
 
 	return nil, nil

@@ -1067,3 +1067,97 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	m.logger.Debug("snapshot created successfully")
 	return nil
 }
+
+// CreateBalloon creates a balloon device if one does not exist
+func (m *Machine) CreateBalloon(ctx context.Context, amountMb int64, deflateOnOom bool, opts ...PutBalloonOpt) error {
+	balloon := models.Balloon{
+		AmountMb:     &amountMb,
+		DeflateOnOom: &deflateOnOom,
+	}
+	respNoContent, err := m.client.PutBalloon(ctx, &balloon, opts...)
+
+	if err == nil {
+		m.logger.Printf("Created balloon device with %v MB successful: %s", amountMb, respNoContent.Error())
+	} else {
+		m.logger.Errorf("Create balloon device failed : %s", err)
+	}
+	return err
+}
+
+// GetBalloonConfig gets the current balloon device configuration.
+func (m *Machine) GetBalloonConfig(ctx context.Context) (models.Balloon, error) {
+	var balloonConfig models.Balloon
+	resp, err := m.client.DescribeBalloonConfig(ctx)
+	if err != nil {
+		m.logger.Errorf("Getting balloonConfig: %s", err)
+		return balloonConfig, err
+	}
+
+	payloadData, err := json.Marshal(resp.Payload)
+	if err != nil {
+		m.logger.Errorf("Getting balloonConfig failed parsing payload: %s", err)
+		return balloonConfig, err
+	}
+
+	if err := json.Unmarshal(payloadData, &balloonConfig); err != nil {
+		m.logger.Errorf("Getting balloonConfig failed parsing payload: %s", err)
+		return balloonConfig, err
+	}
+
+	m.logger.Printf("GetBalloonConfig successful")
+	return balloonConfig, err
+}
+
+// UpdateBalloon will update an existing balloon device, before or after machine startup
+func (m *Machine) UpdateBalloon(ctx context.Context, amountMb int64, opts ...PatchBalloonOpt) error {
+	ballonUpdate := models.BalloonUpdate{
+		AmountMb: &amountMb,
+	}
+	respNoContent, err := m.client.PatchBalloon(ctx, &ballonUpdate, opts...)
+	if err == nil {
+		m.logger.Printf("Update balloon device with %v MB successful: %s", amountMb, respNoContent.Error())
+	} else {
+		m.logger.Errorf("Update balloon device failed : %s", err)
+	}
+	return err
+}
+
+// GetBalloonStats gets the latest balloon device statistics, only if enabled pre-boot.
+func (m *Machine) GetBalloonStats(ctx context.Context) (models.BalloonStats, error) {
+	var balloonStats models.BalloonStats
+	resp, err := m.client.DescribeBalloonStats(ctx)
+	if err != nil {
+		m.logger.Errorf("Getting balloonStats: %s", err)
+		return balloonStats, err
+	}
+
+	payloadData, err := json.Marshal(resp.Payload)
+	if err != nil {
+		m.logger.Errorf("Getting balloonStats failed parsing payload: %s", err)
+		return balloonStats, err
+	}
+
+	if err := json.Unmarshal(payloadData, &balloonStats); err != nil {
+		m.logger.Errorf("Getting balloonStats failed parsing payload: %s", err)
+		return balloonStats, err
+	}
+
+	m.logger.Printf("GetBalloonStats successful")
+	return balloonStats, err
+}
+
+// UpdateBalloon will update a balloon device statistics polling interval.
+// Statistics cannot be turned on/off after boot.
+func (m *Machine) UpdateBalloonStats(ctx context.Context, StatsPollingIntervals int64, opts ...PatchBalloonStatsIntervalOpt) error {
+	balloonStatsUpdate := models.BalloonStatsUpdate{
+		StatsPollingIntervals: &StatsPollingIntervals,
+	}
+
+	if _, err := m.client.PatchBalloonStatsInterval(ctx, &balloonStatsUpdate, opts...); err != nil {
+		m.logger.Errorf("UpdateBalloonStats failed: %v", err)
+		return err
+	}
+
+	m.logger.Printf("UpdateBalloonStats successful")
+	return nil
+}

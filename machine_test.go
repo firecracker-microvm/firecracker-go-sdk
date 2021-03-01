@@ -330,6 +330,7 @@ func TestMicroVMExecution(t *testing.T) {
 	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer vmmCancel()
 	exitchannel := make(chan error)
+
 	go func() {
 		if err := m.startVMM(vmmCtx); err != nil {
 			close(exitchannel)
@@ -356,8 +357,10 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
-	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
+	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) })         // Should be after testSetMetadata and testUpdateMetadata
+	t.Run("TestCreateBalloon", func(t *testing.T) { testCreateBalloon(ctx, t, m) }) // should be before the microVM is started(only pre-boot)
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
+	t.Run("TestGetBalloonConfig", func(t *testing.T) { testGetBalloonConfig(ctx, t, m) }) // should be after testCreateBalloon
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
@@ -365,6 +368,7 @@ func TestMicroVMExecution(t *testing.T) {
 	case <-timer.C:
 		t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
 		t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
+		t.Run("TestUpdateBalloon", func(t *testing.T) { testUpdateBalloon(ctx, t, m) })
 		t.Run("TestShutdown", func(t *testing.T) { testShutdown(ctx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
@@ -431,7 +435,7 @@ func TestLogAndMetrics(t *testing.T) {
 		t.Run(test.logLevel, func(t *testing.T) {
 			out := testLogAndMetrics(t, test.logLevel)
 			if test.quiet {
-				assert.Regexp(t, `^Running Firecracker v0\.\d+\.0`, out)
+				assert.Regexp(t, `^Running Firecracker v0\.\d+\.\d+`, out)
 				return
 			}
 
@@ -1643,5 +1647,30 @@ func TestCreateSnapshot(t *testing.T) {
 			err = m.StopVMM()
 			require.NoError(t, err)
 		})
+	}
+}
+
+func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
+	if err := m.CreateBalloon(ctx, 6, true); err != nil {
+		t.Errorf("Create balloon device failed from testAttachBalloon: %s", err)
+	}
+}
+
+func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
+	expectedBalloonConfig := models.Balloon{
+		AmountMb:     Int64(6),
+		DeflateOnOom: Bool(true),
+	}
+
+	balloonConfig, err := m.GetBalloonConfig(ctx)
+	if err != nil {
+		t.Errorf("failed to get config: %s", err)
+	}
+	assert.Equal(t, expectedBalloonConfig, balloonConfig)
+}
+
+func testUpdateBalloon(ctx context.Context, t *testing.T, m *Machine) {
+	if err := m.UpdateBalloon(ctx, 3); err != nil {
+		t.Errorf("Updating balloon device failed from testUpdateBalloon: %s", err)
 	}
 }
