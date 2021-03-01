@@ -24,9 +24,13 @@ FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 UID = $(shell id -u)
 GID = $(shell id -g)
 
+firecracker_version=v0.24.2
+arch=$(shell uname -m)
+
 # The below files are needed and can be downloaded from the internet
-testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/firecracker testdata/jailer
-firecracker_version = v0.23.0
+release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
+testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/binaries testdata/jailer testdata/firecracker
+testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_version).yaml testdata/LICENSE testdata/NOTICE testdata/THIRD-PARTY
 
 # --location is needed to follow redirects on github.com
 curl = curl --location
@@ -53,18 +57,20 @@ clean::
 
 distclean: clean
 	rm -rf $(testdata_objects)
+	rm -rfv $(testdata_dir)
 	docker volume rm -f $(CARGO_CACHE_VOLUME_NAME)
 
 testdata/vmlinux:
-	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
+	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(arch)/kernels/vmlinux.bin
 
-testdata/firecracker:
-	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-x86_64
-	chmod +x $@
-
-testdata/jailer:
-	$(curl) -o $@ https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/jailer-$(firecracker_version)-x86_64
-	chmod +x $@
+testdata/binaries:
+	$(curl) -o testdata/firecracker.tgz ${release_url}
+	tar -xvzf testdata/firecracker.tgz -C ./testdata
+	mv testdata/firecracker-$(firecracker_version)-$(arch) testdata/firecracker
+	mv testdata/jailer-$(firecracker_version)-$(arch) testdata/jailer
+	chmod +x testdata/firecracker
+	chmod +x testdata/jailer
+	touch testdata/binaries
 
 testdata/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4

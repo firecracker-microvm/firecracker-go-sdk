@@ -34,6 +34,7 @@ const (
 	LinkFilesToRootFSHandlerName       = "fcinit.LinkFilesToRootFS"
 	SetupNetworkHandlerName            = "fcinit.SetupNetwork"
 	SetupKernelArgsHandlerName         = "fcinit.SetupKernelArgs"
+	CreateBalloonHandlerName           = "fcint.CreateBalloon"
 
 	ValidateCfgHandlerName        = "validate.Cfg"
 	ValidateJailerCfgHandlerName  = "validate.JailerCfg"
@@ -266,6 +267,17 @@ var ConfigMmdsHandler = Handler{
 	Fn: func(ctx context.Context, m *Machine) error {
 		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress)
 	},
+}
+
+// NewCreateBalloonHandler is a named handler that put a memory balloon into the
+// firecracker process.
+func NewCreateBalloonHandler(amountMb int64, deflateOnOom bool) Handler {
+	return Handler{
+		Name: CreateBalloonHandlerName,
+		Fn: func(ctx context.Context, m *Machine) error {
+			return m.CreateBalloon(ctx, amountMb, deflateOnOom)
+		},
+	}
 }
 
 var defaultFcInitHandlerList = HandlerList{}.Append(

@@ -41,7 +41,7 @@ type SnapshotCreateParams struct {
 	SnapshotPath *string `json:"snapshot_path"`
 
 	// Type of snapshot to create. It is optional and by default, a full snapshot is created.
-	// Enum: [Full]
+	// Enum: [Full Diff]
 	SnapshotType string `json:"snapshot_type,omitempty"`
 
 	// The microVM version for which we want to create the snapshot. It is optional and it defaults to the current version.
@@ -92,7 +92,7 @@ var snapshotCreateParamsTypeSnapshotTypePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["Full"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["Full","Diff"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -104,6 +104,9 @@ const (
 
 	// SnapshotCreateParamsSnapshotTypeFull captures enum value "Full"
 	SnapshotCreateParamsSnapshotTypeFull string = "Full"
+
+	// SnapshotCreateParamsSnapshotTypeDiff captures enum value "Diff"
+	SnapshotCreateParamsSnapshotTypeDiff string = "Diff"
 )
 
 // prop value enum
