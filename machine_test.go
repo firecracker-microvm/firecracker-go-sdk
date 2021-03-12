@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -60,10 +61,9 @@ const (
 )
 
 var (
-	skipTuntap      bool
-	testDataPath    = "./testdata"
-	testDataLogPath = filepath.Join(testDataPath, "logs")
-	testDataBin     = filepath.Join(testDataPath, "bin")
+	skipTuntap   bool
+	testDataPath = "./testdata"
+	testDataBin  = filepath.Join(testDataPath, "bin")
 
 	testRootfs = filepath.Join(testDataPath, "root-drive.img")
 )
@@ -73,10 +73,6 @@ func init() {
 
 	if val := os.Getenv(testDataPathEnv); val != "" {
 		testDataPath = val
-	}
-
-	if err := os.MkdirAll(testDataLogPath, 0777); err != nil {
-		panic(err)
 	}
 }
 
@@ -111,9 +107,10 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 	fctesting.RequiresRoot(t)
 
-	logPath := filepath.Join(testDataLogPath, "TestJailerMicroVMExecution")
+	logPath := filepath.Join(testDataPath, t.Name()+"-logs")
 	err := os.MkdirAll(logPath, 0777)
 	require.NoError(t, err, "unable to create %s path", logPath)
+	defer os.RemoveAll(logPath)
 
 	jailerUID := 123
 	jailerGID := 100
@@ -353,7 +350,19 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
 	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
 	t.Run("TestAttachSecondaryDrive", func(t *testing.T) { testAttachSecondaryDrive(ctx, t, m) })
-	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
+
+	var vsockPath string
+	defer func() {
+		if vsockPath != "" {
+			os.Remove(vsockPath)
+		}
+	}()
+	t.Run("TestAttachVsock", func(t *testing.T) {
+		var err error
+		vsockPath, err = attachVsock(ctx, t, m)
+		assert.NoError(t, err)
+	})
+
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
 	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
@@ -677,25 +686,19 @@ func testAttachSecondaryDrive(ctx context.Context, t *testing.T, m *Machine) {
 	}
 }
 
-func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
-	timestamp := strconv.Itoa(int(time.Now().UnixNano()))
+func attachVsock(ctx context.Context, t *testing.T, m *Machine) (string, error) {
+	path := fmt.Sprintf("%d.vsock", time.Now().UnixNano())
 	dev := VsockDevice{
 		ID:   "1",
 		CID:  3,
-		Path: timestamp + ".vsock",
+		Path: path,
 	}
+
 	err := m.addVsock(ctx, dev)
 	if err != nil {
-		if badRequest, ok := err.(*operations.PutGuestVsockBadRequest); ok &&
-			strings.HasPrefix(badRequest.Payload.FaultMessage, "Invalid request method and/or path") {
-			t.Errorf(`attaching vsock failed: %s
-Does your Firecracker binary have vsock support?
-Build one with vsock support by running `+"`cargo build --release --features vsock` from within the Firecracker repository.",
-				badRequest.Payload.FaultMessage)
-		} else {
-			t.Errorf("attaching vsock failed: %s", err)
-		}
+		return "", err
 	}
+	return path, nil
 }
 
 func testStartInstance(ctx context.Context, t *testing.T, m *Machine) {
@@ -1079,6 +1082,7 @@ func TestPID(t *testing.T) {
 	require.NoError(t, err, "failed to read rootfs file")
 	rootfsPath := filepath.Join(testDataPath, "TestPID.img")
 	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	defer os.Remove(rootfsPath)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
 	cfg := Config{
