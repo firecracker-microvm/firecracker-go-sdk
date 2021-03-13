@@ -101,18 +101,20 @@ steps:
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: ':hammer: root tests'
+    key: root
     commands:
       - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
       - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
       - 'mkdir -p $(pwd)/testdata/bin'
       - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
-      - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - make test EXTRAGOARGS="-v -count=1 -race -exec $PWD/.buildkite/sudo.sh" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: ':hammer: test against firecracker master'
+    key: mst
     env:
       FC_TEST_BIN: "testdata/firecracker-master"
       DOCKER_IMAGE_TAG: "$BUILDKITE_BUILD_NUMBER"
@@ -127,7 +129,7 @@ steps:
       # Install tc-redirect-tap.
       - 'mkdir -p testdata/bin'
       - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
-      - "sudo -E PATH=$PATH FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - make test EXTRAGOARGS="-v -count=1 -race -exec $PWD/.buildkite/sudo.sh" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
