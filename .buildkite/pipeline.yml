@@ -113,6 +113,21 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
+  - label: 'go mod tidy'
+    commands:
+      - 'go mod tidy'
+      - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 42
+    soft_fail:
+      - exit_status: 42 # Dependabot doesn't modify go.mod and go.sum
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
+  # Network-related tests on the root tests above will conflict with the master tests below,
+  # since both of them use the same IP addresses.
+  - wait
+
   - label: ':hammer: test against firecracker master'
     key: mst
     env:
@@ -130,17 +145,6 @@ steps:
       - 'mkdir -p testdata/bin'
       - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       - make test EXTRAGOARGS="-v -count=1 -race -exec $PWD/.buildkite/sudo.sh" DISABLE_ROOT_TESTS=
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
-      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-
-  - label: 'go mod tidy'
-    commands:
-      - 'go mod tidy'
-      - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 42
-    soft_fail:
-      - exit_status: 42 # Dependabot doesn't modify go.mod and go.sum
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
