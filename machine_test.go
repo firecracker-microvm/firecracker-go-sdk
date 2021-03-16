@@ -431,7 +431,7 @@ func TestLogAndMetrics(t *testing.T) {
 		t.Run(test.logLevel, func(t *testing.T) {
 			out := testLogAndMetrics(t, test.logLevel)
 			if test.quiet {
-				assert.Regexp(t, `^Running Firecracker v0\.\d+\.0`, out)
+				assert.Regexp(t, `^Running Firecracker v0\.\d+\.\d+`, out)
 				return
 			}
 
