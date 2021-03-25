@@ -12,12 +12,14 @@
 # permissions and limitations under the License.
 env:
   PATH: "/usr/lib/go-1.13/bin:/usr/bin"
+  FC_TEST_DATA_PATH: "/tmp/buildkite_build_${BUILDKITE_BUILD_NUMBER}_testdata"
 
 steps:
-  - label: ':ec2: environment'
+  - label: ':ec2: prepare environment'
     command:
       - uname -a
       - go version
+      - "mkdir -p ${FC_TEST_DATA_PATH}"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -40,18 +42,17 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
+  # Since make test-images mutates the source directory, it cannot be run with other steps.
+  - wait
+
   - label: ':linux: build docker images'
     commands:
-      - 'make test-images'
-      - 'buildkite-agent artifact upload testdata/firecracker-master'
-      - 'buildkite-agent artifact upload testdata/jailer-master'
+      - make test-images
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  # We use a "wait" step here, because Go's module logic freaks out when
-  # multiple go builds are downloading to the same cache.
   - wait
 
   - label: gofmt -s
@@ -68,18 +69,28 @@ steps:
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
 
+  - wait
+
   - label: ':package: install'
+    env:
+      GOBIN: "$FC_TEST_DATA_PATH/bin"
     commands:
+      # To use ${FC_TEST_DATA_PATH} as testdata/, all files in the original directory must be
+      # copied to the new directory.
+      - cp -r testdata/* ${FC_TEST_DATA_PATH}
       # Install tc-redirect-tap.
-      - 'mkdir -p testdata/bin'
-      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
+      - 'go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       # Copy vmlinux and root-drive.img.
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
+      - ln -s /var/lib/fc-ci/vmlinux.bin ${FC_TEST_DATA_PATH}/vmlinux
+      - ln -s /var/lib/fc-ci/rootfs.ext4 ${FC_TEST_DATA_PATH}/root-drive.img
+      # Download Firecracker and its jailer.
+      - make deps
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
+  - wait
 
   - label: 'build'
     commands:
@@ -89,11 +100,8 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-
   - label: ':hammer: tests'
     commands:
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
       - "FC_TEST_TAP=fc-test-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS=true"
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -102,11 +110,7 @@ steps:
 
   - label: ':hammer: root tests'
     commands:
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'mkdir -p $(pwd)/testdata/bin'
-      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
-      - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -114,19 +118,10 @@ steps:
 
   - label: ':hammer: test against firecracker master'
     env:
-      FC_TEST_BIN: "testdata/firecracker-master"
+      FC_TEST_BIN: "${FC_TEST_DATA_PATH}/firecracker-master"
+      FC_TEST_JAILER_BIN: "${FC_TEST_DATA_PATH}/jailer-master"
       DOCKER_IMAGE_TAG: "$BUILDKITE_BUILD_NUMBER"
-      FC_TEST_JAILER_BIN: "testdata/jailer-master"
     commands:
-      - 'ln -s /var/lib/fc-ci/vmlinux.bin testdata/vmlinux'
-      - 'ln -s /var/lib/fc-ci/rootfs.ext4 testdata/root-drive.img'
-      - 'buildkite-agent artifact download testdata/firecracker-master .'
-      - 'chmod +x testdata/firecracker-master'
-      - 'buildkite-agent artifact download testdata/jailer-master .'
-      - 'chmod +x testdata/jailer-master'
-      # Install tc-redirect-tap.
-      - 'mkdir -p testdata/bin'
-      - 'GOBIN=$(pwd)/testdata/bin go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       - "sudo -E PATH=$PATH FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
@@ -148,11 +143,12 @@ steps:
   - wait: ~
     continue_on_failure: true
 
-  - label: ':linux: cleanup taps'
+  - label: ':linux: cleanup'
     commands:
       - 'sudo ip tuntap del fc-test-tap${BUILDKITE_BUILD_NUMBER} mode tap'
       - 'sudo ip tuntap del fc-root-tap${BUILDKITE_BUILD_NUMBER} mode tap'
       - 'sudo ip tuntap del fc-mst-tap${BUILDKITE_BUILD_NUMBER} mode tap'
+      - 'sudo rm -fr ${FC_TEST_DATA_PATH}'
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"

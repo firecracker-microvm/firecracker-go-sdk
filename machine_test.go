@@ -61,19 +61,23 @@ const (
 
 var (
 	skipTuntap      bool
-	testDataPath    = "./testdata"
+	testDataPath    = envOrDefault(testDataPathEnv, "./testdata")
 	testDataLogPath = filepath.Join(testDataPath, "logs")
 	testDataBin     = filepath.Join(testDataPath, "bin")
 
 	testRootfs = filepath.Join(testDataPath, "root-drive.img")
 )
 
+func envOrDefault(k, empty string) string {
+	value := os.Getenv(k)
+	if value == "" {
+		return empty
+	}
+	return value
+}
+
 func init() {
 	flag.BoolVar(&skipTuntap, "test.skip-tuntap", false, "Disables tests that require a tuntap device")
-
-	if val := os.Getenv(testDataPathEnv); val != "" {
-		testDataPath = val
-	}
 
 	if err := os.MkdirAll(testDataLogPath, 0777); err != nil {
 		panic(err)
