@@ -55,13 +55,6 @@ steps:
 
   - wait
 
-  - label: gofmt -s
-    command: test -z $(gofmt -s -l .)
-    # This should run in the same queue, but we don't care whether it runs on
-    # the same host.
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-
   - label: 'git log validation'
     command: './.buildkite/logcheck.sh'
     # This should run in the same queue, but we don't care whether it runs on
@@ -91,6 +84,13 @@ steps:
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - wait
+
+  - label: lint
+    command: make lint
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: 'build'
     commands:

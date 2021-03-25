@@ -31,7 +31,14 @@ arch=$(shell uname -m)
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
-testdata_objects = $(FC_TEST_DATA_PATH)/vmlinux $(FC_TEST_DATA_PATH)/root-drive.img $(FC_TEST_DATA_PATH)/jailer $(FC_TEST_DATA_PATH)/firecracker
+
+testdata_objects = \
+$(FC_TEST_DATA_PATH)/vmlinux \
+$(FC_TEST_DATA_PATH)/root-drive.img \
+$(FC_TEST_DATA_PATH)/jailer \
+$(FC_TEST_DATA_PATH)/firecracker \
+$(FC_TEST_DATA_PATH)/ltag
+
 testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_version).yaml testdata/LICENSE testdata/NOTICE testdata/THIRD-PARTY
 
 # --location is needed to follow redirects on github.com
@@ -78,6 +85,10 @@ $(FC_TEST_DATA_PATH)/fc.stamp:
 $(FC_TEST_DATA_PATH)/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
 
+$(FC_TEST_DATA_PATH)/ltag:
+	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_DATA_PATH)) \
+	go get github.com/kunalkushwaha/ltag
+
 tools/firecracker-builder-stamp: tools/docker/Dockerfile
 	docker build \
 		-t localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
@@ -111,5 +122,9 @@ firecracker-clean:
 		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
 		cargo clean
 	- rm $(FIRECRACKER_BIN) $(JAILER_BIN)
+
+lint: deps
+	gofmt -s -l .
+	$(FC_TEST_DATA_PATH)/ltag -check -v -t .headers
 
 .PHONY: all generate clean distclean build test unit-tests all-tests check-kvm
