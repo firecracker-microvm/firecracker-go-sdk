@@ -346,9 +346,11 @@ func TestMicroVMExecution(t *testing.T) {
 	defer vmmCancel()
 	exitchannel := make(chan error)
 	go func() {
-		if err := m.startVMM(vmmCtx); err != nil {
+		err := m.startVMM(vmmCtx)
+		if err != nil {
+			exitchannel <- err
 			close(exitchannel)
-			t.Fatalf("Failed to start VMM: %v", err)
+			return
 		}
 		defer m.StopVMM()
 
