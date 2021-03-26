@@ -76,6 +76,18 @@ func envOrDefault(k, empty string) string {
 	return value
 }
 
+// Replace filesystem-unsafe characters (such as /) which are often seen in Go's test names
+var fsSafeTestName = strings.NewReplacer("/", "_")
+
+func makeSocketPath(tb testing.TB) (string, func()) {
+	tb.Helper()
+
+	dir, err := ioutil.TempDir("", fsSafeTestName.Replace(tb.Name()))
+	require.NoError(tb, err)
+
+	return filepath.Join(dir, "fc.sock"), func() { os.RemoveAll(dir) }
+}
+
 func init() {
 	flag.BoolVar(&skipTuntap, "test.skip-tuntap", false, "Disables tests that require a tuntap device")
 
@@ -279,19 +291,18 @@ func TestMicroVMExecution(t *testing.T) {
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
-	socketPath := filepath.Join(testDataPath, "TestMicroVMExecution.sock")
-	logFifo := filepath.Join(testDataPath, "firecracker.log")
-	metricsFifo := filepath.Join(testDataPath, "firecracker-metrics")
-	capturedLog := filepath.Join(testDataPath, "writer.fifo")
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	socketPath := filepath.Join(dir, "TestMicroVMExecution.sock")
+	logFifo := filepath.Join(dir, "firecracker.log")
+	metricsFifo := filepath.Join(dir, "firecracker-metrics")
+	capturedLog := filepath.Join(dir, "writer.fifo")
 	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
 	require.NoError(t, err, "failed to open fifo writer file")
-	defer func() {
-		fw.Close()
-		os.Remove(capturedLog)
-		os.Remove(socketPath)
-		os.Remove(logFifo)
-		os.Remove(metricsFifo)
-	}()
+	defer fw.Close()
 
 	vmlinuxPath := getVmlinuxPath(t)
 
@@ -384,8 +395,8 @@ func TestMicroVMExecution(t *testing.T) {
 }
 
 func TestStartVMM(t *testing.T) {
-	socketPath := filepath.Join("testdata", "TestStartVMM.sock")
-	defer os.Remove(socketPath)
+	socketPath, cleanup := makeSocketPath(t)
+	defer cleanup()
 	cfg := Config{
 		SocketPath: socketPath,
 	}
@@ -509,8 +520,8 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 }
 
 func TestStartVMMOnce(t *testing.T) {
-	socketPath := filepath.Join("testdata", "TestStartVMMOnce.sock")
-	defer os.Remove(socketPath)
+	socketPath, cleanup := makeSocketPath(t)
+	defer cleanup()
 
 	cfg := Config{
 		SocketPath:        socketPath,
@@ -744,7 +755,8 @@ func TestWaitForSocket(t *testing.T) {
 	// 2. The expected file is not created within the deadline
 	// 3. The process responsible for creating the file exits
 	//    (indicated by an error published to exitchan)
-	filename := "./test-create-file"
+	filename, cleanup := makeSocketPath(t)
+	defer cleanup()
 	errchan := make(chan error)
 
 	m := Machine{
@@ -772,7 +784,7 @@ func TestWaitForSocket(t *testing.T) {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
 
-	os.Remove(filename)
+	cleanup()
 
 	// No socket file
 	if err := m.waitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
@@ -900,7 +912,11 @@ func TestLogFiles(t *testing.T) {
 }
 
 func TestCaptureFifoToFile(t *testing.T) {
-	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFile")
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile")
 
 	if err := syscall.Mkfifo(fifoPath, 0700); err != nil {
 		t.Fatalf("Unexpected error during syscall.Mkfifo call: %v", err)
@@ -953,7 +969,11 @@ func TestCaptureFifoToFile(t *testing.T) {
 }
 
 func TestCaptureFifoToFile_nonblock(t *testing.T) {
-	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFile_nonblock")
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile_nonblock")
 
 	if err := syscall.Mkfifo(fifoPath, 0700); err != nil {
 		t.Fatalf("Unexpected error during syscall.Mkfifo call: %v", err)
@@ -1071,17 +1091,21 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected an error, but received none")
 	}
 
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
-	socketPath := filepath.Join(testDataPath, "TestPID.sock")
+	socketPath := filepath.Join(dir, "TestPID.sock")
 	defer os.Remove(socketPath)
 
 	vmlinuxPath := getVmlinuxPath(t)
 
 	rootfsBytes, err := ioutil.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
-	rootfsPath := filepath.Join(testDataPath, "TestPID.img")
+	rootfsPath := filepath.Join(dir, "TestPID.img")
 	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
@@ -1148,8 +1172,12 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		exitCh: make(chan struct{}),
 	}
 
-	fifoPath := filepath.Join(testDataPath, "TestCaptureFifoToFileLeak.fifo")
-	err := syscall.Mkfifo(fifoPath, 0700)
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	fifoPath := filepath.Join(dir, "TestCaptureFifoToFileLeak.fifo")
+	err = syscall.Mkfifo(fifoPath, 0700)
 	require.NoError(t, err, "failed to make fifo")
 	defer os.Remove(fifoPath)
 
@@ -1195,9 +1223,6 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		assert.Contains(t, loggerBuffer.String(), `file already closed`, "log")
 	}
 }
-
-// Replace filesystem-unsafe characters (such as /) which are often seen in Go's test names
-var fsSafeTestName = strings.NewReplacer("/", "_")
 
 func TestWait(t *testing.T) {
 	fctesting.RequiresRoot(t)
@@ -1247,8 +1272,8 @@ func TestWait(t *testing.T) {
 			ctx := context.Background()
 			vmContext, vmCancel := context.WithCancel(context.Background())
 
-			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
-			defer os.Remove(socketPath)
+			socketPath, cleanup := makeSocketPath(t)
+			defer cleanup()
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
@@ -1378,7 +1403,8 @@ func createValidConfig(t *testing.T, socketPath string) Config {
 }
 
 func TestSignalForwarding(t *testing.T) {
-	socketPath := filepath.Join(testDataPath, "TestSignalForwarding.sock")
+	socketPath, cleanup := makeSocketPath(t)
+	defer cleanup()
 
 	forwardedSignals := []os.Signal{
 		syscall.SIGUSR1,
@@ -1484,6 +1510,10 @@ func TestSignalForwarding(t *testing.T) {
 func TestPauseResume(t *testing.T) {
 	fctesting.RequiresRoot(t)
 
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
 	cases := []struct {
 		name  string
 		state func(m *Machine, ctx context.Context)
@@ -1548,8 +1578,8 @@ func TestPauseResume(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
-			defer os.Remove(socketPath)
+			socketPath, cleanup := makeSocketPath(t)
+			defer cleanup()
 
 			// Tee logs for validation:
 			var logBuffer bytes.Buffer
@@ -1591,6 +1621,10 @@ func TestPauseResume(t *testing.T) {
 func TestCreateSnapshot(t *testing.T) {
 	fctesting.RequiresRoot(t)
 
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
 	cases := []struct {
 		name           string
 		createSnapshot func(m *Machine, ctx context.Context, memPath, snapPath string)
@@ -1618,7 +1652,7 @@ func TestCreateSnapshot(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			socketPath := filepath.Join(testDataPath, fsSafeTestName.Replace(t.Name()))
+			socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
 			snapPath := socketPath + "SnapFile"
 			memPath := socketPath + "MemFile"
 			defer os.Remove(socketPath)
