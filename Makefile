@@ -17,9 +17,11 @@ DISABLE_ROOT_TESTS?=1
 DOCKER_IMAGE_TAG?=latest
 EXTRAGOARGS:=
 FIRECRACKER_BUILDER_NAME=firecracker-builder
-FIRECRACKER_BIN=testdata/firecracker-master
-JAILER_BIN=testdata/jailer-master
 FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
+
+FC_TEST_DATA_PATH?=testdata
+FIRECRACKER_BIN=$(FC_TEST_DATA_PATH)/firecracker-master
+JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-master
 
 UID = $(shell id -u)
 GID = $(shell id -g)
@@ -29,7 +31,7 @@ arch=$(shell uname -m)
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
-testdata_objects = testdata/vmlinux testdata/root-drive.img testdata/binaries testdata/jailer testdata/firecracker
+testdata_objects = $(FC_TEST_DATA_PATH)/vmlinux $(FC_TEST_DATA_PATH)/root-drive.img $(FC_TEST_DATA_PATH)/jailer $(FC_TEST_DATA_PATH)/firecracker
 testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_version).yaml testdata/LICENSE testdata/NOTICE testdata/THIRD-PARTY
 
 # --location is needed to follow redirects on github.com
@@ -39,10 +41,10 @@ all: build
 
 test: all-tests
 
-unit-tests: $(testdata_objects) check-kvm
+unit-tests: check-kvm $(testdata_objects)
 	DISABLE_ROOT_TESTS=$(DISABLE_ROOT_TESTS) go test -short ./... $(EXTRAGOARGS)
 
-all-tests: $(testdata_objects) check-kvm
+all-tests: check-kvm $(testdata_objects)
 	DISABLE_ROOT_TESTS=$(DISABLE_ROOT_TESTS) go test ./... $(EXTRAGOARGS)
 
 check-kvm:
@@ -60,19 +62,20 @@ distclean: clean
 	rm -rfv $(testdata_dir)
 	docker volume rm -f $(CARGO_CACHE_VOLUME_NAME)
 
-testdata/vmlinux:
+deps: $(testdata_objects)
+
+$(FC_TEST_DATA_PATH)/vmlinux:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/$(arch)/kernels/vmlinux.bin
 
-testdata/binaries:
-	$(curl) -o testdata/firecracker.tgz ${release_url}
-	tar -xvzf testdata/firecracker.tgz -C ./testdata
-	mv testdata/firecracker-$(firecracker_version)-$(arch) testdata/firecracker
-	mv testdata/jailer-$(firecracker_version)-$(arch) testdata/jailer
-	chmod +x testdata/firecracker
-	chmod +x testdata/jailer
-	touch testdata/binaries
+$(FC_TEST_DATA_PATH)/firecracker $(FC_TEST_DATA_PATH)/jailer: $(FC_TEST_DATA_PATH)/fc.stamp
 
-testdata/root-drive.img:
+$(FC_TEST_DATA_PATH)/fc.stamp:
+	$(curl) ${release_url} | tar -xvzf - -C $(FC_TEST_DATA_PATH)
+	mv $(FC_TEST_DATA_PATH)/firecracker-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/firecracker
+	mv $(FC_TEST_DATA_PATH)/jailer-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/jailer
+	touch $@
+
+$(FC_TEST_DATA_PATH)/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
 
 tools/firecracker-builder-stamp: tools/docker/Dockerfile

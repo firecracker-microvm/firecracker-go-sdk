@@ -2,7 +2,6 @@ package firecracker
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -17,7 +16,8 @@ func TestClient(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	socketpath := filepath.Join(testDataPath, "test.socket")
+	socketpath, cleanup := makeSocketPath(t)
+	defer cleanup()
 
 	cmd := VMCommandBuilder{}.
 		WithBin(getFirecrackerBinaryPath()).
@@ -32,7 +32,6 @@ func TestClient(t *testing.T) {
 		if err := cmd.Process.Kill(); err != nil {
 			t.Errorf("failed to kill process: %v", err)
 		}
-		os.Remove(socketpath)
 	}()
 
 	drive := &models.Drive{

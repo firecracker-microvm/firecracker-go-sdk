@@ -255,7 +255,11 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 	cniBinPath := []string{"/opt/cni/bin", testDataBin}
 
-	testCNIDir := filepath.Join(testDataPath, "TestCNI")
+	dir, err := ioutil.TempDir("", fsSafeTestName.Replace(t.Name()))
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	testCNIDir := filepath.Join(dir, "TestCNI")
 	os.RemoveAll(testCNIDir)
 	defer os.RemoveAll(testCNIDir)
 
