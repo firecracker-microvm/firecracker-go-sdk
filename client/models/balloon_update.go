@@ -26,30 +26,20 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// PartialDrive partial drive
-// swagger:model PartialDrive
-type PartialDrive struct {
+// BalloonUpdate Balloon device descriptor.
+// swagger:model BalloonUpdate
+type BalloonUpdate struct {
 
-	// drive id
+	// Target balloon size in MB.
 	// Required: true
-	DriveID *string `json:"drive_id"`
-
-	// Host level path for the guest drive
-	PathOnHost string `json:"path_on_host,omitempty"`
-
-	// rate limiter
-	RateLimiter *RateLimiter `json:"rate_limiter,omitempty"`
+	AmountMb *int64 `json:"amount_mb"`
 }
 
-// Validate validates this partial drive
-func (m *PartialDrive) Validate(formats strfmt.Registry) error {
+// Validate validates this balloon update
+func (m *BalloonUpdate) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateDriveID(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.validateRateLimiter(formats); err != nil {
+	if err := m.validateAmountMb(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -59,35 +49,17 @@ func (m *PartialDrive) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *PartialDrive) validateDriveID(formats strfmt.Registry) error {
+func (m *BalloonUpdate) validateAmountMb(formats strfmt.Registry) error {
 
-	if err := validate.Required("drive_id", "body", m.DriveID); err != nil {
+	if err := validate.Required("amount_mb", "body", m.AmountMb); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *PartialDrive) validateRateLimiter(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.RateLimiter) { // not required
-		return nil
-	}
-
-	if m.RateLimiter != nil {
-		if err := m.RateLimiter.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("rate_limiter")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
 // MarshalBinary interface implementation
-func (m *PartialDrive) MarshalBinary() ([]byte, error) {
+func (m *BalloonUpdate) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -95,8 +67,8 @@ func (m *PartialDrive) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary interface implementation
-func (m *PartialDrive) UnmarshalBinary(b []byte) error {
-	var res PartialDrive
+func (m *BalloonUpdate) UnmarshalBinary(b []byte) error {
+	var res BalloonUpdate
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

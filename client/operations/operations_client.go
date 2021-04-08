@@ -160,7 +160,7 @@ func (a *Client) PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoCon
 }
 
 /*
-CreateSnapshot creates a full snapshot post boot only
+CreateSnapshot creates a full or diff snapshot post boot only
 
 Creates a snapshot of the microVM state. The microVM should be in the `Paused` state.
 */
@@ -214,6 +214,62 @@ func (a *Client) CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncAc
 		return nil, err
 	}
 	return result.(*CreateSyncActionNoContent), nil
+
+}
+
+/*
+DescribeBalloonConfig returns the current balloon device configuration
+*/
+func (a *Client) DescribeBalloonConfig(params *DescribeBalloonConfigParams) (*DescribeBalloonConfigOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDescribeBalloonConfigParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "describeBalloonConfig",
+		Method:             "GET",
+		PathPattern:        "/balloon",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DescribeBalloonConfigReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*DescribeBalloonConfigOK), nil
+
+}
+
+/*
+DescribeBalloonStats returns the latest balloon device statistics only if enabled pre boot
+*/
+func (a *Client) DescribeBalloonStats(params *DescribeBalloonStatsParams) (*DescribeBalloonStatsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDescribeBalloonStatsParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "describeBalloonStats",
+		Method:             "GET",
+		PathPattern:        "/balloon/statistics",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DescribeBalloonStatsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*DescribeBalloonStatsOK), nil
 
 }
 
@@ -302,6 +358,66 @@ func (a *Client) LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoConten
 		return nil, err
 	}
 	return result.(*LoadSnapshotNoContent), nil
+
+}
+
+/*
+PatchBalloon updates a balloon device
+
+Updates an existing balloon device, before or after machine startup. Will fail if update is not possible.
+*/
+func (a *Client) PatchBalloon(params *PatchBalloonParams) (*PatchBalloonNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPatchBalloonParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "patchBalloon",
+		Method:             "PATCH",
+		PathPattern:        "/balloon",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PatchBalloonReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PatchBalloonNoContent), nil
+
+}
+
+/*
+PatchBalloonStatsInterval updates a balloon device statistics polling interval
+
+Updates an existing balloon device statistics interval, before or after machine startup. Will fail if update is not possible.
+*/
+func (a *Client) PatchBalloonStatsInterval(params *PatchBalloonStatsIntervalParams) (*PatchBalloonStatsIntervalNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPatchBalloonStatsIntervalParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "patchBalloonStatsInterval",
+		Method:             "PATCH",
+		PathPattern:        "/balloon/statistics",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PatchBalloonStatsIntervalReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PatchBalloonStatsIntervalNoContent), nil
 
 }
 
@@ -422,6 +538,36 @@ func (a *Client) PatchVM(params *PatchVMParams) (*PatchVMNoContent, error) {
 		return nil, err
 	}
 	return result.(*PatchVMNoContent), nil
+
+}
+
+/*
+PutBalloon creates or updates a balloon device
+
+Creates a new balloon device if one does not already exist, otherwise updates it, before machine startup. This will fail after machine startup. Will fail if update is not possible.
+*/
+func (a *Client) PutBalloon(params *PutBalloonParams) (*PutBalloonNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutBalloonParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "putBalloon",
+		Method:             "PUT",
+		PathPattern:        "/balloon",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PutBalloonReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PutBalloonNoContent), nil
 
 }
 
@@ -645,13 +791,18 @@ type ClientIface interface {
 	PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error)
 	CreateSnapshot(params *CreateSnapshotParams) (*CreateSnapshotNoContent, error)
 	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
+	DescribeBalloonConfig(params *DescribeBalloonConfigParams) (*DescribeBalloonConfigOK, error)
+	DescribeBalloonStats(params *DescribeBalloonStatsParams) (*DescribeBalloonStatsOK, error)
 	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
 	GetMachineConfiguration(params *GetMachineConfigurationParams) (*GetMachineConfigurationOK, error)
 	LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error)
+	PatchBalloon(params *PatchBalloonParams) (*PatchBalloonNoContent, error)
+	PatchBalloonStatsInterval(params *PatchBalloonStatsIntervalParams) (*PatchBalloonStatsIntervalNoContent, error)
 	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfiguration(params *PatchMachineConfigurationParams) (*PatchMachineConfigurationNoContent, error)
 	PatchVM(params *PatchVMParams) (*PatchVMNoContent, error)
+	PutBalloon(params *PutBalloonParams) (*PutBalloonNoContent, error)
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
 	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)

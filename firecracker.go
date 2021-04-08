@@ -370,7 +370,7 @@ func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost st
 
 	partialDrive := models.PartialDrive{
 		DriveID:    &driveID,
-		PathOnHost: &pathOnHost,
+		PathOnHost: pathOnHost,
 	}
 	params.SetBody(&partialDrive)
 	params.DriveID = driveID
