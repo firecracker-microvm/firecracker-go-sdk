@@ -66,6 +66,12 @@ var (
 	testDataBin     = filepath.Join(testDataPath, "bin")
 
 	testRootfs = filepath.Join(testDataPath, "root-drive.img")
+
+	testBalloonMemory            = int64(10)
+	testBalloonNewMemory         = int64(6)
+	testBalloonDeflateOnOom      = true
+	testStatsPollingIntervals    = int64(1)
+	testNewStatsPollingIntervals = int64(6)
 )
 
 func envOrDefault(k, empty string) string {
@@ -369,9 +375,12 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("TestAttachVsock", func(t *testing.T) { testAttachVsock(ctx, t, m) })
 	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
-	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
+	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) })         // Should be after testSetMetadata and testUpdateMetadata
+	t.Run("TestCreateBalloon", func(t *testing.T) { testCreateBalloon(ctx, t, m) }) // should be before the microVM is started(only pre-boot)
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
 	t.Run("TestGetInstanceInfo", func(t *testing.T) { testGetInstanceInfo(ctx, t, m) })
+	t.Run("TestGetBalloonConfig", func(t *testing.T) { testGetBalloonConfig(ctx, t, m) }) // should be after testCreateBalloon
+	t.Run("TestGetBalloonStats", func(t *testing.T) { testGetBalloonStats(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
@@ -379,6 +388,8 @@ func TestMicroVMExecution(t *testing.T) {
 	case <-timer.C:
 		t.Run("TestUpdateGuestDrive", func(t *testing.T) { testUpdateGuestDrive(ctx, t, m) })
 		t.Run("TestUpdateGuestNetworkInterface", func(t *testing.T) { testUpdateGuestNetworkInterface(ctx, t, m) })
+		t.Run("TestUpdateBalloon", func(t *testing.T) { testUpdateBalloon(ctx, t, m) })
+		t.Run("TestUpdateBalloonStats", func(t *testing.T) { testUpdateBalloonStats(ctx, t, m) })
 		t.Run("TestShutdown", func(t *testing.T) { testShutdown(ctx, t, m) })
 	case <-exitchannel:
 		// if we've already exited, there's no use waiting for the timer
@@ -933,7 +944,6 @@ func TestLogFiles(t *testing.T) {
 
 	if _, err := os.Stat(stdoutPath); os.IsNotExist(err) {
 		t.Errorf("expected log file to be present")
-
 	}
 
 	if _, err := os.Stat(stderrPath); os.IsNotExist(err) {
@@ -1714,5 +1724,50 @@ func TestCreateSnapshot(t *testing.T) {
 			err = m.StopVMM()
 			require.NoError(t, err)
 		})
+	}
+}
+
+func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
+	if err := m.CreateBalloon(ctx, testBalloonMemory, testBalloonDeflateOnOom, testStatsPollingIntervals); err != nil {
+		t.Errorf("Create balloon device failed from testAttachBalloon: %s", err)
+	}
+}
+
+func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
+	expectedBalloonConfig := models.Balloon{
+		AmountMib:              &testBalloonMemory,
+		DeflateOnOom:          &testBalloonDeflateOnOom,
+		StatsPollingIntervals: testStatsPollingIntervals,
+	}
+
+	balloonConfig, err := m.GetBalloonConfig(ctx)
+	if err != nil {
+		t.Errorf("failed to get config: %s", err)
+	}
+	assert.Equal(t, expectedBalloonConfig, balloonConfig)
+}
+
+func testUpdateBalloon(ctx context.Context, t *testing.T, m *Machine) {
+	if err := m.UpdateBalloon(ctx, testBalloonNewMemory); err != nil {
+		t.Errorf("Updating balloon device failed from testUpdateBalloon: %s", err)
+	}
+}
+
+func testGetBalloonStats(ctx context.Context, t *testing.T, m *Machine) {
+	expectedBalloonStats := models.BalloonStats{
+		TargetMib: &testBalloonMemory,
+	}
+
+	balloonStat, err := m.GetBalloonStats(ctx)
+	if err != nil {
+		t.Errorf("failed to get balloon statistics: %s", err)
+	}
+
+	assert.Equal(t, expectedBalloonStats.TargetMib, balloonStat.TargetMib)
+}
+
+func testUpdateBalloonStats(ctx context.Context, t *testing.T, m *Machine) {
+	if err := m.UpdateBalloonStats(ctx, testNewStatsPollingIntervals); err != nil {
+		t.Errorf("Updating balloon staistics failed from testUpdateBalloonStats: %s", err)
 	}
 }
