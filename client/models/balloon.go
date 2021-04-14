@@ -26,34 +26,31 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// SnapshotLoadParams snapshot load params
-// swagger:model SnapshotLoadParams
-type SnapshotLoadParams struct {
+// Balloon Balloon device descriptor.
+// swagger:model Balloon
+type Balloon struct {
 
-	// Enable support for incremental (diff) snapshots by tracking dirty guest pages.
-	EnableDiffSnapshots bool `json:"enable_diff_snapshots,omitempty"`
-
-	// Path to the file that contains the guest memory to be loaded.
+	// Target balloon size in MB.
 	// Required: true
-	MemFilePath *string `json:"mem_file_path"`
+	AmountMb *int64 `json:"amount_mb"`
 
-	// When set to true, the vm is also resumed if the snapshot load is successful.
-	ResumeVM bool `json:"resume_vm,omitempty"`
-
-	// Path to the file that contains the microVM state to be loaded.
+	// Whether the balloon should deflate when the guest has memory pressure.
 	// Required: true
-	SnapshotPath *string `json:"snapshot_path"`
+	DeflateOnOom *bool `json:"deflate_on_oom"`
+
+	// Interval in seconds between refreshing statistics. A non-zero value will enable the statistics. Defaults to 0.
+	StatsPollingIntervals int64 `json:"stats_polling_interval_s,omitempty"`
 }
 
-// Validate validates this snapshot load params
-func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
+// Validate validates this balloon
+func (m *Balloon) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateMemFilePath(formats); err != nil {
+	if err := m.validateAmountMb(formats); err != nil {
 		res = append(res, err)
 	}
 
-	if err := m.validateSnapshotPath(formats); err != nil {
+	if err := m.validateDeflateOnOom(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -63,18 +60,18 @@ func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *SnapshotLoadParams) validateMemFilePath(formats strfmt.Registry) error {
+func (m *Balloon) validateAmountMb(formats strfmt.Registry) error {
 
-	if err := validate.Required("mem_file_path", "body", m.MemFilePath); err != nil {
+	if err := validate.Required("amount_mb", "body", m.AmountMb); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *SnapshotLoadParams) validateSnapshotPath(formats strfmt.Registry) error {
+func (m *Balloon) validateDeflateOnOom(formats strfmt.Registry) error {
 
-	if err := validate.Required("snapshot_path", "body", m.SnapshotPath); err != nil {
+	if err := validate.Required("deflate_on_oom", "body", m.DeflateOnOom); err != nil {
 		return err
 	}
 
@@ -82,7 +79,7 @@ func (m *SnapshotLoadParams) validateSnapshotPath(formats strfmt.Registry) error
 }
 
 // MarshalBinary interface implementation
-func (m *SnapshotLoadParams) MarshalBinary() ([]byte, error) {
+func (m *Balloon) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -90,8 +87,8 @@ func (m *SnapshotLoadParams) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary interface implementation
-func (m *SnapshotLoadParams) UnmarshalBinary(b []byte) error {
-	var res SnapshotLoadParams
+func (m *Balloon) UnmarshalBinary(b []byte) error {
+	var res Balloon
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
