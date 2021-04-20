@@ -770,7 +770,8 @@ func TestWaitForSocket(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 		_, err := os.Create(filename)
 		if err != nil {
-			t.Fatalf("Unable to create test file %s: %s", filename, err)
+			t.Errorf("Unable to create test file %s: %s", filename, err)
+			return
 		}
 	}()
 
