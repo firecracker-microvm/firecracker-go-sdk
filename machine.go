@@ -946,6 +946,23 @@ func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost stri
 	return nil
 }
 
+func (m *Machine) DescribeInstanceInfo(ctx context.Context) (models.InstanceInfo, error) {
+	var instanceInfo models.InstanceInfo
+	resp, err := m.client.GetInstanceInfo(ctx)
+	if err != nil {
+		m.logger.Errorf("Getting Instance Info: %s", err)
+		return instanceInfo, err
+	}
+
+	instanceInfo = *resp.Payload
+	if err != nil {
+		m.logger.Errorf("Getting Instance info failed parsing payload: %s", err)
+	}
+
+	m.logger.Printf("GetInstanceInfo successful")
+	return instanceInfo, err
+}
+
 // refreshMachineConfiguration synchronizes our cached representation of the machine configuration
 // with that reported by the Firecracker API
 func (m *Machine) refreshMachineConfiguration() error {

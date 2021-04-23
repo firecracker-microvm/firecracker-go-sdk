@@ -358,6 +358,22 @@ func (f *Client) GetMachineConfiguration(opts ...GetMachineConfigurationOpt) (*o
 	return f.client.Operations.GetMachineConfiguration(p)
 }
 
+// DescribeInstanceOpt is a functional option to be used for the DescribeInstance API
+// for any additional optional fields
+type DescribeInstanceOpt func(*ops.DescribeInstanceParams)
+
+// GetInstanceInfo is a wrapper for the swagger generated client to make calling of
+// the API easier
+func (f *Client) GetInstanceInfo(ctx context.Context, opts ...DescribeInstanceOpt) (*ops.DescribeInstanceOK, error) {
+	params := ops.NewDescribeInstanceParams()
+	params.SetContext(ctx)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.DescribeInstance(params)
+}
+
 // PatchGuestDriveByIDOpt is a functional option to be used for the PutMmds API in setting
 // any additional optional fields.
 type PatchGuestDriveByIDOpt func(*ops.PatchGuestDriveByIDParams)
