@@ -375,6 +375,7 @@ func TestMicroVMExecution(t *testing.T) {
 	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
 	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
 	t.Run("TestStartInstance", func(t *testing.T) { testStartInstance(ctx, t, m) })
+	t.Run("TestGetInstanceInfo", func(t *testing.T) { testGetInstanceInfo(ctx, t, m) })
 
 	// Let the VMM start and stabilize...
 	timer := time.NewTimer(5 * time.Second)
@@ -833,6 +834,29 @@ func testGetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 
 	if metadata.Key != "value" || metadata.PatchKey != "patch_value" {
 		t.Error("failed to get expected metadata values")
+	}
+}
+
+func testGetInstanceInfo(ctx context.Context, t *testing.T, m *Machine) {
+	instance, err := m.DescribeInstanceInfo(ctx)
+	if err != nil {
+		t.Error("failed to get instance info")
+	}
+
+	if instance.AppName == nil || *instance.AppName == "" {
+		t.Error("Invalid instance App name")
+	}
+
+	if instance.ID == nil || *instance.ID == "" {
+		t.Error("Invalid instance ID")
+	}
+
+	if instance.State == nil || *instance.State == "" {
+		t.Error("Invalid instance state")
+	}
+
+	if instance.VmmVersion == nil || *instance.VmmVersion == "" {
+		t.Error("Invalid VmmVersion")
 	}
 }
 
