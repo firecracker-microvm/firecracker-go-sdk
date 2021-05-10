@@ -20,8 +20,8 @@ FIRECRACKER_BUILDER_NAME=firecracker-builder
 FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 
 FC_TEST_DATA_PATH?=testdata
-FIRECRACKER_BIN=$(FC_TEST_DATA_PATH)/firecracker-master
-JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-master
+FIRECRACKER_BIN=$(FC_TEST_DATA_PATH)/firecracker-main
+JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-main
 
 UID = $(shell id -u)
 GID = $(shell id -g)
