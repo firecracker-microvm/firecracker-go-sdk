@@ -30,9 +30,9 @@ import (
 // swagger:model BalloonStats
 type BalloonStats struct {
 
-	// Actual amount of memory (in MiB) the device is holding.
+	// Actual amount of memory (in MB) the device is holding.
 	// Required: true
-	ActualMib *int64 `json:"actual_mib"`
+	ActualMb *int64 `json:"actual_mb"`
 
 	// Actual number of pages the device is holding.
 	// Required: true
@@ -65,9 +65,9 @@ type BalloonStats struct {
 	// The amount of memory that has been swapped out to disk (in bytes).
 	SwapOut int64 `json:"swap_out,omitempty"`
 
-	// Target amount of memory (in MiB) the device aims to hold.
+	// Target amount of memory (in MB) the device aims to hold.
 	// Required: true
-	TargetMib *int64 `json:"target_mib"`
+	TargetMb *int64 `json:"target_mb"`
 
 	// Target number of pages the device aims to hold.
 	// Required: true
@@ -81,7 +81,7 @@ type BalloonStats struct {
 func (m *BalloonStats) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateActualMib(formats); err != nil {
+	if err := m.validateActualMb(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -89,7 +89,7 @@ func (m *BalloonStats) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateTargetMib(formats); err != nil {
+	if err := m.validateTargetMb(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -103,9 +103,9 @@ func (m *BalloonStats) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *BalloonStats) validateActualMib(formats strfmt.Registry) error {
+func (m *BalloonStats) validateActualMb(formats strfmt.Registry) error {
 
-	if err := validate.Required("actual_mib", "body", m.ActualMib); err != nil {
+	if err := validate.Required("actual_mb", "body", m.ActualMb); err != nil {
 		return err
 	}
 
@@ -121,9 +121,9 @@ func (m *BalloonStats) validateActualPages(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *BalloonStats) validateTargetMib(formats strfmt.Registry) error {
+func (m *BalloonStats) validateTargetMb(formats strfmt.Registry) error {
 
-	if err := validate.Required("target_mib", "body", m.TargetMib); err != nil {
+	if err := validate.Required("target_mb", "body", m.TargetMb); err != nil {
 		return err
 	}
 
