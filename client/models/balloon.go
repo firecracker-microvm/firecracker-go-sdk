@@ -30,9 +30,9 @@ import (
 // swagger:model Balloon
 type Balloon struct {
 
-	// Target balloon size in MB.
+	// Target balloon size in MiB.
 	// Required: true
-	AmountMb *int64 `json:"amount_mb"`
+	AmountMib *int64 `json:"amount_mib"`
 
 	// Whether the balloon should deflate when the guest has memory pressure.
 	// Required: true
@@ -46,7 +46,7 @@ type Balloon struct {
 func (m *Balloon) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateAmountMb(formats); err != nil {
+	if err := m.validateAmountMib(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -60,9 +60,9 @@ func (m *Balloon) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *Balloon) validateAmountMb(formats strfmt.Registry) error {
+func (m *Balloon) validateAmountMib(formats strfmt.Registry) error {
 
-	if err := validate.Required("amount_mb", "body", m.AmountMb); err != nil {
+	if err := validate.Required("amount_mib", "body", m.AmountMib); err != nil {
 		return err
 	}
 
