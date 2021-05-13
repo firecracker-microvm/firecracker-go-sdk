@@ -26,7 +26,7 @@ JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-main
 UID = $(shell id -u)
 GID = $(shell id -g)
 
-firecracker_version=v0.24.2
+firecracker_version=v0.24.3
 arch=$(shell uname -m)
 
 # The below files are needed and can be downloaded from the internet
