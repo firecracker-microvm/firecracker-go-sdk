@@ -14,8 +14,12 @@
 package fctesting
 
 import (
+	"fmt"
 	"os"
+	"os/user"
 	"testing"
+
+	"golang.org/x/sys/unix"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -28,6 +32,23 @@ var rootDisabled bool
 func init() {
 	if v := os.Getenv(rootDisableEnvName); len(v) != 0 {
 		rootDisabled = true
+	}
+}
+
+func RequiresKVM(t testing.TB) {
+	accessErr := unix.Access("/dev/kvm", unix.W_OK)
+	if accessErr != nil {
+		var name string
+		u, err := user.Current()
+		if err == nil {
+			name = u.Name
+		}
+
+		// On GitHub Actions, user.Current() doesn't return an error, but the name is "".
+		if name == "" {
+			name = fmt.Sprintf("uid=%d", os.Getuid())
+		}
+		t.Skipf("/dev/kvm is not writable from %s: %s", name, accessErr)
 	}
 }
 

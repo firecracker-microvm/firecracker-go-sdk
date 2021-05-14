@@ -122,9 +122,7 @@ func TestNewMachine(t *testing.T) {
 }
 
 func TestJailerMicroVMExecution(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
 	logPath := filepath.Join(testDataLogPath, "TestJailerMicroVMExecution")
@@ -284,9 +282,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 }
 
 func TestMicroVMExecution(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	fctesting.RequiresKVM(t)
 
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
@@ -398,8 +394,11 @@ func TestMicroVMExecution(t *testing.T) {
 }
 
 func TestStartVMM(t *testing.T) {
+	fctesting.RequiresKVM(t)
+
 	socketPath, cleanup := makeSocketPath(t)
 	defer cleanup()
+
 	cfg := Config{
 		SocketPath: socketPath,
 	}
@@ -437,6 +436,8 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestLogAndMetrics(t *testing.T) {
+	fctesting.RequiresKVM(t)
+
 	tests := []struct {
 		logLevel string
 		quiet    bool
@@ -523,6 +524,8 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 }
 
 func TestStartVMMOnce(t *testing.T) {
+	fctesting.RequiresKVM(t)
+
 	socketPath, cleanup := makeSocketPath(t)
 	defer cleanup()
 
@@ -1252,6 +1255,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 }
 
 func TestWait(t *testing.T) {
+	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
 	cases := []struct {
@@ -1535,6 +1539,7 @@ func TestSignalForwarding(t *testing.T) {
 }
 
 func TestPauseResume(t *testing.T) {
+	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
 	dir, err := ioutil.TempDir("", t.Name())
@@ -1646,6 +1651,7 @@ func TestPauseResume(t *testing.T) {
 }
 
 func TestCreateSnapshot(t *testing.T) {
+	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
 	dir, err := ioutil.TempDir("", t.Name())

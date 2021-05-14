@@ -48,15 +48,11 @@ all: build
 
 test: all-tests
 
-unit-tests: check-kvm $(testdata_objects)
+unit-tests: $(testdata_objects)
 	DISABLE_ROOT_TESTS=$(DISABLE_ROOT_TESTS) go test -short ./... $(EXTRAGOARGS)
 
-all-tests: check-kvm $(testdata_objects)
+all-tests: $(testdata_objects)
 	DISABLE_ROOT_TESTS=$(DISABLE_ROOT_TESTS) go test ./... $(EXTRAGOARGS)
-
-check-kvm:
-	@test -w /dev/kvm || \
-		(echo "In order to run firecracker, $(shell whoami) must have write permission to /dev/kvm"; false)
 
 generate build clean::
 	go $@ $(EXTRAGOARGS)
