@@ -397,3 +397,80 @@ func (f *Client) PatchGuestDriveByID(ctx context.Context, driveID, pathOnHost st
 
 	return f.client.Operations.PatchGuestDriveByID(params)
 }
+
+// PutBalloonOpt is a functional option to be used for the
+// PutBalloon API in setting any additional optional fields.
+type PutBalloonOpt func(*ops.PutBalloonParams)
+
+// PutBalloonOpt is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) PutBalloon(ctx context.Context, balloon *models.Balloon, opts ...PutBalloonOpt) (*ops.PutBalloonNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPutBalloonParamsWithContext(timeout)
+	params.SetBody(balloon)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PutBalloon(params)
+}
+
+// DescribeBalloonConfig is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) DescribeBalloonConfig(ctx context.Context) (*ops.DescribeBalloonConfigOK, error) {
+	params := ops.NewDescribeBalloonConfigParams()
+	params.SetContext(ctx)
+	params.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
+
+	return f.client.Operations.DescribeBalloonConfig(params)
+}
+
+// PatchBalloonOpt is a functional option to be used for the PatchBalloon API in setting
+// any additional optional fields.
+type PatchBalloonOpt func(*ops.PatchBalloonParams)
+
+// PatchBalloon is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) PatchBalloon(ctx context.Context, ballonUpdate *models.BalloonUpdate, opts ...PatchBalloonOpt) (*ops.PatchBalloonNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPatchBalloonParamsWithContext(timeout)
+	params.SetBody(ballonUpdate)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PatchBalloon(params)
+}
+
+// DescribeBalloonStats is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) DescribeBalloonStats(ctx context.Context) (*ops.DescribeBalloonStatsOK, error) {
+	params := ops.NewDescribeBalloonStatsParams()
+	params.SetContext(ctx)
+	params.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
+
+	return f.client.Operations.DescribeBalloonStats(params)
+}
+
+// PatchBalloonStatsIntervalOpt is a functional option to be used for the PatchBalloonStatsInterval API in setting
+// any additional optional fields.
+type PatchBalloonStatsIntervalOpt func(*ops.PatchBalloonStatsIntervalParams)
+
+// PatchBalloonStatsInterval is a wrapper for the swagger generated client to make calling of the
+// API easier.
+func (f *Client) PatchBalloonStatsInterval(ctx context.Context, balloonStatsUpdate *models.BalloonStatsUpdate, opts ...PatchBalloonStatsIntervalOpt) (*ops.PatchBalloonStatsIntervalNoContent, error) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(f.firecrackerRequestTimeout)*time.Millisecond)
+	defer cancel()
+
+	params := ops.NewPatchBalloonStatsIntervalParamsWithContext(timeout)
+	params.SetBody(balloonStatsUpdate)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.PatchBalloonStatsInterval(params)
+}
