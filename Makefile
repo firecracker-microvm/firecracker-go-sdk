@@ -16,7 +16,7 @@ CARGO_CACHE_VOLUME_NAME?=firecracker-go-sdk--cargocache
 DISABLE_ROOT_TESTS?=1
 DOCKER_IMAGE_TAG?=latest
 EXTRAGOARGS:=
-FIRECRACKER_BUILDER_NAME=firecracker-builder
+FIRECRACKER_DIR=build/firecracker
 FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 
 FC_TEST_DATA_PATH?=testdata
@@ -85,38 +85,21 @@ $(FC_TEST_DATA_PATH)/ltag:
 	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_DATA_PATH)) \
 	go get github.com/kunalkushwaha/ltag
 
-tools/firecracker-builder-stamp: tools/docker/Dockerfile
-	docker build \
-		-t localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
-		-f tools/docker/Dockerfile \
-		tools/docker
-	touch $@
+$(FIRECRACKER_DIR):
+	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
 
 .PHONY: test-images
 test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
 
-$(FIRECRACKER_BIN) $(JAILER_BIN): tools/firecracker-builder-stamp
-	mkdir -p build
-	docker run --rm -it \
-		--user $(UID):$(GID) \
-		--volume $(CURDIR)/build:/artifacts \
-		--volume $(CARGO_CACHE_VOLUME_NAME):/usr/local/cargo/registry \
-		-e HOME=/tmp \
-		--workdir=/firecracker \
-		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
-		cargo build --release \
-		--target-dir=/artifacts --target $(FIRECRACKER_TARGET) \
-		-p firecracker -p jailer
-	cp build/$(FIRECRACKER_TARGET)/release/firecracker $(FIRECRACKER_BIN)
-	cp build/$(FIRECRACKER_TARGET)/release/jailer $(JAILER_BIN)
+$(FIRECRACKER_BIN) $(JAILER_BIN): $(FIRECRACKER_DIR)
+	$(FIRECRACKER_DIR)/tools/devtool -y build --release && \
+		$(FIRECRACKER_DIR)/tools/devtool strip
+	cp $(FIRECRACKER_DIR)/build/cargo_target/$(FIRECRACKER_TARGET)/release/firecracker $(FIRECRACKER_BIN)
+	cp $(FIRECRACKER_DIR)/build/cargo_target/$(FIRECRACKER_TARGET)/release/jailer $(JAILER_BIN)
 
 .PHONY: firecracker-clean
 firecracker-clean:
-	- docker run --rm -it \
-		--user $(UID):$(GID) \
-		--workdir /firecracker\
-		localhost/$(FIRECRACKER_BUILDER_NAME):$(DOCKER_IMAGE_TAG) \
-		cargo clean
+	- $(FIRECRACKER_DIR)/tools/devtool distclean
 	- rm $(FIRECRACKER_BIN) $(JAILER_BIN)
 
 lint: deps
