@@ -12,7 +12,7 @@ require (
 	github.com/go-openapi/swag v0.19.14
 	github.com/go-openapi/validate v0.19.12
 	github.com/gofrs/uuid v3.3.0+incompatible
-	github.com/hashicorp/go-multierror v1.0.0
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.0
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
