@@ -792,21 +792,21 @@ func TestWaitForSocket(t *testing.T) {
 
 	// Socket file created, HTTP request succeeded
 	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&okClient))
-	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
-		t.Errorf("waitForSocket returned unexpected error %s", err)
+	if err := m.WaitForSocket(500*time.Millisecond, errchan); err != nil {
+		t.Errorf("WaitForSocket returned unexpected error %s", err)
 	}
 
 	// Socket file exists, HTTP request failed
 	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&errClient))
-	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
-		t.Error("waitforSocket did not return an expected timeout error")
+	if err := m.WaitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
+		t.Error("WaitForSocket did not return an expected timeout error")
 	}
 
 	cleanup()
 
 	// No socket file
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
-		t.Error("waitforSocket did not return an expected timeout error")
+	if err := m.WaitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
+		t.Error("WaitForSocket did not return an expected timeout error")
 	}
 
 	chanErr := errors.New("this is an expected error")
@@ -816,8 +816,8 @@ func TestWaitForSocket(t *testing.T) {
 	}()
 
 	// Unexpected process exit
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != chanErr {
-		t.Error("waitForSocket did not properly detect program exit")
+	if err := m.WaitForSocket(100*time.Millisecond, errchan); err != chanErr {
+		t.Error("WaitForSocket did not properly detect program exit")
 	}
 }
 
@@ -1735,7 +1735,7 @@ func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
 
 func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
 	expectedBalloonConfig := models.Balloon{
-		AmountMib:              &testBalloonMemory,
+		AmountMib:             &testBalloonMemory,
 		DeflateOnOom:          &testBalloonDeflateOnOom,
 		StatsPollingIntervals: testStatsPollingIntervals,
 	}
