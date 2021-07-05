@@ -1104,7 +1104,7 @@ func (m *Machine) LoadSnapshot(ctx context.Context, memFilePath, snapshotPath st
 // CreateBalloon creates a balloon device if one does not exist
 func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnOom bool, statsPollingIntervals int64, opts ...PutBalloonOpt) error {
 	balloon := models.Balloon{
-		AmountMib:              &amountMib,
+		AmountMib:             &amountMib,
 		DeflateOnOom:          &deflateOnOom,
 		StatsPollingIntervals: statsPollingIntervals,
 	}
