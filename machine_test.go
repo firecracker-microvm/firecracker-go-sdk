@@ -1810,7 +1810,7 @@ func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
 
 func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
 	expectedBalloonConfig := models.Balloon{
-		AmountMib:              &testBalloonMemory,
+		AmountMib:             &testBalloonMemory,
 		DeflateOnOom:          &testBalloonDeflateOnOom,
 		StatsPollingIntervals: testStatsPollingIntervals,
 	}
