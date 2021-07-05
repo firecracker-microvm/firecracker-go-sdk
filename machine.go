@@ -1085,10 +1085,26 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	return nil
 }
 
+// LoadSnapshot load a snapshot
+func (m *Machine) LoadSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...LoadSnapshotOpt) error {
+	snapshotParams := &models.SnapshotLoadParams{
+		MemFilePath:  String(memFilePath),
+		SnapshotPath: String(snapshotPath),
+	}
+
+	if _, err := m.client.LoadSnapshot(ctx, snapshotParams, opts...); err != nil {
+		m.logger.Errorf("failed to load a snapshot for VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("snapshot loaded successfully")
+	return nil
+}
+
 // CreateBalloon creates a balloon device if one does not exist
 func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnOom bool, statsPollingIntervals int64, opts ...PutBalloonOpt) error {
 	balloon := models.Balloon{
-		AmountMib:              &amountMib,
+		AmountMib:             &amountMib,
 		DeflateOnOom:          &deflateOnOom,
 		StatsPollingIntervals: statsPollingIntervals,
 	}
