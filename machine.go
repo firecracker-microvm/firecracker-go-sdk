@@ -544,7 +544,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		errCh <- multierror.Append(waitErr, cleanupErr).ErrorOrNil()
 
 		// Notify subscribers that there will be no more values.
-		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),
+		// When err is nil, two reads are performed (WaitForSocket and close exitCh goroutine),
 		// second one never ends as it tries to read from empty channel.
 		close(errCh)
 	}()
@@ -552,7 +552,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	m.setupSignals()
 
 	// Wait for firecracker to initialize:
-	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
+	err = m.WaitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
 	if err != nil {
 		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
 		m.fatalErr = err
@@ -976,8 +976,8 @@ func (m *Machine) refreshMachineConfiguration() error {
 	return nil
 }
 
-// waitForSocket waits for the given file to exist
-func (m *Machine) waitForSocket(timeout time.Duration, exitchan chan error) error {
+// WaitForSocket waits for the given file to exist
+func (m *Machine) WaitForSocket(timeout time.Duration, exitchan chan error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	ticker := time.NewTicker(10 * time.Millisecond)
@@ -1085,10 +1085,26 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	return nil
 }
 
+// LoadSnapshot load a snapshot
+func (m *Machine) LoadSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...LoadSnapshotOpt) error {
+	snapshotParams := &models.SnapshotLoadParams{
+		MemFilePath:  String(memFilePath),
+		SnapshotPath: String(snapshotPath),
+	}
+
+	if _, err := m.client.LoadSnapshot(ctx, snapshotParams, opts...); err != nil {
+		m.logger.Errorf("failed to load a snapshot for VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("snapshot created successfully")
+	return nil
+}
+
 // CreateBalloon creates a balloon device if one does not exist
 func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnOom bool, statsPollingIntervals int64, opts ...PutBalloonOpt) error {
 	balloon := models.Balloon{
-		AmountMib:              &amountMib,
+		AmountMib:             &amountMib,
 		DeflateOnOom:          &deflateOnOom,
 		StatsPollingIntervals: statsPollingIntervals,
 	}

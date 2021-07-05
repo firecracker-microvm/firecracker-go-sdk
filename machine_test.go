@@ -72,6 +72,9 @@ var (
 	testBalloonDeflateOnOom      = true
 	testStatsPollingIntervals    = int64(1)
 	testNewStatsPollingIntervals = int64(6)
+
+	// How long to wait for the socket to appear.
+	firecrackerSocketWait = int64(10)
 )
 
 func envOrDefault(k, empty string) string {
@@ -792,21 +795,21 @@ func TestWaitForSocket(t *testing.T) {
 
 	// Socket file created, HTTP request succeeded
 	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&okClient))
-	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
-		t.Errorf("waitForSocket returned unexpected error %s", err)
+	if err := m.WaitForSocket(500*time.Millisecond, errchan); err != nil {
+		t.Errorf("WaitForSocket returned unexpected error %s", err)
 	}
 
 	// Socket file exists, HTTP request failed
 	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&errClient))
-	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
-		t.Error("waitforSocket did not return an expected timeout error")
+	if err := m.WaitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
+		t.Error("WaitForSocket did not return an expected timeout error")
 	}
 
 	cleanup()
 
 	// No socket file
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
-		t.Error("waitforSocket did not return an expected timeout error")
+	if err := m.WaitForSocket(100*time.Millisecond, errchan); err != context.DeadlineExceeded {
+		t.Error("WaitForSocket did not return an expected timeout error")
 	}
 
 	chanErr := errors.New("this is an expected error")
@@ -816,8 +819,8 @@ func TestWaitForSocket(t *testing.T) {
 	}()
 
 	// Unexpected process exit
-	if err := m.waitForSocket(100*time.Millisecond, errchan); err != chanErr {
-		t.Error("waitForSocket did not properly detect program exit")
+	if err := m.WaitForSocket(100*time.Millisecond, errchan); err != chanErr {
+		t.Error("WaitForSocket did not properly detect program exit")
 	}
 }
 
@@ -1727,6 +1730,83 @@ func TestCreateSnapshot(t *testing.T) {
 	}
 }
 
+func TestLoadSnapshot(t *testing.T) {
+	fctesting.RequiresKVM(t)
+	fctesting.RequiresRoot(t)
+
+	ctx := context.Background()
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// Set snap and mem paths
+	socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
+	snapPath := socketPath + "SnapFile"
+	memPath := socketPath + "MemFile"
+	defer os.Remove(socketPath)
+	defer os.Remove(snapPath)
+	defer os.Remove(memPath)
+
+	// Tee logs for validation:
+	var logBuffer bytes.Buffer
+	machineLogger := logrus.New()
+	machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
+	// Create a snapshot
+	{
+		cfg := createValidConfig(t, socketPath+".create")
+		m, err := NewMachine(ctx, cfg, func(m *Machine) {
+			// Rewriting m.cmd partially wouldn't work since Cmd has
+			// some unexported members
+			args := m.cmd.Args[1:]
+			m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+		}, WithLogger(logrus.NewEntry(machineLogger)))
+		require.NoError(t, err)
+
+		err = m.Start(ctx)
+		require.NoError(t, err)
+
+		err = m.PauseVM(ctx)
+		require.NoError(t, err)
+
+		err = m.CreateSnapshot(ctx, memPath, snapPath)
+		require.NoError(t, err)
+
+		err = m.StopVMM()
+		require.NoError(t, err)
+	}
+
+	// Load a snapshot
+	{
+		cfg := createValidConfig(t, socketPath+".load")
+		m, err := NewMachine(ctx, cfg, func(m *Machine) {
+			// Rewriting m.cmd partially wouldn't work since Cmd has
+			// some unexported members
+			args := m.cmd.Args[1:]
+			m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+		}, WithLogger(logrus.NewEntry(machineLogger)))
+		require.NoError(t, err)
+
+		err = m.cmd.Start()
+		require.NoError(t, err)
+
+		errCh := make(chan error)
+		err = m.WaitForSocket(time.Duration(firecrackerSocketWait)*time.Second, errCh)
+		require.NoError(t, err)
+
+		err = m.LoadSnapshot(ctx, memPath, snapPath)
+		require.NoError(t, err)
+
+		err = m.ResumeVM(ctx)
+		require.NoError(t, err)
+
+		err = m.StopVMM()
+		require.NoError(t, err)
+	}
+
+}
+
 func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
 	if err := m.CreateBalloon(ctx, testBalloonMemory, testBalloonDeflateOnOom, testStatsPollingIntervals); err != nil {
 		t.Errorf("Create balloon device failed from testAttachBalloon: %s", err)
@@ -1735,7 +1815,7 @@ func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
 
 func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
 	expectedBalloonConfig := models.Balloon{
-		AmountMib:              &testBalloonMemory,
+		AmountMib:             &testBalloonMemory,
 		DeflateOnOom:          &testBalloonDeflateOnOom,
 		StatsPollingIntervals: testStatsPollingIntervals,
 	}
