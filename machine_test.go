@@ -72,6 +72,9 @@ var (
 	testBalloonDeflateOnOom      = true
 	testStatsPollingIntervals    = int64(1)
 	testNewStatsPollingIntervals = int64(6)
+
+	// How long to wait for the socket to appear.
+	firecrackerSocketWait = int64(10)
 )
 
 func envOrDefault(k, empty string) string {
@@ -1727,6 +1730,76 @@ func TestCreateSnapshot(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestLoadSnapshot(t *testing.T) {
+	fctesting.RequiresKVM(t)
+	fctesting.RequiresRoot(t)
+
+	ctx := context.Background()
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// Set snap and mem paths
+	socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
+	snapPath := socketPath + "SnapFile"
+	memPath := socketPath + "MemFile"
+	defer os.Remove(socketPath)
+	defer os.Remove(snapPath)
+	defer os.Remove(memPath)
+
+	// Tee logs for validation:
+	var logBuffer bytes.Buffer
+	machineLogger := logrus.New()
+	machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
+	// Create a snapshot
+	{
+		cfg := createValidConfig(t, socketPath+".create")
+		m, err := NewMachine(ctx, cfg, func(m *Machine) {
+			// Rewriting m.cmd partially wouldn't work since Cmd has
+			// some unexported members
+			args := m.cmd.Args[1:]
+			m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+		}, WithLogger(logrus.NewEntry(machineLogger)))
+		require.NoError(t, err)
+
+		err = m.Start(ctx)
+		require.NoError(t, err)
+
+		err = m.PauseVM(ctx)
+		require.NoError(t, err)
+
+		err = m.CreateSnapshot(ctx, memPath, snapPath)
+		require.NoError(t, err)
+
+		err = m.StopVMM()
+		require.NoError(t, err)
+	}
+
+	// Load a snapshot
+	{
+		cfg := createValidConfig(t, socketPath+".load")
+		m, err := NewMachine(ctx, cfg, func(m *Machine) {
+			// Rewriting m.cmd partially wouldn't work since Cmd has
+			// some unexported members
+			args := m.cmd.Args[1:]
+			m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+		}, WithLogger(logrus.NewEntry(machineLogger)))
+		require.NoError(t, err)
+
+		err = m.Start(ctx, WithSnapshot(ctx, memPath, snapPath))
+		require.NoError(t, err)
+
+		err = m.ResumeVM(ctx)
+		require.NoError(t, err)
+
+		err = m.StopVMM()
+		require.NoError(t, err)
+	}
+
 }
 
 func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
