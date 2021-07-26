@@ -14,6 +14,7 @@
 package firecracker
 
 import (
+	"context"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
@@ -45,5 +46,15 @@ func WithLogger(logger *logrus.Entry) Opt {
 func WithProcessRunner(cmd *exec.Cmd) Opt {
 	return func(machine *Machine) {
 		machine.cmd = cmd
+	}
+}
+
+// WithSnapshot will allow for the machine to start using a given snapshot.
+func WithSnapshot(ctx context.Context, memFilePath, snapshotPath string) Opt {
+	return func(machine *Machine) {
+		err := machine.LoadSnapshot(ctx, memFilePath, snapshotPath)
+		if err != nil {
+			machine.logger.Errorf("LoadSnapshot failed with %s", err)
+		}
 	}
 }
