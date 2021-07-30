@@ -290,6 +290,10 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
     },
     {
       "type": "tc-redirect-tap"
+    },
+    {
+      "type": "portmap",
+      "capabilities": {"portMappings": true}
     }
   ]
 }`, networkName)
@@ -424,6 +428,15 @@ func newCNIMachine(t *testing.T,
 				NetworkConfig: networkConf,
 				IfName:        ifName,
 				VMIfName:      "eth0",
+				CapabilityArgs: map[string]interface{}{
+					"portMappings": []interface{}{
+						map[string]interface{}{
+							"hostPort":      8080,
+							"containerPort": 80,
+							"protocol":      "tcp",
+						},
+					},
+				},
 			},
 		}},
 		VMID: vmID,
