@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/containernetworking/cni/pkg/types"
-	"github.com/containernetworking/cni/pkg/types/current"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
@@ -69,7 +69,6 @@ func TestIPBootParams(t *testing.T) {
 		VMIfName:  "eth0",
 		VMMTU:     1337,
 		VMIPConfig: &current.IPConfig{
-			Version: "4",
 			Address: net.IPNet{
 				IP:   net.IPv4(10, 0, 0, 2),
 				Mask: net.IPv4Mask(255, 255, 255, 0),
