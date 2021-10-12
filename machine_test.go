@@ -461,7 +461,9 @@ func TestLogAndMetrics(t *testing.T) {
 		t.Run(test.logLevel, func(t *testing.T) {
 			out := testLogAndMetrics(t, test.logLevel)
 			if test.quiet {
-				assert.Regexp(t, `^Running Firecracker v0\.\d+\.\d+`, out)
+				// Non-released versions have version strings like
+				// "v0.26-wip-145-g6cbffe0d".
+				assert.Regexp(t, `^Running Firecracker v\d+\.\d+[\.-]`, out)
 				return
 			}
 
