@@ -31,7 +31,7 @@ import (
 
 	"github.com/containerd/fifo"
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -323,11 +323,11 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	if cfg.VMID == "" {
-		randomID, err := uuid.NewV4()
+		id, err := uuid.NewRandom()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create random ID for VMID")
 		}
-		cfg.VMID = randomID.String()
+		cfg.VMID = id.String()
 	}
 
 	m.Handlers = defaultHandlers
