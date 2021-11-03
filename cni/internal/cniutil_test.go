@@ -17,7 +17,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/containernetworking/cni/pkg/types/current"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,7 +51,6 @@ func TestInterfaceIPs(t *testing.T) {
 		},
 		IPs: []*current.IPConfig{
 			{
-				Version:   "4",
 				Interface: &vethIndex,
 				Address: net.IPNet{
 					IP:   net.IPv4(10, 0, 0, 2),
@@ -60,7 +59,6 @@ func TestInterfaceIPs(t *testing.T) {
 				Gateway: net.IPv4(10, 0, 0, 1),
 			},
 			{
-				Version:   "4",
 				Interface: &vmIndex,
 				Address: net.IPNet{
 					IP:   net.IPv4(10, 0, 1, 2),
@@ -69,7 +67,6 @@ func TestInterfaceIPs(t *testing.T) {
 				Gateway: net.IPv4(10, 0, 1, 1),
 			},
 			{
-				Version:   "4",
 				Interface: &vethIndex,
 				Address: net.IPNet{
 					IP:   net.IPv4(192, 168, 0, 2),
