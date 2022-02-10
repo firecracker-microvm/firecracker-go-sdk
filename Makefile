@@ -26,7 +26,7 @@ JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-main
 UID = $(shell id -u)
 GID = $(shell id -g)
 
-firecracker_version=v0.24.3
+firecracker_version=v1.0.0
 arch=$(shell uname -m)
 
 # The below files are needed and can be downloaded from the internet
@@ -74,8 +74,8 @@ $(FC_TEST_DATA_PATH)/firecracker $(FC_TEST_DATA_PATH)/jailer: $(FC_TEST_DATA_PAT
 
 $(FC_TEST_DATA_PATH)/fc.stamp:
 	$(curl) ${release_url} | tar -xvzf - -C $(FC_TEST_DATA_PATH)
-	mv $(FC_TEST_DATA_PATH)/firecracker-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/firecracker
-	mv $(FC_TEST_DATA_PATH)/jailer-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/jailer
+	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/firecracker-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/firecracker
+	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/jailer-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/jailer
 	touch $@
 
 $(FC_TEST_DATA_PATH)/root-drive.img:

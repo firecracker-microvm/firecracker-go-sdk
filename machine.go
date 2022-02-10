@@ -51,22 +51,13 @@ const (
 	defaultFirecrackerInitTimeoutSeconds = 3
 )
 
-// SeccompLevelValue represents a secure computing level type.
-type SeccompLevelValue int
+// SeccompConfig contains seccomp settings for firecracker vmm
+type SeccompConfig struct {
+	// Enabled turns on/off the seccomp filters
+	Enabled bool
 
-// secure computing levels
-const (
-	// SeccompLevelDisable is the default value.
-	SeccompLevelDisable SeccompLevelValue = iota
-	// SeccompLevelBasic prohibits syscalls not whitelisted by Firecracker.
-	SeccompLevelBasic
-	// SeccompLevelAdvanced adds further checks on some of the parameters of the
-	// allowed syscalls.
-	SeccompLevelAdvanced
-)
-
-func (level SeccompLevelValue) String() string {
-	return strconv.Itoa(int(level))
+	// Filter is a file path that contains user-provided custom filter
+	Filter string
 }
 
 // ErrAlreadyStarted signifies that the Machine has already started and cannot
@@ -151,14 +142,9 @@ type Config struct {
 	// firecracker. If not provided, the default signals will be used.
 	ForwardSignals []os.Signal
 
-	// SeccompLevel specifies whether seccomp filters should be installed and how
-	// restrictive they should be. Possible values are:
-	//
-	//	0 : (default): disabled.
-	//	1 : basic filtering. This prohibits syscalls not whitelisted by Firecracker.
-	//	2 : advanced filtering. This adds further checks on some of the
-	//			parameters of the allowed syscalls.
-	SeccompLevel SeccompLevelValue
+	// Seccomp specifies whether seccomp filters should be installed and how
+	// restrictive they should be.
+	Seccomp SeccompConfig
 
 	// MmdsAddress is IPv4 address used by guest applications when issuing requests to MMDS.
 	// It is possible to use a valid IPv4 link-local address (169.254.0.0/16).
@@ -206,9 +192,6 @@ func (cfg *Config) Validate() error {
 	if cfg.MachineCfg.MemSizeMib == nil ||
 		Int64Value(cfg.MachineCfg.MemSizeMib) < 1 {
 		return fmt.Errorf("machine needs a nonzero amount of memory")
-	}
-	if cfg.MachineCfg.HtEnabled == nil {
-		return fmt.Errorf("machine needs a setting for ht_enabled")
 	}
 	return nil
 }
@@ -309,10 +292,22 @@ func (m *Machine) LogLevel() string {
 	return m.Cfg.LogLevel
 }
 
+// seccompArgs constructs the seccomp related command line arguments
+func seccompArgs(cfg *Config) []string {
+	var args []string
+	if !cfg.Seccomp.Enabled {
+		args = append(args, "--no-seccomp")
+	} else if len(cfg.Seccomp.Filter) > 0 {
+		args = append(args, "--seccomp-filter", cfg.Seccomp.Filter)
+	}
+	return args
+}
+
 func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
 	return builder.
 		WithSocketPath(cfg.SocketPath).
-		AddArgs("--seccomp-level", cfg.SeccompLevel.String(), "--id", cfg.VMID)
+		AddArgs("--id", cfg.VMID).
+		AddArgs(seccompArgs(&cfg)...)
 }
 
 // NewMachine initializes a new Machine instance and performs validation of the
@@ -766,10 +761,9 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		iface.StaticConfiguration.HostDevName, iface.StaticConfiguration.MacAddress, ifaceID)
 
 	ifaceCfg := models.NetworkInterface{
-		IfaceID:           &ifaceID,
-		GuestMac:          iface.StaticConfiguration.MacAddress,
-		HostDevName:       String(iface.StaticConfiguration.HostDevName),
-		AllowMmdsRequests: iface.AllowMMDS,
+		IfaceID:     &ifaceID,
+		GuestMac:    iface.StaticConfiguration.MacAddress,
+		HostDevName: String(iface.StaticConfiguration.HostDevName),
 	}
 
 	if iface.InRateLimiter != nil {
@@ -835,7 +829,7 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	vsockCfg := models.Vsock{
 		GuestCid: Int64(int64(dev.CID)),
 		UdsPath:  &dev.Path,
-		VsockID:  &dev.ID,
+		VsockID:  dev.ID,
 	}
 
 	resp, err := m.client.PutGuestVsock(ctx, &vsockCfg)
@@ -876,9 +870,22 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 	return err
 }
 
-func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP) error {
-	mmdsCfg := models.MmdsConfig{
-		IPV4Address: String(address.String()),
+func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces NetworkInterfaces) error {
+	var mmdsCfg models.MmdsConfig
+	if address != nil {
+		mmdsCfg.IPV4Address = String(address.String())
+	}
+	for id, iface := range ifaces {
+		if iface.AllowMMDS {
+			mmdsCfg.NetworkInterfaces = append(mmdsCfg.NetworkInterfaces, strconv.Itoa(id+1))
+		}
+	}
+	// MMDS is tightly coupled with a network interface, which allows MMDS requests.
+	// When configuring the microVM, if MMDS needs to be activated, a network interface
+	// has to be configured to allow MMDS requests.
+	if len(mmdsCfg.NetworkInterfaces) == 0 {
+		m.logger.Infof("No interfaces are allowed to access MMDS, skipping MMDS config")
+		return nil
 	}
 	if _, err := m.client.PutMmdsConfig(ctx, &mmdsCfg); err != nil {
 		m.logger.Errorf("Setting mmds configuration failed: %s: %v", address, err)
@@ -1088,7 +1095,7 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 // CreateBalloon creates a balloon device if one does not exist
 func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnOom bool, statsPollingIntervals int64, opts ...PutBalloonOpt) error {
 	balloon := models.Balloon{
-		AmountMib:              &amountMib,
+		AmountMib:             &amountMib,
 		DeflateOnOom:          &deflateOnOom,
 		StatsPollingIntervals: statsPollingIntervals,
 	}

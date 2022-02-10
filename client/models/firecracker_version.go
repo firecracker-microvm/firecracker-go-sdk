@@ -26,20 +26,20 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// BalloonStatsUpdate Update the statistics polling interval, with the first statistics update scheduled immediately. Statistics cannot be turned on/off after boot.
-// swagger:model BalloonStatsUpdate
-type BalloonStatsUpdate struct {
+// FirecrackerVersion Describes the Firecracker version.
+// swagger:model FirecrackerVersion
+type FirecrackerVersion struct {
 
-	// Interval in seconds between refreshing statistics.
+	// Firecracker build version.
 	// Required: true
-	StatsPollingIntervals *int64 `json:"stats_polling_interval_s"`
+	FirecrackerVersion *string `json:"firecracker_version"`
 }
 
-// Validate validates this balloon stats update
-func (m *BalloonStatsUpdate) Validate(formats strfmt.Registry) error {
+// Validate validates this firecracker version
+func (m *FirecrackerVersion) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateStatsPollingIntervals(formats); err != nil {
+	if err := m.validateFirecrackerVersion(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -49,9 +49,9 @@ func (m *BalloonStatsUpdate) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *BalloonStatsUpdate) validateStatsPollingIntervals(formats strfmt.Registry) error {
+func (m *FirecrackerVersion) validateFirecrackerVersion(formats strfmt.Registry) error {
 
-	if err := validate.Required("stats_polling_interval_s", "body", m.StatsPollingIntervals); err != nil {
+	if err := validate.Required("firecracker_version", "body", m.FirecrackerVersion); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (m *BalloonStatsUpdate) validateStatsPollingIntervals(formats strfmt.Regist
 }
 
 // MarshalBinary interface implementation
-func (m *BalloonStatsUpdate) MarshalBinary() ([]byte, error) {
+func (m *FirecrackerVersion) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -67,8 +67,8 @@ func (m *BalloonStatsUpdate) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary interface implementation
-func (m *BalloonStatsUpdate) UnmarshalBinary(b []byte) error {
-	var res BalloonStatsUpdate
+func (m *FirecrackerVersion) UnmarshalBinary(b []byte) error {
+	var res FirecrackerVersion
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

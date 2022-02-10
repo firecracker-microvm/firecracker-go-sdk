@@ -265,7 +265,7 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 var ConfigMmdsHandler = Handler{
 	Name: ConfigMmdsHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress)
+		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress, m.Cfg.NetworkInterfaces)
 	},
 }
 
@@ -291,6 +291,7 @@ var defaultFcInitHandlerList = HandlerList{}.Append(
 	AttachDrivesHandler,
 	CreateNetworkInterfacesHandler,
 	AddVsocksHandler,
+	ConfigMmdsHandler,
 )
 
 var defaultValidationHandlerList = HandlerList{}.Append(
