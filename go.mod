@@ -13,11 +13,12 @@ require (
 	github.com/go-openapi/validate v0.20.3
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/mdlayher/vsock v1.0.0
+	github.com/mdlayher/vsock v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a
 )
