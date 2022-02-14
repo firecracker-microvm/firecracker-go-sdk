@@ -20,22 +20,22 @@ import (
 )
 
 type MockClient struct {
-	GetMmdsFn                        func(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error)
-	PatchMmdsFn                      func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
-	PutMmdsFn                        func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error)
-	PutMmdsConfigFn                  func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error)
 	CreateSnapshotFn                 func(params *ops.CreateSnapshotParams) (*ops.CreateSnapshotNoContent, error)
 	CreateSyncActionFn               func(params *ops.CreateSyncActionParams) (*ops.CreateSyncActionNoContent, error)
 	DescribeBalloonConfigFn          func(params *ops.DescribeBalloonConfigParams) (*ops.DescribeBalloonConfigOK, error)
 	DescribeBalloonStatsFn           func(params *ops.DescribeBalloonStatsParams) (*ops.DescribeBalloonStatsOK, error)
 	DescribeInstanceFn               func(params *ops.DescribeInstanceParams) (*ops.DescribeInstanceOK, error)
+	GetExportVMConfigFn              func(params *ops.GetExportVMConfigParams) (*ops.GetExportVMConfigOK, error)
+	GetFirecrackerVersionFn          func(params *ops.GetFirecrackerVersionParams) (*ops.GetFirecrackerVersionOK, error)
 	GetMachineConfigurationFn        func(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error)
+	GetMmdsFn                        func(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error)
 	LoadSnapshotFn                   func(params *ops.LoadSnapshotParams) (*ops.LoadSnapshotNoContent, error)
 	PatchBalloonFn                   func(params *ops.PatchBalloonParams) (*ops.PatchBalloonNoContent, error)
 	PatchBalloonStatsIntervalFn      func(params *ops.PatchBalloonStatsIntervalParams) (*ops.PatchBalloonStatsIntervalNoContent, error)
 	PatchGuestDriveByIDFn            func(params *ops.PatchGuestDriveByIDParams) (*ops.PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByIDFn func(params *ops.PatchGuestNetworkInterfaceByIDParams) (*ops.PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfigurationFn      func(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error)
+	PatchMmdsFn                      func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
 	PatchVMFn                        func(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error)
 	PutBalloonFn                     func(params *ops.PutBalloonParams) (*ops.PutBalloonNoContent, error)
 	PutGuestBootSourceFn             func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
@@ -45,38 +45,8 @@ type MockClient struct {
 	PutLoggerFn                      func(params *ops.PutLoggerParams) (*ops.PutLoggerNoContent, error)
 	PutMachineConfigurationFn        func(params *ops.PutMachineConfigurationParams) (*ops.PutMachineConfigurationNoContent, error)
 	PutMetricsFn                     func(params *ops.PutMetricsParams) (*ops.PutMetricsNoContent, error)
-}
-
-func (c *MockClient) GetMmds(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error) {
-	if c.GetMmdsFn != nil {
-		return c.GetMmdsFn(params)
-	}
-
-	return nil, nil
-}
-
-func (c *MockClient) PatchMmds(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error) {
-	if c.PatchMmdsFn != nil {
-		return c.PatchMmdsFn(params)
-	}
-
-	return nil, nil
-}
-
-func (c *MockClient) PutMmds(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error) {
-	if c.PutMmdsFn != nil {
-		return c.PutMmdsFn(params)
-	}
-
-	return nil, nil
-}
-
-func (c *MockClient) PutMmdsConfig(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error) {
-	if c.PutMmdsConfigFn != nil {
-		return c.PutMmdsConfigFn(params)
-	}
-
-	return nil, nil
+	PutMmdsFn                        func(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error)
+	PutMmdsConfigFn                  func(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error)
 }
 
 func (c *MockClient) CreateSnapshot(params *ops.CreateSnapshotParams) (*ops.CreateSnapshotNoContent, error) {
@@ -119,9 +89,33 @@ func (c *MockClient) DescribeInstance(params *ops.DescribeInstanceParams) (*ops.
 	return nil, nil
 }
 
+func (c *MockClient) GetExportVMConfig(params *ops.GetExportVMConfigParams) (*ops.GetExportVMConfigOK, error) {
+	if c.GetExportVMConfigFn != nil {
+		return c.GetExportVMConfigFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) GetFirecrackerVersion(params *ops.GetFirecrackerVersionParams) (*ops.GetFirecrackerVersionOK, error) {
+	if c.GetFirecrackerVersionFn != nil {
+		return c.GetFirecrackerVersionFn(params)
+	}
+
+	return nil, nil
+}
+
 func (c *MockClient) GetMachineConfiguration(params *ops.GetMachineConfigurationParams) (*ops.GetMachineConfigurationOK, error) {
 	if c.GetMachineConfigurationFn != nil {
 		return c.GetMachineConfigurationFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) GetMmds(params *ops.GetMmdsParams) (*ops.GetMmdsOK, error) {
+	if c.GetMmdsFn != nil {
+		return c.GetMmdsFn(params)
 	}
 
 	return nil, nil
@@ -170,6 +164,14 @@ func (c *MockClient) PatchGuestNetworkInterfaceByID(params *ops.PatchGuestNetwor
 func (c *MockClient) PatchMachineConfiguration(params *ops.PatchMachineConfigurationParams) (*ops.PatchMachineConfigurationNoContent, error) {
 	if c.PatchMachineConfigurationFn != nil {
 		return c.PatchMachineConfigurationFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PatchMmds(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error) {
+	if c.PatchMmdsFn != nil {
+		return c.PatchMmdsFn(params)
 	}
 
 	return nil, nil
@@ -242,6 +244,22 @@ func (c *MockClient) PutMachineConfiguration(params *ops.PutMachineConfiguration
 func (c *MockClient) PutMetrics(params *ops.PutMetricsParams) (*ops.PutMetricsNoContent, error) {
 	if c.PutMetricsFn != nil {
 		return c.PutMetricsFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PutMmds(params *ops.PutMmdsParams) (*ops.PutMmdsNoContent, error) {
+	if c.PutMmdsFn != nil {
+		return c.PutMmdsFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PutMmdsConfig(params *ops.PutMmdsConfigParams) (*ops.PutMmdsConfigNoContent, error) {
+	if c.PutMmdsConfigFn != nil {
+		return c.PutMmdsConfigFn(params)
 	}
 
 	return nil, nil

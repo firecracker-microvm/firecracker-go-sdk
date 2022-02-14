@@ -53,7 +53,7 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 			VcpuCount:   Int64(1),
 			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
 			MemSizeMib:  Int64(256),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		Drives: []models.Drive{
 			{

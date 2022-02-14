@@ -529,7 +529,10 @@ func TestHandlers(t *testing.T) {
 		"baz": "qux",
 	}
 	mmdsAddress := net.IPv4(169, 254, 169, 254)
-	mmdsConfig := &models.MmdsConfig{IPV4Address: String(mmdsAddress.String())}
+	mmdsConfig := &models.MmdsConfig{
+		IPV4Address:       String(mmdsAddress.String()),
+		NetworkInterfaces: []string{"1"},
+	}
 
 	cases := []struct {
 		Handler Handler
@@ -647,6 +650,13 @@ func TestHandlers(t *testing.T) {
 			},
 			Config: Config{
 				MmdsAddress: mmdsAddress,
+				NetworkInterfaces: []NetworkInterface{{
+					StaticConfiguration: &StaticNetworkConfiguration{
+						MacAddress:  "macaddress",
+						HostDevName: "host",
+					},
+					AllowMMDS: true,
+				}},
 			},
 		},
 	}

@@ -248,7 +248,7 @@ func ExampleJailerConfig_enablingJailer() {
 		LogLevel:        "Debug",
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:  firecracker.Int64(1),
-			HtEnabled:  firecracker.Bool(false),
+			Smt:        firecracker.Bool(false),
 			MemSizeMib: firecracker.Int64(256),
 		},
 		JailerCfg: &firecracker.JailerConfig{

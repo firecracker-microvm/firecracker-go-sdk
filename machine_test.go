@@ -112,7 +112,7 @@ func TestNewMachine(t *testing.T) {
 				VcpuCount:   Int64(1),
 				MemSizeMib:  Int64(100),
 				CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-				HtEnabled:   Bool(false),
+				Smt:         Bool(false),
 			},
 		},
 		WithLogger(fctesting.NewLogEntry(t)))
@@ -208,7 +208,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			VcpuCount:   Int64(nCpus),
 			CPUTemplate: cpuTemplate,
 			MemSizeMib:  Int64(memSz),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		Drives: []models.Drive{
 			{
@@ -324,7 +324,7 @@ func TestMicroVMExecution(t *testing.T) {
 			VcpuCount:   Int64(nCpus),
 			CPUTemplate: cpuTemplate,
 			MemSizeMib:  Int64(memSz),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -495,7 +495,7 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 			VcpuCount:   Int64(1),
 			MemSizeMib:  Int64(64),
 			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
 		LogPath:     filepath.Join(dir, "fc.log"),
@@ -550,7 +550,7 @@ func TestStartVMMOnce(t *testing.T) {
 			VcpuCount:   Int64(1),
 			MemSizeMib:  Int64(64),
 			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 	}
 	ctx := context.Background()
@@ -1158,7 +1158,7 @@ func TestPID(t *testing.T) {
 			VcpuCount:   Int64(nCpus),
 			CPUTemplate: cpuTemplate,
 			MemSizeMib:  Int64(memSz),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		Drives: []models.Drive{
 			{
@@ -1432,7 +1432,7 @@ func createValidConfig(t *testing.T, socketPath string) Config {
 			VcpuCount:   Int64(2),
 			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
 			MemSizeMib:  Int64(256),
-			HtEnabled:   Bool(false),
+			Smt:         Bool(false),
 		},
 		Drives: []models.Drive{
 			{
@@ -1737,7 +1737,7 @@ func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {
 
 func testGetBalloonConfig(ctx context.Context, t *testing.T, m *Machine) {
 	expectedBalloonConfig := models.Balloon{
-		AmountMib:              &testBalloonMemory,
+		AmountMib:             &testBalloonMemory,
 		DeflateOnOom:          &testBalloonDeflateOnOom,
 		StatsPollingIntervals: testStatsPollingIntervals,
 	}

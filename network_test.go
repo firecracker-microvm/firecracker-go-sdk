@@ -405,7 +405,7 @@ func newCNIMachine(t *testing.T,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:  Int64(2),
 			MemSizeMib: Int64(256),
-			HtEnabled:  Bool(true),
+			Smt:        Bool(true),
 		},
 		Drives: []models.Drive{
 			{

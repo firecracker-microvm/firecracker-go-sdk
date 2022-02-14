@@ -46,120 +46,6 @@ func NewClient(transport runtime.ClientTransport, formats strfmt.Registry) *Clie
 }
 
 /*
-GetMmds gets the m m d s data store
-*/
-func (a *Client) GetMmds(params *GetMmdsParams) (*GetMmdsOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewGetMmdsParams()
-	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "GetMmds",
-		Method:             "GET",
-		PathPattern:        "/mmds",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &GetMmdsReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.(*GetMmdsOK), nil
-
-}
-
-/*
-PatchMmds updates the m m d s data store
-*/
-func (a *Client) PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewPatchMmdsParams()
-	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "PatchMmds",
-		Method:             "PATCH",
-		PathPattern:        "/mmds",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &PatchMmdsReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.(*PatchMmdsNoContent), nil
-
-}
-
-/*
-PutMmds creates a m m d s microvm metadata service data store
-*/
-func (a *Client) PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewPutMmdsParams()
-	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "PutMmds",
-		Method:             "PUT",
-		PathPattern:        "/mmds",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &PutMmdsReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.(*PutMmdsNoContent), nil
-
-}
-
-/*
-PutMmdsConfig sets m m d s configuration pre boot only
-
-Creates MMDS configuration to be used by the MMDS network stack.
-*/
-func (a *Client) PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewPutMmdsConfigParams()
-	}
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "PutMmdsConfig",
-		Method:             "PUT",
-		PathPattern:        "/mmds/config",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &PutMmdsConfigReader{formats: a.formats},
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.(*PutMmdsConfigNoContent), nil
-
-}
-
-/*
 CreateSnapshot creates a full or diff snapshot post boot only
 
 Creates a snapshot of the microVM state. The microVM should be in the `Paused` state.
@@ -302,9 +188,67 @@ func (a *Client) DescribeInstance(params *DescribeInstanceParams) (*DescribeInst
 }
 
 /*
+GetExportVMConfig gets the full VM configuration
+
+Gets configuration for all VM resources.
+*/
+func (a *Client) GetExportVMConfig(params *GetExportVMConfigParams) (*GetExportVMConfigOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetExportVMConfigParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "getExportVmConfig",
+		Method:             "GET",
+		PathPattern:        "/vm/config",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetExportVMConfigReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*GetExportVMConfigOK), nil
+
+}
+
+/*
+GetFirecrackerVersion gets the firecracker version
+*/
+func (a *Client) GetFirecrackerVersion(params *GetFirecrackerVersionParams) (*GetFirecrackerVersionOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetFirecrackerVersionParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "getFirecrackerVersion",
+		Method:             "GET",
+		PathPattern:        "/version",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetFirecrackerVersionReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*GetFirecrackerVersionOK), nil
+
+}
+
+/*
 GetMachineConfiguration gets the machine configuration of the VM
 
-Gets the machine configuration of the VM. When called before the PUT operation, it will return the default values for the vCPU count (=1), memory size (=128 MiB). By default Hyperthreading is disabled and there is no CPU Template.
+Gets the machine configuration of the VM. When called before the PUT operation, it will return the default values for the vCPU count (=1), memory size (=128 MiB). By default SMT is disabled and there is no CPU Template.
 */
 func (a *Client) GetMachineConfiguration(params *GetMachineConfigurationParams) (*GetMachineConfigurationOK, error) {
 	// TODO: Validate the params before sending
@@ -328,6 +272,34 @@ func (a *Client) GetMachineConfiguration(params *GetMachineConfigurationParams) 
 		return nil, err
 	}
 	return result.(*GetMachineConfigurationOK), nil
+
+}
+
+/*
+GetMmds gets the m m d s data store
+*/
+func (a *Client) GetMmds(params *GetMmdsParams) (*GetMmdsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetMmdsParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "getMmds",
+		Method:             "GET",
+		PathPattern:        "/mmds",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetMmdsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*GetMmdsOK), nil
 
 }
 
@@ -508,6 +480,34 @@ func (a *Client) PatchMachineConfiguration(params *PatchMachineConfigurationPara
 		return nil, err
 	}
 	return result.(*PatchMachineConfigurationNoContent), nil
+
+}
+
+/*
+PatchMmds updates the m m d s data store
+*/
+func (a *Client) PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPatchMmdsParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "patchMmds",
+		Method:             "PATCH",
+		PathPattern:        "/mmds",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PatchMmdsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PatchMmdsNoContent), nil
 
 }
 
@@ -722,7 +722,7 @@ func (a *Client) PutLogger(params *PutLoggerParams) (*PutLoggerNoContent, error)
 /*
 PutMachineConfiguration updates the machine configuration of the VM pre boot only
 
-Updates the Virtual Machine Configuration with the specified input. Firecracker starts with default values for vCPU count (=1) and memory size (=128 MiB). With Hyperthreading enabled, the vCPU count is restricted to be 1 or an even number, otherwise there are no restrictions regarding the vCPU count. If any of the parameters has an incorrect value, the whole update fails.
+Updates the Virtual Machine Configuration with the specified input. Firecracker starts with default values for vCPU count (=1) and memory size (=128 MiB). With SMT enabled, the vCPU count is restricted to be 1 or an even number, otherwise there are no restrictions regarding the vCPU count. If any of the parameters has an incorrect value, the whole update fails.
 */
 func (a *Client) PutMachineConfiguration(params *PutMachineConfigurationParams) (*PutMachineConfigurationNoContent, error) {
 	// TODO: Validate the params before sending
@@ -777,6 +777,64 @@ func (a *Client) PutMetrics(params *PutMetricsParams) (*PutMetricsNoContent, err
 
 }
 
+/*
+PutMmds creates a m m d s microvm metadata service data store
+*/
+func (a *Client) PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutMmdsParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "putMmds",
+		Method:             "PUT",
+		PathPattern:        "/mmds",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PutMmdsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PutMmdsNoContent), nil
+
+}
+
+/*
+PutMmdsConfig sets m m d s configuration pre boot only
+
+Configures MMDS version, IPv4 address used by the MMDS network stack and interfaces that allow MMDS requests.
+*/
+func (a *Client) PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutMmdsConfigParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "putMmdsConfig",
+		Method:             "PUT",
+		PathPattern:        "/mmds/config",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PutMmdsConfigReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PutMmdsConfigNoContent), nil
+
+}
+
 // SetTransport changes the transport on the client
 func (a *Client) SetTransport(transport runtime.ClientTransport) {
 	a.transport = transport
@@ -785,22 +843,22 @@ func (a *Client) SetTransport(transport runtime.ClientTransport) {
 // ClientIface is an interface that can be used to mock out a Firecracker agent
 // for testing purposes.
 type ClientIface interface {
-	GetMmds(params *GetMmdsParams) (*GetMmdsOK, error)
-	PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error)
-	PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error)
-	PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error)
 	CreateSnapshot(params *CreateSnapshotParams) (*CreateSnapshotNoContent, error)
 	CreateSyncAction(params *CreateSyncActionParams) (*CreateSyncActionNoContent, error)
 	DescribeBalloonConfig(params *DescribeBalloonConfigParams) (*DescribeBalloonConfigOK, error)
 	DescribeBalloonStats(params *DescribeBalloonStatsParams) (*DescribeBalloonStatsOK, error)
 	DescribeInstance(params *DescribeInstanceParams) (*DescribeInstanceOK, error)
+	GetExportVMConfig(params *GetExportVMConfigParams) (*GetExportVMConfigOK, error)
+	GetFirecrackerVersion(params *GetFirecrackerVersionParams) (*GetFirecrackerVersionOK, error)
 	GetMachineConfiguration(params *GetMachineConfigurationParams) (*GetMachineConfigurationOK, error)
+	GetMmds(params *GetMmdsParams) (*GetMmdsOK, error)
 	LoadSnapshot(params *LoadSnapshotParams) (*LoadSnapshotNoContent, error)
 	PatchBalloon(params *PatchBalloonParams) (*PatchBalloonNoContent, error)
 	PatchBalloonStatsInterval(params *PatchBalloonStatsIntervalParams) (*PatchBalloonStatsIntervalNoContent, error)
 	PatchGuestDriveByID(params *PatchGuestDriveByIDParams) (*PatchGuestDriveByIDNoContent, error)
 	PatchGuestNetworkInterfaceByID(params *PatchGuestNetworkInterfaceByIDParams) (*PatchGuestNetworkInterfaceByIDNoContent, error)
 	PatchMachineConfiguration(params *PatchMachineConfigurationParams) (*PatchMachineConfigurationNoContent, error)
+	PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error)
 	PatchVM(params *PatchVMParams) (*PatchVMNoContent, error)
 	PutBalloon(params *PutBalloonParams) (*PutBalloonNoContent, error)
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
@@ -810,4 +868,6 @@ type ClientIface interface {
 	PutLogger(params *PutLoggerParams) (*PutLoggerNoContent, error)
 	PutMachineConfiguration(params *PutMachineConfigurationParams) (*PutMachineConfigurationNoContent, error)
 	PutMetrics(params *PutMetricsParams) (*PutMetricsNoContent, error)
+	PutMmds(params *PutMmdsParams) (*PutMmdsNoContent, error)
+	PutMmdsConfig(params *PutMmdsConfigParams) (*PutMmdsConfigNoContent, error)
 }
