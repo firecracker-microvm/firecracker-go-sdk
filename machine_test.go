@@ -38,7 +38,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
-	"github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
 )
@@ -720,7 +719,7 @@ func testAttachVsock(ctx context.Context, t *testing.T, m *Machine) {
 	}
 	err := m.addVsock(ctx, dev)
 	if err != nil {
-		if badRequest, ok := err.(*operations.PutGuestVsockBadRequest); ok &&
+		if badRequest, ok := err.(*ops.PutGuestVsockBadRequest); ok &&
 			strings.HasPrefix(badRequest.Payload.FaultMessage, "Invalid request method and/or path") {
 			t.Errorf(`attaching vsock failed: %s
 Does your Firecracker binary have vsock support?
@@ -735,7 +734,7 @@ Build one with vsock support by running `+"`cargo build --release --features vso
 func testStartInstance(ctx context.Context, t *testing.T, m *Machine) {
 	err := m.startInstance(ctx)
 	if err != nil {
-		if syncErr, ok := err.(*operations.CreateSyncActionDefault); ok &&
+		if syncErr, ok := err.(*ops.CreateSyncActionDefault); ok &&
 			strings.HasPrefix(syncErr.Payload.FaultMessage, "Cannot create vsock device") {
 			t.Errorf(`startInstance: %s
 Do you have permission to interact with /dev/vhost-vsock?
