@@ -14,7 +14,7 @@ require (
 	github.com/go-ping/ping v0.0.0-20211130115550-779d1e919534
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/mdlayher/vsock v1.1.0
+	github.com/mdlayher/vsock v1.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
