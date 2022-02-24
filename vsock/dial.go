@@ -17,6 +17,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"strings"
 	"time"
@@ -25,7 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Timeout struct {
+type config struct {
+	logger            logrus.FieldLogger
 	DialTimeout       time.Duration
 	RetryTimeout      time.Duration
 	RetryInterval     time.Duration
@@ -33,13 +35,55 @@ type Timeout struct {
 	AckMsgTimeout     time.Duration
 }
 
-func DefaultTimeouts() Timeout {
-	return Timeout{
+func defaultConfig() config {
+	noop := logrus.New()
+	noop.Out = ioutil.Discard
+
+	return config{
 		DialTimeout:       100 * time.Millisecond,
 		RetryTimeout:      20 * time.Second,
 		RetryInterval:     100 * time.Millisecond,
 		ConnectMsgTimeout: 100 * time.Millisecond,
 		AckMsgTimeout:     1 * time.Second,
+		logger:            noop,
+	}
+}
+
+type DialOption func(c *config)
+
+func WithDialTimeout(d time.Duration) DialOption {
+	return func(c *config) {
+		c.DialTimeout = d
+	}
+}
+
+func WithRetryTimeout(d time.Duration) DialOption {
+	return func(c *config) {
+		c.RetryTimeout = d
+	}
+}
+
+func WithRetryInterval(d time.Duration) DialOption {
+	return func(c *config) {
+		c.RetryInterval = d
+	}
+}
+
+func WithConnectionMsgTimeout(d time.Duration) DialOption {
+	return func(c *config) {
+		c.ConnectMsgTimeout = d
+	}
+}
+
+func WithAckMsgTimeout(d time.Duration) DialOption {
+	return func(c *config) {
+		c.AckMsgTimeout = d
+	}
+}
+
+func WithLogger(logger logrus.FieldLogger) DialOption {
+	return func(c *config) {
+		c.logger = logger
 	}
 }
 
@@ -48,19 +92,30 @@ func DefaultTimeouts() Timeout {
 // It will retry connect attempts if a temporary error is encountered up to a fixed
 // timeout or the provided request is canceled.
 //
-// udsPath specifies the file system path of the UNIX domain socket.
+// path specifies the file system path of the UNIX domain socket.
 //
 // port will be used in the connect message to the firecracker vsock.
-func Dial(ctx context.Context, logger *logrus.Entry, udsPath string, port uint32) (net.Conn, error) {
-	return DialTimeout(ctx, logger, udsPath, port, DefaultTimeouts())
+func DialContext(ctx context.Context, path string, port uint32, opts ...DialOption) (net.Conn, error) {
+	t := defaultConfig()
+	for _, o := range opts {
+		o(&t)
+	}
+
+	return dial(ctx, path, port, t)
 }
 
-// DialTimeout acts like Dial but takes a timeout.
+// Dial connects to the Firecracker host-side vsock at the provided unix path and port.
 //
-// See func Dial for a description of the udsPath and port parameters.
-func DialTimeout(ctx context.Context, logger *logrus.Entry, udsPath string, port uint32, timeout Timeout) (net.Conn, error) {
-	ticker := time.NewTicker(timeout.RetryInterval)
+// See func Dial for a description of the path and port parameters.
+func Dial(path string, port uint32, opts ...DialOption) (net.Conn, error) {
+	return DialContext(context.Background(), path, port, opts...)
+}
+
+func dial(ctx context.Context, udsPath string, port uint32, c config) (net.Conn, error) {
+	ticker := time.NewTicker(c.RetryInterval)
 	defer ticker.Stop()
+
+	logger := c.logger
 
 	tickerCh := ticker.C
 	var attemptCount int
@@ -72,7 +127,7 @@ func DialTimeout(ctx context.Context, logger *logrus.Entry, udsPath string, port
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-tickerCh:
-			conn, err := tryConnect(logger, udsPath, port, timeout)
+			conn, err := tryConnect(logger, udsPath, port, c)
 			if isTemporaryNetErr(err) {
 				err = errors.Wrap(err, "temporary vsock dial failure")
 				logger.WithError(err).Debug()
@@ -98,10 +153,10 @@ func connectMsg(port uint32) string {
 
 // tryConnect attempts to dial a guest vsock listener at the provided host-side
 // unix socket and provided guest-listener port.
-func tryConnect(logger *logrus.Entry, udsPath string, port uint32, timeout Timeout) (net.Conn, error) {
-	conn, err := net.DialTimeout("unix", udsPath, timeout.DialTimeout)
+func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (net.Conn, error) {
+	conn, err := net.DialTimeout("unix", udsPath, c.DialTimeout)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to dial %q within %s", udsPath, timeout.DialTimeout)
+		return nil, errors.Wrapf(err, "failed to dial %q within %s", udsPath, c.DialTimeout)
 	}
 
 	defer func() {
@@ -115,17 +170,17 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, timeout Timeo
 	}()
 
 	msg := connectMsg(port)
-	err = tryConnWrite(conn, msg, timeout.ConnectMsgTimeout)
+	err = tryConnWrite(conn, msg, c.ConnectMsgTimeout)
 	if err != nil {
 		return nil, connectMsgError{
-			cause: errors.Wrapf(err, `failed to write %q within %s`, msg, timeout.ConnectMsgTimeout),
+			cause: errors.Wrapf(err, `failed to write %q within %s`, msg, c.ConnectMsgTimeout),
 		}
 	}
 
-	line, err := tryConnReadUntil(conn, '\n', timeout.AckMsgTimeout)
+	line, err := tryConnReadUntil(conn, '\n', c.AckMsgTimeout)
 	if err != nil {
 		return nil, ackError{
-			cause: errors.Wrapf(err, `failed to read "OK <port>" within %s`, timeout.AckMsgTimeout),
+			cause: errors.Wrapf(err, `failed to read "OK <port>" within %s`, c.AckMsgTimeout),
 		}
 	}
 

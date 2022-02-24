@@ -26,9 +26,8 @@ import (
 type listener struct {
 	listener net.Listener
 	port     uint32
-	timeout  Timeout
 	ctx      context.Context
-	logger   *logrus.Entry
+	config   config
 }
 
 // Listener returns a net.Listener implementation for guest-side Firecracker
@@ -42,23 +41,22 @@ func Listener(ctx context.Context, logger *logrus.Entry, port uint32) (net.Liste
 	return listener{
 		listener: l,
 		port:     port,
-		timeout:  DefaultTimeouts(),
+		config:   defaultConfig(),
 		ctx:      ctx,
-		logger:   logger,
 	}, nil
 }
 
 func (l listener) Accept() (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(l.ctx, l.timeout.RetryTimeout)
+	ctx, cancel := context.WithTimeout(l.ctx, l.config.RetryTimeout)
 	defer cancel()
 
 	var attemptCount int
-	ticker := time.NewTicker(l.timeout.RetryInterval)
+	ticker := time.NewTicker(l.config.RetryInterval)
 	defer ticker.Stop()
 	tickerCh := ticker.C
 	for {
 		attemptCount++
-		logger := l.logger.WithField("attempt", attemptCount)
+		logger := l.config.logger.WithField("attempt", attemptCount)
 
 		select {
 		case <-ctx.Done():
