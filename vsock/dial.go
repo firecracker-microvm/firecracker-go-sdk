@@ -239,6 +239,10 @@ func (e connectMsgError) Temporary() bool {
 	return false
 }
 
+func (e connectMsgError) Timeout() bool {
+	return false
+}
+
 type ackError struct {
 	cause error
 }
@@ -251,13 +255,12 @@ func (e ackError) Temporary() bool {
 	return true
 }
 
-// isTemporaryNetErr returns whether the provided error is a retriable
-// error, according to the interface defined here:
-// https://golang.org/pkg/net/#Error
-func isTemporaryNetErr(err error) bool {
-	terr, ok := err.(interface {
-		Temporary() bool
-	})
+func (e ackError) Timeout() bool {
+	return false
+}
 
-	return err != nil && ok && terr.Temporary()
+// isTemporaryNetErr returns whether the provided error is a retriable error.
+func isTemporaryNetErr(err error) bool {
+	var netError net.Error
+	return err != nil && errors.As(err, &netError) && netError.Temporary()
 }
