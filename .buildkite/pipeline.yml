@@ -127,10 +127,6 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-    # Firecracker's main branch wouldn't work with Go SDK currently due to ht_enabled change.
-    # https://github.com/firecracker-microvm/firecracker/pull/2876
-    soft_fail:
-      - exit_status: 2
 
   - label: 'go mod tidy'
     commands:
