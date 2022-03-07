@@ -380,7 +380,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // handlers succeed, then this will start the VMM instance.
 // Start may only be called once per Machine.  Subsequent calls will return
 // ErrAlreadyStarted.
-func (m *Machine) Start(ctx context.Context) error {
+func (m *Machine) Start(ctx context.Context, opts ...Opt) error {
 	m.logger.Debug("Called Machine.Start()")
 	alreadyStarted := true
 	m.startOnce.Do(func() {
@@ -400,6 +400,10 @@ func (m *Machine) Start(ctx context.Context) error {
 			}
 		}
 	}()
+
+	for _, opt := range opts {
+		opt(m)
+	}
 
 	err = m.Handlers.Run(ctx, m)
 	if err != nil {
@@ -1089,6 +1093,22 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	m.logger.Debug("snapshot created successfully")
+	return nil
+}
+
+// LoadSnapshot load a snapshot
+func (m *Machine) LoadSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...LoadSnapshotOpt) error {
+	snapshotParams := &models.SnapshotLoadParams{
+		MemFilePath:  String(memFilePath),
+		SnapshotPath: String(snapshotPath),
+	}
+
+	if _, err := m.client.LoadSnapshot(ctx, snapshotParams, opts...); err != nil {
+		m.logger.Errorf("failed to load a snapshot for VM: %v", err)
+		return err
+	}
+
+	m.logger.Debug("snapshot loaded successfully")
 	return nil
 }
 

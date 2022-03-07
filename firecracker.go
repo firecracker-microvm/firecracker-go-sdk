@@ -265,6 +265,23 @@ func (f *Client) CreateSnapshot(ctx context.Context, snapshotParams *models.Snap
 	return f.client.Operations.CreateSnapshot(params)
 }
 
+// LoadSnapshotOpt is a functional option to be used for the
+// LoadSnapshot API in setting any additional optional fields.
+type LoadSnapshotOpt func(*ops.LoadSnapshotParams)
+
+// LoadSnapshot is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) LoadSnapshot(ctx context.Context, snapshotParams *models.SnapshotLoadParams, opts ...LoadSnapshotOpt) (*ops.LoadSnapshotNoContent, error) {
+	params := ops.NewLoadSnapshotParamsWithContext(ctx)
+	params.SetBody(snapshotParams)
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.LoadSnapshot(params)
+}
+
 // CreateSyncActionOpt is a functional option to be used for the
 // CreateSyncAction API in setting any additional optional fields.
 type CreateSyncActionOpt func(*ops.CreateSyncActionParams)
