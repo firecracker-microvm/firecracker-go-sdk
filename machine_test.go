@@ -1780,7 +1780,11 @@ func TestLoadSnapshot(t *testing.T) {
 
 	// Load a snapshot
 	{
-		cfg := createValidConfig(t, socketPath+".load")
+		cfg := Config{
+			DisableValidation: true,
+			SocketPath:        socketPath + ".load",
+			Snapshot:          SnapshotConfig{SnapshotPath: snapPath, MemFilePath: memPath},
+		}
 		m, err := NewMachine(ctx, cfg, func(m *Machine) {
 			// Rewriting m.cmd partially wouldn't work since Cmd has
 			// some unexported members
@@ -1789,7 +1793,7 @@ func TestLoadSnapshot(t *testing.T) {
 		}, WithLogger(logrus.NewEntry(machineLogger)))
 		require.NoError(t, err)
 
-		err = m.Start(ctx, WithSnapshot(ctx, memPath, snapPath))
+		err = m.Start(ctx)
 		require.NoError(t, err)
 
 		err = m.ResumeVM(ctx)

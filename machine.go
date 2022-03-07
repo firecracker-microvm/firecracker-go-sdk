@@ -150,6 +150,12 @@ type Config struct {
 	// It is possible to use a valid IPv4 link-local address (169.254.0.0/16).
 	// If not provided, the default address (169.254.169.254) will be used.
 	MmdsAddress net.IP
+
+	Snapshot SnapshotConfig
+}
+
+func (cfg *Config) hasSnapshot() bool {
+	return cfg.Snapshot.MemFilePath != "" || cfg.Snapshot.SnapshotPath != ""
 }
 
 // Validate will ensure that the required fields are set and that
@@ -722,6 +728,17 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 }
 
 func (m *Machine) createMachine(ctx context.Context) error {
+	ss := m.Cfg.Snapshot
+	if ss.SnapshotPath != "" || ss.MemFilePath != "" {
+		_, err := m.client.LoadSnapshot(ctx, &models.SnapshotLoadParams{
+			SnapshotPath:        String(ss.SnapshotPath),
+			MemFilePath:         String(ss.MemFilePath),
+			EnableDiffSnapshots: ss.EnableDiffSnapshots,
+			ResumeVM:            ss.ResumeVM,
+		})
+		return err
+	}
+
 	resp, err := m.client.PutMachineConfiguration(ctx, &m.Cfg.MachineCfg)
 	if err != nil {
 		m.logger.Errorf("PutMachineConfiguration returned %s", resp.Error())
@@ -738,6 +755,10 @@ func (m *Machine) createMachine(ctx context.Context) error {
 }
 
 func (m *Machine) createBootSource(ctx context.Context, imagePath, initrdPath, kernelArgs string) error {
+	if m.Cfg.hasSnapshot() {
+		return nil
+	}
+
 	bsrc := models.BootSource{
 		KernelImagePath: &imagePath,
 		InitrdPath:      initrdPath,
@@ -845,6 +866,10 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 }
 
 func (m *Machine) startInstance(ctx context.Context) error {
+	if m.Cfg.hasSnapshot() {
+		return nil
+	}
+
 	action := models.InstanceActionInfoActionTypeInstanceStart
 	info := models.InstanceActionInfo{
 		ActionType: &action,
@@ -1093,22 +1118,6 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	m.logger.Debug("snapshot created successfully")
-	return nil
-}
-
-// LoadSnapshot load a snapshot
-func (m *Machine) LoadSnapshot(ctx context.Context, memFilePath, snapshotPath string, opts ...LoadSnapshotOpt) error {
-	snapshotParams := &models.SnapshotLoadParams{
-		MemFilePath:  String(memFilePath),
-		SnapshotPath: String(snapshotPath),
-	}
-
-	if _, err := m.client.LoadSnapshot(ctx, snapshotParams, opts...); err != nil {
-		m.logger.Errorf("failed to load a snapshot for VM: %v", err)
-		return err
-	}
-
-	m.logger.Debug("snapshot loaded successfully")
 	return nil
 }
 
