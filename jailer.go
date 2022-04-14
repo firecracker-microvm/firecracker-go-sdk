@@ -83,6 +83,9 @@ type JailerConfig struct {
 	// ChrootStrategy will dictate how files are transfered to the root drive.
 	ChrootStrategy HandlersAdapter
 
+	// CgroupVersion is the version of the cgroup filesystem to use.
+	CgroupVersion string
+
 	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
 	Stdout io.Writer
 	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
@@ -106,6 +109,7 @@ type JailerCommandBuilder struct {
 	netNS           string
 	daemonize       bool
 	firecrackerArgs []string
+	cgroupVersion   string
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -138,6 +142,10 @@ func (b JailerCommandBuilder) Args() []string {
 	if cpulist := getNumaCpuset(b.node); len(cpulist) > 0 {
 		args = append(args, "--cgroup", fmt.Sprintf("cpuset.mems=%d", b.node))
 		args = append(args, "--cgroup", fmt.Sprintf("cpuset.cpus=%s", cpulist))
+	}
+
+	if len(b.cgroupVersion) > 0 {
+		args = append(args, "--cgroup-version", b.cgroupVersion)
 	}
 
 	if len(b.chrootBaseDir) > 0 {
@@ -271,6 +279,12 @@ func (b JailerCommandBuilder) WithFirecrackerArgs(args ...string) JailerCommandB
 	return b
 }
 
+// WithCgroupVersion specifies which cgroup version to use
+func (b JailerCommandBuilder) WithCgroupVersion(version string) JailerCommandBuilder {
+	b.cgroupVersion = version
+	return b
+}
+
 // Build will build a jailer command.
 func (b JailerCommandBuilder) Build(ctx context.Context) *exec.Cmd {
 	cmd := exec.CommandContext(
@@ -334,6 +348,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithExecFile(cfg.JailerCfg.ExecFile).
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
+		WithCgroupVersion(cfg.JailerCfg.CgroupVersion).
 		WithFirecrackerArgs(fcArgs...).
 		WithStdout(stdout).
 		WithStderr(stderr)
