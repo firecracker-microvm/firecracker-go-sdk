@@ -31,47 +31,47 @@ import (
 // swagger:model FullVmConfiguration
 type FullVMConfiguration struct {
 
-	// balloon device
-	BalloonDevice *Balloon `json:"balloon_device,omitempty"`
-
-	// Configurations for all block devices.
-	BlockDevices []*Drive `json:"block_devices"`
+	// balloon
+	Balloon *Balloon `json:"balloon,omitempty"`
 
 	// boot source
-	BootSource *BootSource `json:"boot_source,omitempty"`
+	BootSource *BootSource `json:"boot-source,omitempty"`
+
+	// Configurations for all block devices.
+	Drives []*Drive `json:"drives"`
 
 	// logger
 	Logger *Logger `json:"logger,omitempty"`
 
 	// machine config
-	MachineConfig *MachineConfiguration `json:"machine_config,omitempty"`
+	MachineConfig *MachineConfiguration `json:"machine-config,omitempty"`
 
 	// metrics
 	Metrics *Metrics `json:"metrics,omitempty"`
 
 	// mmds config
-	MmdsConfig *MmdsConfig `json:"mmds_config,omitempty"`
+	MmdsConfig *MmdsConfig `json:"mmds-config,omitempty"`
 
 	// Configurations for all net devices.
-	NetDevices []*NetworkInterface `json:"net_devices"`
+	NetworkInterfaces []*NetworkInterface `json:"network-interfaces"`
 
-	// vsock device
-	VsockDevice *Vsock `json:"vsock_device,omitempty"`
+	// vsock
+	Vsock *Vsock `json:"vsock,omitempty"`
 }
 
 // Validate validates this full Vm configuration
 func (m *FullVMConfiguration) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateBalloonDevice(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.validateBlockDevices(formats); err != nil {
+	if err := m.validateBalloon(formats); err != nil {
 		res = append(res, err)
 	}
 
 	if err := m.validateBootSource(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDrives(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -91,11 +91,11 @@ func (m *FullVMConfiguration) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateNetDevices(formats); err != nil {
+	if err := m.validateNetworkInterfaces(formats); err != nil {
 		res = append(res, err)
 	}
 
-	if err := m.validateVsockDevice(formats); err != nil {
+	if err := m.validateVsock(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -105,44 +105,19 @@ func (m *FullVMConfiguration) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *FullVMConfiguration) validateBalloonDevice(formats strfmt.Registry) error {
+func (m *FullVMConfiguration) validateBalloon(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.BalloonDevice) { // not required
+	if swag.IsZero(m.Balloon) { // not required
 		return nil
 	}
 
-	if m.BalloonDevice != nil {
-		if err := m.BalloonDevice.Validate(formats); err != nil {
+	if m.Balloon != nil {
+		if err := m.Balloon.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("balloon_device")
+				return ve.ValidateName("balloon")
 			}
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (m *FullVMConfiguration) validateBlockDevices(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.BlockDevices) { // not required
-		return nil
-	}
-
-	for i := 0; i < len(m.BlockDevices); i++ {
-		if swag.IsZero(m.BlockDevices[i]) { // not required
-			continue
-		}
-
-		if m.BlockDevices[i] != nil {
-			if err := m.BlockDevices[i].Validate(formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("block_devices" + "." + strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
 	}
 
 	return nil
@@ -157,10 +132,35 @@ func (m *FullVMConfiguration) validateBootSource(formats strfmt.Registry) error 
 	if m.BootSource != nil {
 		if err := m.BootSource.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("boot_source")
+				return ve.ValidateName("boot-source")
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *FullVMConfiguration) validateDrives(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Drives) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.Drives); i++ {
+		if swag.IsZero(m.Drives[i]) { // not required
+			continue
+		}
+
+		if m.Drives[i] != nil {
+			if err := m.Drives[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("drives" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
 	}
 
 	return nil
@@ -193,7 +193,7 @@ func (m *FullVMConfiguration) validateMachineConfig(formats strfmt.Registry) err
 	if m.MachineConfig != nil {
 		if err := m.MachineConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("machine_config")
+				return ve.ValidateName("machine-config")
 			}
 			return err
 		}
@@ -229,7 +229,7 @@ func (m *FullVMConfiguration) validateMmdsConfig(formats strfmt.Registry) error 
 	if m.MmdsConfig != nil {
 		if err := m.MmdsConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("mmds_config")
+				return ve.ValidateName("mmds-config")
 			}
 			return err
 		}
@@ -238,21 +238,21 @@ func (m *FullVMConfiguration) validateMmdsConfig(formats strfmt.Registry) error 
 	return nil
 }
 
-func (m *FullVMConfiguration) validateNetDevices(formats strfmt.Registry) error {
+func (m *FullVMConfiguration) validateNetworkInterfaces(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.NetDevices) { // not required
+	if swag.IsZero(m.NetworkInterfaces) { // not required
 		return nil
 	}
 
-	for i := 0; i < len(m.NetDevices); i++ {
-		if swag.IsZero(m.NetDevices[i]) { // not required
+	for i := 0; i < len(m.NetworkInterfaces); i++ {
+		if swag.IsZero(m.NetworkInterfaces[i]) { // not required
 			continue
 		}
 
-		if m.NetDevices[i] != nil {
-			if err := m.NetDevices[i].Validate(formats); err != nil {
+		if m.NetworkInterfaces[i] != nil {
+			if err := m.NetworkInterfaces[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName("net_devices" + "." + strconv.Itoa(i))
+					return ve.ValidateName("network-interfaces" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -263,16 +263,16 @@ func (m *FullVMConfiguration) validateNetDevices(formats strfmt.Registry) error 
 	return nil
 }
 
-func (m *FullVMConfiguration) validateVsockDevice(formats strfmt.Registry) error {
+func (m *FullVMConfiguration) validateVsock(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.VsockDevice) { // not required
+	if swag.IsZero(m.Vsock) { // not required
 		return nil
 	}
 
-	if m.VsockDevice != nil {
-		if err := m.VsockDevice.Validate(formats); err != nil {
+	if m.Vsock != nil {
+		if err := m.Vsock.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("vsock_device")
+				return ve.ValidateName("vsock")
 			}
 			return err
 		}
