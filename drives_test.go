@@ -32,7 +32,7 @@ func TestDrivesBuilder(t *testing.T) {
 
 	drives := NewDrivesBuilder(expectedPath).Build()
 	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
-		t.Errorf("expected drives %v, but received %v", e, a)
+		t.Errorf("expected drives %+v, but received %+v", e, a)
 	}
 }
 
@@ -51,7 +51,28 @@ func TestDrivesBuilderWithRootDrive(t *testing.T) {
 	drives := b.WithRootDrive(expectedPath, WithDriveID("foo")).Build()
 
 	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
-		t.Errorf("expected drives %v, but received %v", e, a)
+		t.Errorf("expected drives %+v, but received %+v", e, a)
+	}
+}
+
+func TestDrivesBuilderWithCacheType(t *testing.T) {
+	expectedPath := "/path/to/rootfs"
+	expectedCacheType := models.DriveCacheTypeWriteback
+	expectedDrives := []models.Drive{
+		{
+			DriveID:      String("root_drive"),
+			PathOnHost:   &expectedPath,
+			IsRootDevice: Bool(true),
+			IsReadOnly:   Bool(false),
+			CacheType:    String(expectedCacheType),
+		},
+	}
+
+	b := NewDrivesBuilder(expectedPath)
+	drives := b.WithRootDrive(expectedPath, WithDriveID("root_drive"), WithCacheType("Writeback")).Build()
+
+	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
+		t.Errorf("expected drives %+v, but received %+v", e, a)
 	}
 }
 
@@ -77,6 +98,13 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 				drive.Partuuid = "uuid"
 			},
 		},
+		{
+			Path:     "/5",
+			ReadOnly: true,
+			Opt: func(drive *models.Drive) {
+				drive.CacheType = String(models.DriveCacheTypeWriteback)
+			},
+		},
 	}
 	expectedDrives := []models.Drive{
 		{
@@ -99,6 +127,13 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 			Partuuid:     "uuid",
 		},
 		{
+			DriveID:      String("3"),
+			PathOnHost:   String("/5"),
+			IsRootDevice: Bool(false),
+			IsReadOnly:   Bool(true),
+			CacheType:    String(models.DriveCacheTypeWriteback),
+		},
+		{
 			DriveID:      String(rootDriveName),
 			PathOnHost:   &rootPath,
 			IsRootDevice: Bool(true),
@@ -117,6 +152,6 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 
 	drives := b.Build()
 	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
-		t.Errorf("expected drives %v, but received %v", e, a)
+		t.Errorf("expected drives %+v\n, but received %+v", e, a)
 	}
 }
