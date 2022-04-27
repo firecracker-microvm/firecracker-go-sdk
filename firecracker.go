@@ -474,3 +474,15 @@ func (f *Client) PatchBalloonStatsInterval(ctx context.Context, balloonStatsUpda
 
 	return f.client.Operations.PatchBalloonStatsInterval(params)
 }
+
+type GetExportVMConfigOpt func(*ops.GetExportVMConfigParams)
+
+func (f *Client) GetExportVMConfig(opts ...GetExportVMConfigOpt) (*ops.GetExportVMConfigOK, error) {
+	p := ops.NewGetExportVMConfigParams()
+	p.SetTimeout(time.Duration(f.firecrackerRequestTimeout) * time.Millisecond)
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return f.client.Operations.GetExportVMConfig(p)
+}
