@@ -103,3 +103,10 @@ func WithRateLimiter(limiter models.RateLimiter) DriveOpt {
 		d.RateLimiter = &limiter
 	}
 }
+
+// WithCacheType sets the cache strategy for the block device
+func WithCacheType(cacheType string) DriveOpt {
+	return func(d *models.Drive) {
+		d.CacheType = String(cacheType)
+	}
+}
