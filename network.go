@@ -25,7 +25,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/pkg/errors"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -50,8 +50,7 @@ func (networkInterfaces NetworkInterfaces) validate(kernelArgs kernelArgs) error
 		hasStaticIP := hasStaticInterface && iface.StaticConfiguration.IPConfiguration != nil
 
 		if !hasCNI && !hasStaticInterface {
-			return errors.Errorf(
-				"must specify at least one of CNIConfiguration or StaticConfiguration for network interfaces: %+v", networkInterfaces)
+			return fmt.Errorf("must specify at least one of CNIConfiguration or StaticConfiguration for network interfaces: %+v", networkInterfaces)
 		}
 
 		if hasCNI && hasStaticInterface {
@@ -60,21 +59,18 @@ func (networkInterfaces NetworkInterfaces) validate(kernelArgs kernelArgs) error
 			// specified statically rather than parsed from the CNI result via vmconf.
 			// This may be useful in some scenarios, but the full implications of enabling it have not yet been considered or
 			// tested, so for now providing both is blocked to prevent any regrettable one-way doors.
-			return errors.Errorf(
-				"cannot provide both CNIConfiguration and StaticConfiguration for a network interface: %+v", iface)
+			return fmt.Errorf("cannot provide both CNIConfiguration and StaticConfiguration for a network interface: %+v", iface)
 		}
 
 		if hasCNI || hasStaticIP {
 			// due to limitations of using "ip=" kernel boot param, currently only one network interface can be provided
 			// when a static IP is going to be configured.
 			if len(networkInterfaces) > 1 {
-				return errors.Errorf(
-					"cannot specify CNIConfiguration or IPConfiguration when multiple network interfaces are provided: %+v", networkInterfaces)
+				return fmt.Errorf("cannot specify CNIConfiguration or IPConfiguration when multiple network interfaces are provided: %+v", networkInterfaces)
 			}
 
 			if argVal, ok := kernelArgs["ip"]; ok {
-				return errors.Errorf(
-					`CNIConfiguration or IPConfiguration cannot be specified when "ip=" provided in kernel boot args, value found: "%v"`, argVal)
+				return fmt.Errorf(`CNIConfiguration or IPConfiguration cannot be specified when "ip=" provided in kernel boot args, value found: "%v"`, argVal)
 			}
 		}
 
@@ -121,13 +117,13 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	err, netnsCleanupFuncs := cniNetworkInterface.CNIConfiguration.initializeNetNS()
 	cleanupFuncs = append(cleanupFuncs, netnsCleanupFuncs...)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize netns"), cleanupFuncs
+		return fmt.Errorf("failed to initialize netns: %w", err), cleanupFuncs
 	}
 
 	cniResult, err, cniCleanupFuncs := cniNetworkInterface.CNIConfiguration.invokeCNI(ctx, logger)
 	cleanupFuncs = append(cleanupFuncs, cniCleanupFuncs...)
 	if err != nil {
-		return errors.Wrap(err, "failure when invoking CNI"), cleanupFuncs
+		return fmt.Errorf("failure when invoking CNI: %w", err), cleanupFuncs
 	}
 
 	// If static configuration is not already set for the network device, fill it out
@@ -136,10 +132,8 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	if cniNetworkInterface.StaticConfiguration == nil {
 		vmNetConf, err := vmconf.StaticNetworkConfFrom(*cniResult, cniNetworkInterface.CNIConfiguration.containerID)
 		if err != nil {
-			return errors.Wrap(err,
-				"failed to parse VM network configuration from CNI output, ensure CNI is configured with a plugin "+
-					"that supports automatic VM network configuration such as tc-redirect-tap",
-			), cleanupFuncs
+			return fmt.Errorf("failed to parse VM network configuration from CNI output, ensure CNI is configured with a plugin "+
+				"that supports automatic VM network configuration such as tc-redirect-tap"+": %w", err), cleanupFuncs
 		}
 
 		cniNetworkInterface.StaticConfiguration = &StaticNetworkConfiguration{
@@ -290,11 +284,11 @@ type CNIConfiguration struct {
 
 func (cniConf CNIConfiguration) validate() error {
 	if cniConf.NetworkName == "" && cniConf.NetworkConfig == nil {
-		return errors.Errorf("must specify either NetworkName or NetworkConfig in CNIConfiguration: %+v", cniConf)
+		return fmt.Errorf("must specify either NetworkName or NetworkConfig in CNIConfiguration: %+v", cniConf)
 	}
 
 	if cniConf.NetworkName != "" && cniConf.NetworkConfig != nil {
-		return errors.Errorf("must not specify both NetworkName and NetworkConfig in CNIConfiguration: %+v", cniConf)
+		return fmt.Errorf("must not specify both NetworkName and NetworkConfig in CNIConfiguration: %+v", cniConf)
 	}
 
 	return nil
@@ -335,8 +329,8 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	if networkConf == nil {
 		networkConf, err = libcni.LoadConfList(cniConf.ConfDir, cniConf.NetworkName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to load CNI configuration from dir %q for network %q",
-				cniConf.ConfDir, cniConf.NetworkName), cleanupFuncs
+			return nil, fmt.Errorf("failed to load CNI configuration from dir %q for network %q: %w",
+				cniConf.ConfDir, cniConf.NetworkName, err), cleanupFuncs
 		}
 	}
 
@@ -345,7 +339,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	delNetworkFunc := func() error {
 		err := cniPlugin.DelNetworkList(ctx, networkConf, runtimeConf)
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete CNI network list %q", cniConf.NetworkName)
+			return fmt.Errorf("failed to delete CNI network list %q: %w", cniConf.NetworkName, err)
 		}
 		return nil
 	}
@@ -364,7 +358,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 		if !cniConf.Force {
 			// something actually went wrong deleting the network, return an error and Force wasn't used so we don't
 			// try to create a new network on top of a possibly half-deleted previous one.
-			return nil, errors.Wrap(err, errMsg), cleanupFuncs
+			return nil, fmt.Errorf(errMsg+": %w", err), cleanupFuncs
 		}
 		logger.Error(err, errMsg)
 	}
@@ -375,7 +369,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 	cleanupFuncs = append(cleanupFuncs, delNetworkFunc)
 	cniResult, err := cniPlugin.AddNetworkList(ctx, networkConf, runtimeConf)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create CNI network"), cleanupFuncs
+		return nil, fmt.Errorf("failed to create CNI network: %w", err), cleanupFuncs
 	}
 
 	return &cniResult, nil, cleanupFuncs
@@ -393,12 +387,12 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 		return nil, cleanupFuncs
 	case ns.NSPathNotNSErr:
 		// if the path exists but isn't a netns, return an error
-		return errors.Wrapf(err, "path %q does not appear to be a mounted netns", cniConf.netNSPath), cleanupFuncs
+		return fmt.Errorf("path %q does not appear to be a mounted netns: %w", cniConf.netNSPath, err), cleanupFuncs
 	case ns.NSPathNotExistErr:
 		// if the path doesn't exist, continue on to creating a new netns at the path
 	default:
 		// if something else bad happened return the error
-		return errors.Wrapf(err, "failure checking if %q is a mounted netns", cniConf.netNSPath), cleanupFuncs
+		return fmt.Errorf("failure checking if %q is a mounted netns: %w", cniConf.netNSPath, err), cleanupFuncs
 	}
 
 	// the path doesn't exist, so we need to create a new netns and mount it at the path
@@ -409,7 +403,7 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(parentDir, 0600)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create netns parent dir at %q", parentDir), cleanupFuncs
+			return fmt.Errorf("failed to create netns parent dir at %q: %w", parentDir, err), cleanupFuncs
 		}
 
 		cleanupFuncs = append(cleanupFuncs, func() error {
@@ -418,26 +412,25 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 			// concurrently with us.
 			err := os.Remove(parentDir)
 			if err != nil {
-				return errors.Wrapf(err, "failed to remove netns parent dir %q", parentDir)
+				return fmt.Errorf("failed to remove netns parent dir %q: %w", parentDir, err)
 			}
 			return nil
 		})
 	} else if err != nil {
-		return errors.Wrapf(err, "failed to check if netns parent dir exists at %q", parentDir), cleanupFuncs
+		return fmt.Errorf("failed to check if netns parent dir exists at %q: %w", parentDir, err), cleanupFuncs
 	}
 
 	// We need a file to exist at the path in order for the bind mount to succeed.
 	fd, err := os.OpenFile(cniConf.netNSPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return errors.Wrapf(err,
-			"failed to open new netns path at %q", cniConf.netNSPath), cleanupFuncs
+		return fmt.Errorf("failed to open new netns path at %q: %w", cniConf.netNSPath, err), cleanupFuncs
 	}
 	fd.Close()
 
 	cleanupFuncs = append(cleanupFuncs, func() error {
 		err := os.Remove(cniConf.netNSPath)
 		if err != nil {
-			return errors.Wrapf(err, "failed to remove netns path %q", cniConf.netNSPath)
+			return fmt.Errorf("failed to remove netns path %q: %w", cniConf.netNSPath, err)
 		}
 		return nil
 	})
@@ -455,21 +448,21 @@ func (cniConf CNIConfiguration) initializeNetNS() (error, []func() error) {
 		// create a new net ns
 		err := unix.Unshare(unix.CLONE_NEWNET)
 		if err != nil {
-			doneCh <- errors.Wrap(err, "failed to unshare netns")
+			doneCh <- fmt.Errorf("failed to unshare netns: %w", err)
 			return
 		}
 
 		// mount the new netns at the destination path
 		err = unix.Mount("/proc/thread-self/ns/net", cniConf.netNSPath, "none", unix.MS_BIND, "none")
 		if err != nil {
-			doneCh <- errors.Wrapf(err, "failed to mount netns at path %q", cniConf.netNSPath)
+			doneCh <- fmt.Errorf("failed to mount netns at path %q: %w", cniConf.netNSPath, err)
 			return
 		}
 
 		cleanupFuncs = append(cleanupFuncs, func() error {
 			err := unix.Unmount(cniConf.netNSPath, unix.MNT_DETACH)
 			if err != nil {
-				return errors.Wrapf(err, "failed to unmount netns at %q", cniConf.netNSPath)
+				return fmt.Errorf("failed to unmount netns at %q: %w", cniConf.netNSPath, err)
 			}
 			return nil
 		})
@@ -496,8 +489,7 @@ type StaticNetworkConfiguration struct {
 
 func (staticConf StaticNetworkConfiguration) validate() error {
 	if staticConf.HostDevName == "" {
-		return errors.Errorf(
-			"HostDevName must be provided if StaticNetworkConfiguration is provided: %+v", staticConf)
+		return fmt.Errorf("HostDevName must be provided if StaticNetworkConfiguration is provided: %+v", staticConf)
 	}
 
 	if staticConf.IPConfiguration != nil {
@@ -533,12 +525,12 @@ func (ipConf IPConfiguration) validate() error {
 	// Make sure only ipv4 is being provided (for now).
 	for _, ip := range []net.IP{ipConf.IPAddr.IP, ipConf.Gateway} {
 		if ip.To4() == nil {
-			return errors.Errorf("invalid ip, only ipv4 addresses are supported: %+v", ip)
+			return fmt.Errorf("invalid ip, only ipv4 addresses are supported: %+v", ip)
 		}
 	}
 
 	if len(ipConf.Nameservers) > 2 {
-		return errors.Errorf("cannot specify more than 2 nameservers: %+v", ipConf.Nameservers)
+		return fmt.Errorf("cannot specify more than 2 nameservers: %+v", ipConf.Nameservers)
 	}
 
 	return nil

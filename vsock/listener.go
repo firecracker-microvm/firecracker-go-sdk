@@ -15,11 +15,11 @@ package vsock
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
 	"github.com/mdlayher/vsock"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,11 +64,11 @@ func (l listener) Accept() (net.Conn, error) {
 		case <-tickerCh:
 			conn, err := tryAccept(logger, l.listener, l.port)
 			if isTemporaryNetErr(err) {
-				err = errors.Wrap(err, "temporary vsock accept failure")
+				err = fmt.Errorf("temporary vsock accept failure: %w", err)
 				logger.WithError(err).Debug()
 				continue
 			} else if err != nil {
-				err = errors.Wrap(err, "non-temporary vsock accept failure")
+				err = fmt.Errorf("non-temporary vsock accept failure: %w", err)
 				logger.WithError(err).Error()
 				return nil, err
 			}

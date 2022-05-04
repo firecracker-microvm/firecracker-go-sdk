@@ -16,13 +16,13 @@ package vsock
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -129,11 +129,11 @@ func dial(ctx context.Context, udsPath string, port uint32, c config) (net.Conn,
 		case <-tickerCh:
 			conn, err := tryConnect(logger, udsPath, port, c)
 			if isTemporaryNetErr(err) {
-				err = errors.Wrap(err, "temporary vsock dial failure")
+				err = fmt.Errorf("temporary vsock dial failure: %w", err)
 				logger.WithError(err).Debug()
 				continue
 			} else if err != nil {
-				err = errors.Wrap(err, "non-temporary vsock dial failure")
+				err = fmt.Errorf("non-temporary vsock dial failure: %w", err)
 				logger.WithError(err).Error()
 				return nil, err
 			}
@@ -156,7 +156,7 @@ func connectMsg(port uint32) string {
 func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (net.Conn, error) {
 	conn, err := net.DialTimeout("unix", udsPath, c.DialTimeout)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to dial %q within %s", udsPath, c.DialTimeout)
+		return nil, fmt.Errorf("failed to dial %q within %s: %w", udsPath, c.DialTimeout, err)
 	}
 
 	defer func() {
@@ -173,14 +173,14 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 	err = tryConnWrite(conn, msg, c.ConnectMsgTimeout)
 	if err != nil {
 		return nil, connectMsgError{
-			cause: errors.Wrapf(err, `failed to write %q within %s`, msg, c.ConnectMsgTimeout),
+			cause: fmt.Errorf(`failed to write %q within %s: %w`, msg, c.ConnectMsgTimeout, err),
 		}
 	}
 
 	line, err := tryConnReadUntil(conn, '\n', c.AckMsgTimeout)
 	if err != nil {
 		return nil, ackError{
-			cause: errors.Wrapf(err, `failed to read "OK <port>" within %s`, c.AckMsgTimeout),
+			cause: fmt.Errorf(`failed to read "OK <port>" within %s: %w`, c.AckMsgTimeout, err),
 		}
 	}
 
@@ -188,7 +188,7 @@ func tryConnect(logger *logrus.Entry, udsPath string, port uint32, c config) (ne
 	// https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md#host-initiated-connections
 	if !strings.HasPrefix(line, "OK ") {
 		return nil, ackError{
-			cause: errors.Errorf(`expected to read "OK <port>", but instead read %q`, line),
+			cause: fmt.Errorf(`expected to read "OK <port>", but instead read %q`, line),
 		}
 	}
 	return conn, nil
@@ -220,7 +220,7 @@ func tryConnWrite(conn net.Conn, expectedWrite string, timeout time.Duration) er
 		return err
 	}
 	if bytesWritten != len(expectedWrite) {
-		return errors.Errorf("incomplete write, expected %d bytes but wrote %d",
+		return fmt.Errorf("incomplete write, expected %d bytes but wrote %d",
 			len(expectedWrite), bytesWritten)
 	}
 
@@ -232,7 +232,7 @@ type connectMsgError struct {
 }
 
 func (e connectMsgError) Error() string {
-	return errors.Wrap(e.cause, "vsock connect message failure").Error()
+	return fmt.Errorf("vsock connect message failure: %w", e.cause).Error()
 }
 
 func (e connectMsgError) Temporary() bool {
@@ -248,7 +248,7 @@ type ackError struct {
 }
 
 func (e ackError) Error() string {
-	return errors.Wrap(e.cause, "vsock ack message failure").Error()
+	return fmt.Errorf("vsock ack message failure: %w", e.cause).Error()
 }
 
 func (e ackError) Temporary() bool {
