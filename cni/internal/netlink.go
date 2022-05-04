@@ -16,7 +16,6 @@ package internal
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -83,7 +82,7 @@ var _ NetlinkOps = &defaultNetlinkOps{}
 func (ops defaultNetlinkOps) AddIngressQdisc(link netlink.Link) error {
 	err := netlink.QdiscAdd(ops.ingressQdisc(link))
 	if err != nil {
-		err = errors.Wrapf(err, "failed to add ingress qdisc to device %q", link.Attrs().Name)
+		err = fmt.Errorf("failed to add ingress qdisc to device %q: %w", link.Attrs().Name, err)
 	}
 
 	return err
@@ -97,7 +96,7 @@ func (ops defaultNetlinkOps) RemoveIngressQdisc(link netlink.Link) error {
 
 	err = netlink.QdiscDel(qdisc)
 	if err != nil {
-		return errors.Wrapf(err, "failed to remove ingress qdisc from device %q", link.Attrs().Name)
+		return fmt.Errorf("failed to remove ingress qdisc from device %q: %w", link.Attrs().Name, err)
 	}
 
 	return nil
@@ -106,7 +105,7 @@ func (ops defaultNetlinkOps) RemoveIngressQdisc(link netlink.Link) error {
 func (ops defaultNetlinkOps) GetIngressQdisc(link netlink.Link) (netlink.Qdisc, error) {
 	qdiscs, err := netlink.QdiscList(link)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list qdiscs for link %q", link.Attrs().Name)
+		return nil, fmt.Errorf("failed to list qdiscs for link %q: %w", link.Attrs().Name, err)
 	}
 
 	expectedQdisc := ops.ingressQdisc(link)
@@ -146,9 +145,9 @@ func (ops defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLi
 		},
 	})
 	if err != nil {
-		err = errors.Wrapf(err,
-			"failed to add u32 filter redirecting from device %q to device %q, does %q exist and have a qdisc attached to its ingress?",
-			sourceLink.Attrs().Name, targetLink.Attrs().Name, sourceLink.Attrs().Name)
+		err = fmt.Errorf("failed to add u32 filter redirecting from device %q to device %q, does %q exist and have a qdisc attached to its ingress?: %w",
+			sourceLink.Attrs().Name, targetLink.Attrs().Name, sourceLink.Attrs().Name, err)
+
 	}
 
 	return err
@@ -157,7 +156,7 @@ func (ops defaultNetlinkOps) AddRedirectFilter(sourceLink netlink.Link, targetLi
 func (ops defaultNetlinkOps) GetRedirectFilter(sourceLink netlink.Link, targetLink netlink.Link) (netlink.Filter, error) {
 	filters, err := netlink.FilterList(sourceLink, RootFilterHandle())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list filters for device %q", sourceLink.Attrs().Name)
+		return nil, fmt.Errorf("failed to list filters for device %q: %w", sourceLink.Attrs().Name, err)
 	}
 
 	for _, filter := range filters {
@@ -214,31 +213,33 @@ func (defaultNetlinkOps) CreateTap(name string, mtu int, ownerUID, ownerGID int)
 
 	err := netlink.LinkAdd(tapLink)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create tap device")
+		return nil, fmt.Errorf("failed to create tap device: %w", err)
 	}
 
 	for _, tapFd := range tapLink.Fds {
 		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETOWNER, ownerUID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set tap %s owner to uid %d",
-				name, ownerUID)
+			return nil, fmt.Errorf("failed to set tap %s owner to uid %d: %w",
+				name, ownerUID, err)
+
 		}
 
 		err = unix.IoctlSetInt(int(tapFd.Fd()), unix.TUNSETGROUP, ownerGID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set tap %s group to gid %d",
-				name, ownerGID)
+			return nil, fmt.Errorf("failed to set tap %s group to gid %d: %w",
+				name, ownerGID, err)
+
 		}
 	}
 
 	err = netlink.LinkSetMTU(tapLink, mtu)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set tap device MTU to %d", mtu)
+		return nil, fmt.Errorf("failed to set tap device MTU to %d: %w", mtu, err)
 	}
 
 	err = netlink.LinkSetUp(tapLink)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set tap up")
+		return nil, fmt.Errorf("failed to set tap up: %w", err)
 	}
 
 	return tapLink, nil

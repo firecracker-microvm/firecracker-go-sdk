@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -33,7 +34,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
+
 	log "github.com/sirupsen/logrus"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -320,7 +321,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	if cfg.VMID == "" {
 		id, err := uuid.NewRandom()
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create random ID for VMID")
+			return nil, fmt.Errorf("failed to create random ID for VMID: %w", err)
 		}
 		cfg.VMID = id.String()
 	}
@@ -549,7 +550,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// Wait for firecracker to initialize:
 	err = m.waitForSocket(time.Duration(m.client.firecrackerInitTimeout)*time.Second, errCh)
 	if err != nil {
-		err = errors.Wrapf(err, "Firecracker did not create API socket %s", m.Cfg.SocketPath)
+		err = fmt.Errorf("Firecracker did not create API socket %s: %w", m.Cfg.SocketPath, err)
 		m.fatalErr = err
 		close(m.exitCh)
 
