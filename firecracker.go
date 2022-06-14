@@ -75,6 +75,22 @@ func NewClient(socketPath string, logger *logrus.Entry, debug bool, opts ...Clie
 	return c
 }
 
+// GetFirecrackerVersionOpt is a functional option to be used for the
+// GetFirecrackerVersion API in setting any additional optional fields.
+type GetFirecrackerVersionOpt func(*ops.GetFirecrackerVersionParams)
+
+// GetFirecrackerVersion is a wrapper for the swagger generated client to make
+// calling of the API easier.
+func (f *Client) GetFirecrackerVersion(ctx context.Context, opts ...GetFirecrackerVersionOpt) (*ops.GetFirecrackerVersionOK, error) {
+	params := ops.NewGetFirecrackerVersionParams()
+	params.SetContext(ctx)
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	return f.client.Operations.GetFirecrackerVersion(params)
+}
+
 // PutLoggerOpt is a functional option to be used for the PutLogger API in
 // setting any additional optional fields.
 type PutLoggerOpt func(*ops.PutLoggerParams)

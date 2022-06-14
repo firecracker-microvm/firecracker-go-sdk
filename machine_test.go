@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -366,6 +368,7 @@ func TestMicroVMExecution(t *testing.T) {
 	}
 
 	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
+	t.Run("TestGetFirecrackerVersion", func(t *testing.T) { testGetFirecrackerVersion(ctx, t, m) })
 	t.Run("TestMachineConfigApplication", func(t *testing.T) { testMachineConfigApplication(ctx, t, m, cfg) })
 	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
 	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
@@ -618,6 +621,47 @@ func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
 	} else {
 		t.Log("firecracker created a machine")
 	}
+}
+
+func parseVersionFromStdout(stdout []byte) (string, error) {
+	pattern := regexp.MustCompile(`Firecracker v(?P<version>[0-9]\.[0-9]\.[0-9]-?.*)`)
+	groupNames := pattern.SubexpNames()
+	matches := pattern.FindStringSubmatch(string(stdout))
+
+	for i, name := range groupNames {
+		if name == "version" {
+			return matches[i], nil
+		}
+	}
+
+	return "", fmt.Errorf("Unable to parse firecracker version from stdout (Output: %s)",
+		stdout)
+}
+
+func getFirecrackerVersion() (string, error) {
+	cmd := exec.Command(getFirecrackerBinaryPath(), "--version")
+	stdout, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return parseVersionFromStdout(stdout)
+}
+
+func testGetFirecrackerVersion(ctx context.Context, t *testing.T, m *Machine) {
+	version, err := m.GetFirecrackerVersion(ctx)
+
+	if err != nil {
+		t.Errorf("GetFirecrackerVersion: %v", err)
+	}
+
+	expectedVersion, err := getFirecrackerVersion()
+	if err != nil {
+		t.Errorf("GetFirecrackerVersion: %v", err)
+	}
+
+	assert.Equalf(t, expectedVersion, version,
+		"GetFirecrackerVersion: Expected version %v, got version %v",
+		expectedVersion, version)
 }
 
 func testMachineConfigApplication(ctx context.Context, t *testing.T, m *Machine, expectedValues Config) {
