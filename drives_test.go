@@ -155,3 +155,23 @@ func TestDrivesBuilderAddDrive(t *testing.T) {
 		t.Errorf("expected drives %+v\n, but received %+v", e, a)
 	}
 }
+
+func TestDrivesBuilderWithIoEngine(t *testing.T) {
+	expectedPath := "/path/to/rootfs"
+	expectedVal := "Async"
+	expectedDrives := []models.Drive{
+		{
+			DriveID:      String(rootDriveName),
+			PathOnHost:   &expectedPath,
+			IsRootDevice: Bool(true),
+			IsReadOnly:   Bool(false),
+			IoEngine:     &expectedVal,
+		},
+	}
+
+	drives := NewDrivesBuilder(expectedPath).WithRootDrive(expectedPath,
+		WithDriveID(string(rootDriveName)), WithIoEngine(expectedVal)).Build()
+	if e, a := expectedDrives, drives; !reflect.DeepEqual(e, a) {
+		t.Errorf("expected drives %+v, but received %+v", e, a)
+	}
+}

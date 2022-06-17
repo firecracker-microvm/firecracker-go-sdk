@@ -110,3 +110,12 @@ func WithCacheType(cacheType string) DriveOpt {
 		d.CacheType = String(cacheType)
 	}
 }
+
+// WithIoEngine sets the io engine of the drive
+// Defaults to Sync, Async is in developer preview at the moment
+// https://github.com/firecracker-microvm/firecracker/blob/v1.1.0/docs/api_requests/block-io-engine.md
+func WithIoEngine(ioEngine string) DriveOpt {
+	return func(d *models.Drive) {
+		d.IoEngine = String(ioEngine)
+	}
+}
