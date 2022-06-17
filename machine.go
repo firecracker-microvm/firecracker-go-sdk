@@ -429,6 +429,18 @@ func (m *Machine) Wait(ctx context.Context) error {
 	}
 }
 
+// GetFirecrackerVersion gets the machine's firecracker version and returns it
+func (m *Machine) GetFirecrackerVersion(ctx context.Context) (string, error) {
+	resp, err := m.client.GetFirecrackerVersion(ctx)
+	if err != nil {
+		m.logger.Errorf("Getting firecracker version: %s", err)
+		return "", err
+	}
+
+	m.logger.Debug("GetFirecrackerVersion successful")
+	return *resp.Payload.FirecrackerVersion, nil
+}
+
 func (m *Machine) setupNetwork(ctx context.Context) error {
 	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
