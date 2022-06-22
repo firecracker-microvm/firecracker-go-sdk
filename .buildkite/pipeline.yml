@@ -78,6 +78,9 @@ steps:
       - ln -s /var/lib/fc-ci/rootfs.ext4 ${FC_TEST_DATA_PATH}/root-drive.img
       # Download Firecracker and its jailer.
       - make deps
+      # Build a rootfs with SSH enabled.
+      - sudo -E FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make ${FC_TEST_DATA_PATH}/root-drive-ssh-key
+      - stat ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -110,7 +113,7 @@ steps:
 
   - label: ':hammer: root tests'
     commands:
-      - "sudo PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - "sudo -E PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"

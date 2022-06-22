@@ -151,6 +151,13 @@ type Config struct {
 	// It is possible to use a valid IPv4 link-local address (169.254.0.0/16).
 	// If not provided, the default address (169.254.169.254) will be used.
 	MmdsAddress net.IP
+
+	// Configuration for snapshot loading
+	Snapshot SnapshotConfig
+}
+
+func (cfg *Config) hasSnapshot() bool {
+	return cfg.Snapshot.MemFilePath != "" || cfg.Snapshot.SnapshotPath != ""
 }
 
 // Validate will ensure that the required fields are set and that
@@ -381,7 +388,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // handlers succeed, then this will start the VMM instance.
 // Start may only be called once per Machine.  Subsequent calls will return
 // ErrAlreadyStarted.
-func (m *Machine) Start(ctx context.Context) error {
+func (m *Machine) Start(ctx context.Context, opts ...StartOpt) error {
 	m.logger.Debug("Called Machine.Start()")
 	alreadyStarted := true
 	m.startOnce.Do(func() {
@@ -401,6 +408,10 @@ func (m *Machine) Start(ctx context.Context) error {
 			}
 		}
 	}()
+
+	for _, opt := range opts {
+		opt(m)
+	}
 
 	err = m.Handlers.Run(ctx, m)
 	if err != nil {
@@ -854,6 +865,10 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 }
 
 func (m *Machine) startInstance(ctx context.Context) error {
+	if m.Cfg.hasSnapshot() {
+		return nil
+	}
+
 	action := models.InstanceActionInfoActionTypeInstanceStart
 	info := models.InstanceActionInfo{
 		ActionType: &action,
@@ -1102,6 +1117,23 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	m.logger.Debug("snapshot created successfully")
+	return nil
+}
+
+// loadSnapshot loads a snapshot of the VM
+func (m *Machine) loadSnapshot(ctx context.Context, snapshot *SnapshotConfig) error {
+	snapshotParams := &models.SnapshotLoadParams{
+		MemFilePath:         &snapshot.MemFilePath,
+		SnapshotPath:        &snapshot.SnapshotPath,
+		EnableDiffSnapshots: snapshot.EnableDiffSnapshots,
+		ResumeVM:            snapshot.ResumeVM,
+	}
+
+	if _, err := m.client.LoadSnapshot(ctx, snapshotParams); err != nil {
+		return fmt.Errorf("failed to load a snapshot for VM: %v", err)
+	}
+
+	m.logger.Debug("snapshot loaded successfully")
 	return nil
 }
 
