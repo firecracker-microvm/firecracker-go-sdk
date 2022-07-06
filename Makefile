@@ -62,6 +62,7 @@ clean::
 
 distclean: clean
 	rm -rf $(testdata_objects)
+	rm -f $(FC_TEST_DATA_PATH)/fc.stamp
 	rm -rfv $(testdata_dir)
 	docker volume rm -f $(CARGO_CACHE_VOLUME_NAME)
 
