@@ -6,4 +6,7 @@ vmlinux
 root-drive.img
 TestPID.img
 build/
+testdata/fc.stamp
 testdata/logs/
+testdata/ltag
+testdata/release-*
