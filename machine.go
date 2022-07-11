@@ -277,12 +277,6 @@ type VsockDevice struct {
 	CID uint32
 }
 
-// SocketPath returns the filesystem path to the socket used for VMM
-// communication
-func (m *Machine) socketPath() string {
-	return m.Cfg.SocketPath
-}
-
 // LogFile returns the filesystem path of the VMM log
 func (m *Machine) LogFile() string {
 	return m.Cfg.LogFifo
@@ -777,14 +771,6 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		IfaceID:     &ifaceID,
 		GuestMac:    iface.StaticConfiguration.MacAddress,
 		HostDevName: String(iface.StaticConfiguration.HostDevName),
-	}
-
-	if iface.InRateLimiter != nil {
-		ifaceCfg.RxRateLimiter = iface.InRateLimiter
-	}
-
-	if iface.OutRateLimiter != nil {
-		ifaceCfg.TxRateLimiter = iface.OutRateLimiter
 	}
 
 	if iface.InRateLimiter != nil {
