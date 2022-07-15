@@ -23,7 +23,7 @@ var _ MachineIface = (*Machine)(nil)
 // MachineIface can be used for mocking and testing of the Machine. The Machine
 // is subject to change, meaning this interface would change.
 type MachineIface interface {
-	Start(context.Context) error
+	Start(context.Context, ...StartOpt) error
 	StopVMM() error
 	Shutdown(context.Context) error
 	Wait(context.Context) error

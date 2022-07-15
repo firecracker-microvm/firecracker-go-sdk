@@ -20,6 +20,7 @@ FIRECRACKER_DIR=build/firecracker
 FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
 
 FC_TEST_DATA_PATH?=testdata
+FC_TEST_BIN_PATH:=$(FC_TEST_DATA_PATH)/bin
 FIRECRACKER_BIN=$(FC_TEST_DATA_PATH)/firecracker-main
 JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-main
 
@@ -37,7 +38,17 @@ $(FC_TEST_DATA_PATH)/vmlinux \
 $(FC_TEST_DATA_PATH)/root-drive.img \
 $(FC_TEST_DATA_PATH)/jailer \
 $(FC_TEST_DATA_PATH)/firecracker \
-$(FC_TEST_DATA_PATH)/ltag
+$(FC_TEST_DATA_PATH)/ltag \
+$(FC_TEST_BIN_PATH)/ptp \
+$(FC_TEST_BIN_PATH)/host-local \
+$(FC_TEST_BIN_PATH)/static \
+$(FC_TEST_BIN_PATH)/tc-redirect-tap
+
+# Enable pulling of artifacts from S3 instead of building
+# TODO: https://github.com/firecracker-microvm/firecracker-go-sdk/issues/418
+ifeq ($(GID), 0)
+testdata_objects += $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img $(FC_TEST_DATA_PATH)/root-drive-ssh-key
+endif
 
 testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_version).yaml testdata/LICENSE testdata/NOTICE testdata/THIRD-PARTY
 
@@ -81,6 +92,34 @@ $(FC_TEST_DATA_PATH)/fc.stamp:
 
 $(FC_TEST_DATA_PATH)/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
+
+$(FC_TEST_DATA_PATH)/root-drive-ssh-key $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img: 
+# Need root to move ssh key to testdata location
+ifeq ($(GID), 0)
+	$(MAKE) $(FIRECRACKER_DIR)
+	$(FIRECRACKER_DIR)/tools/devtool build_rootfs
+	cp $(FIRECRACKER_DIR)/build/rootfs/bionic.rootfs.ext4 $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img
+	cp $(FIRECRACKER_DIR)/build/rootfs/ssh/id_rsa $(FC_TEST_DATA_PATH)/root-drive-ssh-key
+	rm -rf $(FIRECRACKER_DIR)
+else
+	$(error unable to place ssh key without root permissions)
+endif
+
+$(FC_TEST_BIN_PATH)/ptp:
+	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/main/ptp
+
+$(FC_TEST_BIN_PATH)/host-local:
+	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/ipam/host-local
+
+$(FC_TEST_BIN_PATH)/static:
+	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/ipam/static
+
+$(FC_TEST_BIN_PATH)/tc-redirect-tap:
+	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap
 
 $(FC_TEST_DATA_PATH)/ltag:
 	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_DATA_PATH)) \

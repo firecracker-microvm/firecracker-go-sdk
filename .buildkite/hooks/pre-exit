@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-find . -user root -print0 | xargs -0 sudo rm -rf '{}'
+sudo chown -hR "${USER}:${USER}" .

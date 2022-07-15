@@ -38,6 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/ssh"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
@@ -66,7 +67,9 @@ var (
 	testDataLogPath = filepath.Join(testDataPath, "logs")
 	testDataBin     = filepath.Join(testDataPath, "bin")
 
-	testRootfs = filepath.Join(testDataPath, "root-drive.img")
+	testRootfs        = filepath.Join(testDataPath, "root-drive.img")
+	testRootfsWithSSH = filepath.Join(testDataPath, "root-drive-with-ssh.img")
+	testSSHKey        = filepath.Join(testDataPath, "root-drive-ssh-key")
 
 	testBalloonMemory            = int64(10)
 	testBalloonNewMemory         = int64(6)
@@ -1467,8 +1470,48 @@ func TestWaitWithNoSocket(t *testing.T) {
 	}
 }
 
-func createValidConfig(t *testing.T, socketPath string) Config {
-	return Config{
+type machineConfigOpt func(c *Config)
+
+func withRootDrive(rootfs string) machineConfigOpt {
+	return func(c *Config) {
+		var drives []models.Drive
+
+		inserted := false
+		for _, drive := range c.Drives {
+			if *drive.IsRootDevice {
+				drives = append(drives, models.Drive{
+					DriveID:      String("root"),
+					IsRootDevice: Bool(true),
+					IsReadOnly:   Bool(false),
+					PathOnHost:   String(rootfs),
+				})
+				inserted = true
+			} else {
+				drives = append(drives, drive)
+			}
+		}
+
+		if !inserted {
+			drives = append(drives, models.Drive{
+				DriveID:      String("root"),
+				IsRootDevice: Bool(true),
+				IsReadOnly:   Bool(false),
+				PathOnHost:   String(rootfs),
+			})
+		}
+
+		c.Drives = drives
+	}
+}
+
+func withNetworkInterface(networkInterface NetworkInterface) machineConfigOpt {
+	return func(c *Config) {
+		c.NetworkInterfaces = append(c.NetworkInterfaces, networkInterface)
+	}
+}
+
+func createValidConfig(t *testing.T, socketPath string, opts ...machineConfigOpt) Config {
+	cfg := Config{
 		SocketPath:      socketPath,
 		KernelImagePath: getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
@@ -1486,6 +1529,12 @@ func createValidConfig(t *testing.T, socketPath string) Config {
 			},
 		},
 	}
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return cfg
 }
 
 func TestSignalForwarding(t *testing.T) {
@@ -1770,6 +1819,330 @@ func TestCreateSnapshot(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func connectToVM(m *Machine, sshKeyPath string) (*ssh.Client, error) {
+	key, err := ioutil.ReadFile(sshKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         5 * time.Second,
+	}
+
+	if len(m.Cfg.NetworkInterfaces) == 0 {
+		return nil, errors.New("No network interfaces")
+	}
+
+	ip := m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration.IPAddr.IP
+
+	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), config)
+}
+
+func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
+	return ioutil.WriteFile(path, []byte(fmt.Sprintf(`{
+		"cniVersion": "0.3.1",
+		"name": "%s",
+		"plugins": [
+		  {
+			"type": "ptp",
+			"ipam": {
+			  "type": "host-local",
+			  "subnet": "%s"
+			}
+		  },
+		  {
+			"type": "tc-redirect-tap"
+		  }
+		]
+	  }`, networkName, subnet)), 0644)
+}
+
+func TestLoadSnapshot(t *testing.T) {
+	fctesting.RequiresKVM(t)
+	fctesting.RequiresRoot(t)
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	cniConfDir := filepath.Join(dir, "cni.conf")
+	err = os.MkdirAll(cniConfDir, 0777)
+	require.NoError(t, err)
+
+	cniBinPath := []string{testDataBin}
+
+	rootfsBytes, err := ioutil.ReadFile(testRootfsWithSSH)
+	require.NoError(t, err)
+	rootfsPath := filepath.Join(dir, "rootfs.img")
+	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	require.NoError(t, err)
+
+	sshKeyBytes, err := ioutil.ReadFile(testSSHKey)
+	require.NoError(t, err)
+	sshKeyPath := filepath.Join(dir, "id_rsa")
+	err = ioutil.WriteFile(sshKeyPath, sshKeyBytes, 0600)
+	require.NoError(t, err)
+
+	// Using default cache directory to ensure collision avoidance on IP allocations
+	const cniCacheDir = "/var/lib/cni"
+	const networkName = "fcnet"
+	const ifName = "veth0"
+
+	networkMask := "/24"
+	subnet := "10.168.0.0" + networkMask
+	var ipToRestore string
+
+	var maxRetries int = 20
+	var backoffTimeMs time.Duration = 500
+
+	cases := []struct {
+		name           string
+		createSnapshot func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
+		loadSnapshot   func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
+	}{
+		{
+			name: "TestLoadSnapshot",
+			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				// Create a snapshot
+				cfg := createValidConfig(t, socketPath+".create")
+				m, err := NewMachine(ctx, cfg, func(m *Machine) {
+					// Rewriting m.cmd partially wouldn't work since Cmd has
+					// some unexported members
+					args := m.cmd.Args[1:]
+					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+				}, WithLogger(logrus.NewEntry(machineLogger)))
+				require.NoError(t, err)
+
+				err = m.Start(ctx)
+				require.NoError(t, err)
+
+				err = m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.CreateSnapshot(ctx, memPath, snapPath)
+				require.NoError(t, err)
+
+				err = m.StopVMM()
+				require.NoError(t, err)
+			},
+
+			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				cfg := createValidConfig(t, socketPath+".load")
+				m, err := NewMachine(ctx, cfg, func(m *Machine) {
+					// Rewriting m.cmd partially wouldn't work since Cmd has
+					// some unexported members
+					args := m.cmd.Args[1:]
+					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+				}, WithLogger(logrus.NewEntry(machineLogger)))
+				require.NoError(t, err)
+
+				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				require.NoError(t, err)
+
+				err = m.ResumeVM(ctx)
+				require.NoError(t, err)
+
+				err = m.StopVMM()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "TestLoadSnapshot without create",
+			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+
+			},
+
+			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				cfg := createValidConfig(t, socketPath+".load")
+				m, err := NewMachine(ctx, cfg, func(m *Machine) {
+					// Rewriting m.cmd partially wouldn't work since Cmd has
+					// some unexported members
+					args := m.cmd.Args[1:]
+					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+				}, WithLogger(logrus.NewEntry(machineLogger)))
+				require.NoError(t, err)
+
+				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				require.Error(t, err)
+			},
+		},
+		{
+			name: "TestLoadSnapshot and check contents (via ssh)",
+			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
+				err := writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
+				require.NoError(t, err)
+				defer os.Remove(cniConfPath)
+
+				networkInterface := NetworkInterface{
+					CNIConfiguration: &CNIConfiguration{
+						NetworkName: networkName,
+						IfName:      ifName,
+						ConfDir:     cniConfDir,
+						BinPath:     cniBinPath,
+						VMIfName:    "eth0",
+					},
+				}
+				cfg := createValidConfig(t, fmt.Sprintf("%s.create", socketPath),
+					withRootDrive(rootfsPath),
+					withNetworkInterface(networkInterface),
+				)
+
+				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.create", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
+
+				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+				require.NoError(t, err)
+
+				err = m.Start(ctx)
+				require.NoError(t, err)
+				defer m.StopVMM()
+				defer func() {
+					if err := m.Shutdown(ctx); err != nil {
+						t.Logf("error on vm shutdown: %v", err)
+					}
+				}()
+
+				var client *ssh.Client
+				for i := 0; i < maxRetries; i++ {
+					client, err = connectToVM(m, sshKeyPath)
+					if err != nil {
+						time.Sleep(backoffTimeMs * time.Millisecond)
+					} else {
+						break
+					}
+				}
+				require.NoError(t, err)
+				defer client.Close()
+
+				ipToRestore = m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration.IPAddr.IP.String()
+
+				session, err := client.NewSession()
+				require.NoError(t, err)
+				defer session.Close()
+
+				err = session.Start(`sleep 422`) // Should be asynchronous
+				require.NoError(t, err)
+
+				err = m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.CreateSnapshot(ctx, memPath, snapPath)
+				require.NoError(t, err)
+			},
+
+			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				var ipFreed bool = false
+				var err error
+
+				for i := 0; i < maxRetries; i++ {
+					// Wait till the file no longer exists (i.e. os.Stat returns an error)
+					if _, err = os.Stat(fmt.Sprintf("%s/networks/%s/%s", cniCacheDir, networkName, ipToRestore)); err == nil {
+						time.Sleep(backoffTimeMs * time.Millisecond)
+					} else {
+						ipFreed = true
+						break
+					}
+				}
+
+				if errors.Is(err, os.ErrNotExist) {
+					err = nil
+				} else if !ipFreed {
+					err = fmt.Errorf("IP %v was not freed", ipToRestore)
+				}
+				require.NoError(t, err)
+
+				cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
+				err = writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
+				require.NoError(t, err)
+				defer os.Remove(cniConfPath)
+
+				networkInterface := NetworkInterface{
+					CNIConfiguration: &CNIConfiguration{
+						NetworkName: networkName,
+						IfName:      ifName,
+						ConfDir:     cniConfDir,
+						BinPath:     cniBinPath,
+						Args:        [][2]string{{"IP", ipToRestore + networkMask}},
+						VMIfName:    "eth0",
+					},
+				}
+				cfg := createValidConfig(t, fmt.Sprintf("%s.load", socketPath),
+					withRootDrive(rootfsPath),
+					withNetworkInterface(networkInterface),
+				)
+
+				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.load", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
+
+				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+				require.NoError(t, err)
+
+				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				require.NoError(t, err)
+				defer m.StopVMM()
+
+				err = m.ResumeVM(ctx)
+				require.NoError(t, err)
+
+				var client *ssh.Client
+
+				for i := 0; i < maxRetries; i++ {
+					client, err = connectToVM(m, sshKeyPath)
+					if err != nil {
+						time.Sleep(backoffTimeMs * time.Millisecond)
+					} else {
+						break
+					}
+				}
+				require.NoError(t, err)
+				defer client.Close()
+
+				session, err := client.NewSession()
+				require.NoError(t, err)
+				defer session.Close()
+
+				var b bytes.Buffer
+				session.Stdout = &b
+				err = session.Run(`ps -aux | grep "sleep 422" | wc -l`)
+				require.NoError(t, err)
+				require.Equal(t, "3\n", b.String())
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			// Set snap and mem paths
+			socketPath := filepath.Join(dir, fsSafeTestName.Replace(t.Name()))
+			snapPath := socketPath + "SnapFile"
+			memPath := socketPath + "MemFile"
+			defer os.Remove(socketPath)
+			defer os.Remove(snapPath)
+			defer os.Remove(memPath)
+
+			// Tee logs for validation:
+			var logBuffer bytes.Buffer
+			machineLogger := logrus.New()
+			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
+
+			c.createSnapshot(ctx, machineLogger, socketPath, snapPath, memPath)
+			c.loadSnapshot(ctx, machineLogger, socketPath, snapPath, memPath)
+		})
+	}
+
 }
 
 func testCreateBalloon(ctx context.Context, t *testing.T, m *Machine) {

@@ -34,7 +34,8 @@ const (
 	LinkFilesToRootFSHandlerName       = "fcinit.LinkFilesToRootFS"
 	SetupNetworkHandlerName            = "fcinit.SetupNetwork"
 	SetupKernelArgsHandlerName         = "fcinit.SetupKernelArgs"
-	CreateBalloonHandlerName           = "fcint.CreateBalloon"
+	CreateBalloonHandlerName           = "fcinit.CreateBalloon"
+	LoadSnapshotHandlerName            = "fcinit.LoadSnapshot"
 
 	ValidateCfgHandlerName        = "validate.Cfg"
 	ValidateJailerCfgHandlerName  = "validate.JailerCfg"
@@ -280,6 +281,15 @@ func NewCreateBalloonHandler(amountMib int64, deflateOnOom bool, StatsPollingInt
 	}
 }
 
+// LoadSnapshotHandler is a named handler that loads a snapshot
+// from the specified filepath
+var LoadSnapshotHandler = Handler{
+	Name: LoadSnapshotHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		return m.loadSnapshot(ctx, &m.Cfg.Snapshot)
+	},
+}
+
 var defaultFcInitHandlerList = HandlerList{}.Append(
 	SetupNetworkHandler,
 	SetupKernelArgsHandler,
@@ -292,6 +302,15 @@ var defaultFcInitHandlerList = HandlerList{}.Append(
 	CreateNetworkInterfacesHandler,
 	AddVsocksHandler,
 	ConfigMmdsHandler,
+)
+
+var loadSnapshotHandlerList = HandlerList{}.Append(
+	SetupNetworkHandler,
+	StartVMMHandler,
+	CreateLogFilesHandler,
+	BootstrapLoggingHandler,
+	LoadSnapshotHandler,
+	AddVsocksHandler,
 )
 
 var defaultValidationHandlerList = HandlerList{}.Append(
