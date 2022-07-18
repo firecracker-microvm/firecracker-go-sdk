@@ -65,6 +65,11 @@ steps:
   - wait
 
   - label: ':package: install'
+    # This concurrency group can be removed when one of the below issues are resolved:
+    # https://github.com/firecracker-microvm/firecracker-go-sdk/issues/418
+    # https://github.com/firecracker-microvm/firecracker/issues/3058
+    concurrency_group: "mount rootfs"
+    concurrency: 1
     env:
       GOBIN: "$FC_TEST_DATA_PATH/bin"
     commands:
