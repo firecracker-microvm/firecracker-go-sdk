@@ -102,6 +102,15 @@ steps:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+  
+  - label: ':book: examples'
+    commands:
+      - "sudo -E PATH=$PATH FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make -C examples/cmd/snapshotting run"
+      - "sudo -E PATH=$PATH FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make -C examples/cmd/snapshotting clean"
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
   - label: ':hammer: tests'
     commands:
