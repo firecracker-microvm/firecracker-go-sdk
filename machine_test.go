@@ -1939,7 +1939,19 @@ func TestLoadSnapshot(t *testing.T) {
 			},
 
 			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
-				cfg := createValidConfig(t, socketPath+".load")
+				// Note that many fields are not necessary when loading a snapshot
+				cfg := Config{
+					SocketPath: socketPath + ".load",
+					Drives: []models.Drive{
+						{
+							DriveID:      String("root"),
+							IsRootDevice: Bool(true),
+							IsReadOnly:   Bool(true),
+							PathOnHost:   String(testRootfs),
+						},
+					},
+				}
+
 				m, err := NewMachine(ctx, cfg, func(m *Machine) {
 					// Rewriting m.cmd partially wouldn't work since Cmd has
 					// some unexported members
@@ -2078,10 +2090,21 @@ func TestLoadSnapshot(t *testing.T) {
 						VMIfName:    "eth0",
 					},
 				}
-				cfg := createValidConfig(t, fmt.Sprintf("%s.load", socketPath),
-					withRootDrive(rootfsPath),
-					withNetworkInterface(networkInterface),
-				)
+
+				cfg := Config{
+					SocketPath: socketPath + ".load",
+					Drives: []models.Drive{
+						{
+							DriveID:      String("root"),
+							IsRootDevice: Bool(true),
+							IsReadOnly:   Bool(true),
+							PathOnHost:   String(rootfsPath),
+						},
+					},
+					NetworkInterfaces: []NetworkInterface{
+						networkInterface,
+					},
+				}
 
 				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.load", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
 

@@ -62,6 +62,7 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 			opt(&m.Cfg.Snapshot)
 		}
 
+		m.Handlers.Validation = loadSnapshotValidationHandlerList
 		m.Handlers.FcInit = loadSnapshotHandlerList
 	}
 }
