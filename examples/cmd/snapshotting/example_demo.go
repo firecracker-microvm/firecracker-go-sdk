@@ -305,13 +305,13 @@ func loadSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath, ipToRes
 	// Use the firecracker binary
 	cmd := sdk.VMCommandBuilder{}.WithSocketPath(socketFile).WithBin(filepath.Join(dir, "firecracker")).Build(ctx)
 
-	m, err := sdk.NewMachine(ctx, cfg, sdk.WithProcessRunner(cmd))
+	m, err := sdk.NewMachine(ctx, cfg, sdk.WithProcessRunner(cmd), sdk.WithSnapshot(memPath, snapPath))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.Remove(socketFile)
 
-	err = m.Start(ctx, sdk.WithSnapshot(memPath, snapPath))
+	err = m.Start(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

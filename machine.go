@@ -339,10 +339,6 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.cmd = configureBuilder(defaultFirecrackerVMMCommandBuilder, cfg).Build(ctx)
 	}
 
-	for _, opt := range opts {
-		opt(m)
-	}
-
 	if m.logger == nil {
 		logger := log.New()
 
@@ -370,6 +366,10 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.Cfg.NetNS = m.defaultNetNSPath()
 	}
 
+	for _, opt := range opts {
+		opt(m)
+	}
+
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
 }
@@ -382,7 +382,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // handlers succeed, then this will start the VMM instance.
 // Start may only be called once per Machine.  Subsequent calls will return
 // ErrAlreadyStarted.
-func (m *Machine) Start(ctx context.Context, opts ...StartOpt) error {
+func (m *Machine) Start(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Start()")
 	alreadyStarted := true
 	m.startOnce.Do(func() {
@@ -402,10 +402,6 @@ func (m *Machine) Start(ctx context.Context, opts ...StartOpt) error {
 			}
 		}
 	}()
-
-	for _, opt := range opts {
-		opt(m)
-	}
 
 	err = m.Handlers.Run(ctx, m)
 	if err != nil {

@@ -40,7 +40,7 @@ m.PauseVM(ctx)
 m.CreateSnapshot(ctx, memPath, snapPath)
 ```
 
-The snapshot can be loaded at any later time at startup of a machine via the machine's `Start()` function, using `WithSnapshot()` as an option. The VM must then be resumed before attempting to use it.
+The snapshot can be loaded at any later time at creation of a machine via the machine's `NewMachine()` function, using `WithSnapshot()` as an option. Upon starting, the VM loads the snapshot and must then be resumed before attempting to use it.
 
 ```
 ctx := context.Background()
@@ -49,9 +49,9 @@ cfg := sdk.Config{
     ...
 
 }
-m, _ := sdk.NewMachine(ctx, cfg)
+m, _ := sdk.NewMachine(ctx, cfg, sdk.WithSnapshot(memPath, snapPath))
 
-m.Start(ctx, sdk.WithSnapshot(memPath, snapPath))
+m.Start(ctx)
 m.ResumeVM(ctx)
 ```
 

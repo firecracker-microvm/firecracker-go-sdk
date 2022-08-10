@@ -1945,10 +1945,10 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				err = m.Start(ctx)
 				require.NoError(t, err)
 
 				err = m.ResumeVM(ctx)
@@ -1971,10 +1971,10 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				err = m.Start(ctx)
 				require.Error(t, err)
 			},
 		},
@@ -2085,10 +2085,10 @@ func TestLoadSnapshot(t *testing.T) {
 
 				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.load", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
 
-				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				err = m.Start(ctx)
 				require.NoError(t, err)
 				defer m.StopVMM()
 
