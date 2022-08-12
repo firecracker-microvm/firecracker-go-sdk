@@ -39,3 +39,5 @@ require (
 	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/firecracker-microvm/firecracker-go-sdk => ../../..
