@@ -204,6 +204,33 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
+func (cfg *Config) ValidateLoadSnapshot() error {
+	if cfg.DisableValidation {
+		return nil
+	}
+
+	for _, drive := range cfg.Drives {
+		rootPath := StringValue(drive.PathOnHost)
+		if _, err := os.Stat(rootPath); err != nil {
+			return fmt.Errorf("failed to stat drive path, %q: %v", rootPath, err)
+		}
+	}
+
+	if _, err := os.Stat(cfg.SocketPath); err == nil {
+		return fmt.Errorf("socket %s already exists", cfg.SocketPath)
+	}
+
+	if _, err := os.Stat(cfg.Snapshot.MemFilePath); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(cfg.Snapshot.SnapshotPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cfg *Config) ValidateNetwork() error {
 	if cfg.DisableValidation {
 		return nil

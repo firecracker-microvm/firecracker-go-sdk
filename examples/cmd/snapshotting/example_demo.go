@@ -299,8 +299,26 @@ func loadSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath, ipToRes
 		},
 	}
 
+	driveID := "root"
+	isRootDevice := true
+	isReadOnly := false
+	rootfsPath := "root-drive-with-ssh.img"
+
 	socketFile := fmt.Sprintf("%s.load", socketPath)
-	cfg := createNewConfig(socketFile, withNetworkInterface(networkInterface))
+	cfg := sdk.Config{
+		SocketPath: socketPath + ".load",
+		Drives: []models.Drive{
+			{
+				DriveID:      &driveID,
+				IsRootDevice: &isRootDevice,
+				IsReadOnly:   &isReadOnly,
+				PathOnHost:   &rootfsPath,
+			},
+		},
+		NetworkInterfaces: []sdk.NetworkInterface{
+			networkInterface,
+		},
+	}
 
 	// Use the firecracker binary
 	cmd := sdk.VMCommandBuilder{}.WithSocketPath(socketFile).WithBin(filepath.Join(dir, "firecracker")).Build(ctx)
