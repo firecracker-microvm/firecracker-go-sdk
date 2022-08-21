@@ -97,7 +97,7 @@ $(FC_TEST_DATA_PATH)/root-drive-ssh-key $(FC_TEST_DATA_PATH)/root-drive-with-ssh
 # Need root to move ssh key to testdata location
 ifeq ($(GID), 0)
 	$(MAKE) $(FIRECRACKER_DIR)
-	$(FIRECRACKER_DIR)/tools/devtool build_rootfs
+	$(FIRECRACKER_DIR)/tools/devtool build_rootfs -m $(FC_TEST_DATA_PATH)/mnt
 	cp $(FIRECRACKER_DIR)/build/rootfs/bionic.rootfs.ext4 $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img
 	cp $(FIRECRACKER_DIR)/build/rootfs/ssh/id_rsa $(FC_TEST_DATA_PATH)/root-drive-ssh-key
 	rm -rf $(FIRECRACKER_DIR)
