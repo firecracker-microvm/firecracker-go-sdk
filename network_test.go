@@ -16,7 +16,6 @@ package firecracker
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -255,9 +254,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 
 	cniBinPath := []string{"/opt/cni/bin", testDataBin}
 
-	dir, err := ioutil.TempDir("", fsSafeTestName.Replace(t.Name()))
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	testCNIDir := filepath.Join(dir, "TestCNI")
 	os.RemoveAll(testCNIDir)
@@ -299,7 +296,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	cniConfPath := filepath.Join(cniConfDir, fmt.Sprintf("%s.conflist", networkName))
 	if useConfFile {
 		require.NoError(t,
-			ioutil.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
+			os.WriteFile(cniConfPath, []byte(cniConf), 0666), // broad permissions for tests
 			"failed to write cni conf file")
 	} else {
 		// make sure config file doesn't exist
@@ -385,9 +382,9 @@ func newCNIMachine(t *testing.T,
 	cniBinPath []string,
 	networkConf *libcni.NetworkConfigList,
 ) *Machine {
-	rootfsBytes, err := ioutil.ReadFile(testRootfs)
+	rootfsBytes, err := os.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
-	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	err = os.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
 	if networkConf != nil {

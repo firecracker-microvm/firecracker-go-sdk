@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -92,9 +91,7 @@ var fsSafeTestName = strings.NewReplacer("/", "_")
 func makeSocketPath(tb testing.TB) (string, func()) {
 	tb.Helper()
 
-	dir, err := ioutil.TempDir("", fsSafeTestName.Replace(tb.Name()))
-	require.NoError(tb, err)
-
+	dir := tb.TempDir()
 	return filepath.Join(dir, "fc.sock"), func() { os.RemoveAll(dir) }
 }
 
@@ -155,7 +152,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 
 	// uses temp directory due to testdata's path being too long which causes a
 	// SUN_LEN error.
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "jailer-test")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "jailer-test")
 	if err != nil {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
@@ -298,10 +295,7 @@ func TestMicroVMExecution(t *testing.T) {
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	socketPath := filepath.Join(dir, "TestMicroVMExecution.sock")
 	logFifo := filepath.Join(dir, "firecracker.log")
 	metricsFifo := filepath.Join(dir, "firecracker-metrics")
@@ -485,9 +479,7 @@ func TestLogAndMetrics(t *testing.T) {
 func testLogAndMetrics(t *testing.T, logLevel string) string {
 	const vmID = "UserSuppliedVMID"
 
-	dir, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	socketPath := filepath.Join(dir, "fc.sock")
 
@@ -536,7 +528,7 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 	require.NoError(t, err)
 	assert.NotEqual(t, 0, log.Size())
 
-	content, err := ioutil.ReadFile(cfg.LogPath)
+	content, err := os.ReadFile(cfg.LogPath)
 	require.NoError(t, err)
 	return string(content)
 }
@@ -1000,9 +992,7 @@ func TestLogFiles(t *testing.T) {
 }
 
 func TestCaptureFifoToFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile")
 
@@ -1051,15 +1041,13 @@ func TestCaptureFifoToFile(t *testing.T) {
 	wg.Wait()
 	_, err = os.Stat(logPath)
 	assert.NoError(t, err, "failed to stat file")
-	b, err := ioutil.ReadFile(logPath)
+	b, err := os.ReadFile(logPath)
 	assert.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
 
 func TestCaptureFifoToFile_nonblock(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFile_nonblock")
 
@@ -1114,7 +1102,7 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	wg.Wait()
 	_, err = os.Stat(logPath)
 	assert.NoError(t, err, "failed to stat file")
-	b, err := ioutil.ReadFile(logPath)
+	b, err := os.ReadFile(logPath)
 	assert.NoError(t, err, "failed to read logPath")
 	assert.Equal(t, expectedBytes, b)
 }
@@ -1179,9 +1167,7 @@ func TestPID(t *testing.T) {
 		t.Errorf("expected an error, but received none")
 	}
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	var nCpus int64 = 2
 	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
@@ -1191,10 +1177,10 @@ func TestPID(t *testing.T) {
 
 	vmlinuxPath := getVmlinuxPath(t)
 
-	rootfsBytes, err := ioutil.ReadFile(testRootfs)
+	rootfsBytes, err := os.ReadFile(testRootfs)
 	require.NoError(t, err, "failed to read rootfs file")
 	rootfsPath := filepath.Join(dir, "TestPID.img")
-	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	err = os.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err, "failed to copy vm rootfs to %s", rootfsPath)
 
 	cfg := Config{
@@ -1260,12 +1246,10 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 		exitCh: make(chan struct{}),
 	}
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	fifoPath := filepath.Join(dir, "TestCaptureFifoToFileLeak.fifo")
-	err = syscall.Mkfifo(fifoPath, 0700)
+	err := syscall.Mkfifo(fifoPath, 0700)
 	require.NoError(t, err, "failed to make fifo")
 	defer os.Remove(fifoPath)
 
@@ -1646,10 +1630,6 @@ func TestPauseResume(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
-
 	cases := []struct {
 		name  string
 		state func(m *Machine, ctx context.Context)
@@ -1758,9 +1738,7 @@ func TestCreateSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	cases := []struct {
 		name           string
@@ -1822,7 +1800,7 @@ func TestCreateSnapshot(t *testing.T) {
 }
 
 func connectToVM(m *Machine, sshKeyPath string) (*ssh.Client, error) {
-	key, err := ioutil.ReadFile(sshKeyPath)
+	key, err := os.ReadFile(sshKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1851,7 +1829,7 @@ func connectToVM(m *Machine, sshKeyPath string) (*ssh.Client, error) {
 }
 
 func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
-	return ioutil.WriteFile(path, []byte(fmt.Sprintf(`{
+	return os.WriteFile(path, []byte(fmt.Sprintf(`{
 		"cniVersion": "0.3.1",
 		"name": "%s",
 		"plugins": [
@@ -1873,26 +1851,24 @@ func TestLoadSnapshot(t *testing.T) {
 	fctesting.RequiresKVM(t)
 	fctesting.RequiresRoot(t)
 
-	dir, err := ioutil.TempDir("", t.Name())
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.MkdirAll(cniConfDir, 0777)
+	err := os.MkdirAll(cniConfDir, 0777)
 	require.NoError(t, err)
 
 	cniBinPath := []string{testDataBin}
 
-	rootfsBytes, err := ioutil.ReadFile(testRootfsWithSSH)
+	rootfsBytes, err := os.ReadFile(testRootfsWithSSH)
 	require.NoError(t, err)
 	rootfsPath := filepath.Join(dir, "rootfs.img")
-	err = ioutil.WriteFile(rootfsPath, rootfsBytes, 0666)
+	err = os.WriteFile(rootfsPath, rootfsBytes, 0666)
 	require.NoError(t, err)
 
-	sshKeyBytes, err := ioutil.ReadFile(testSSHKey)
+	sshKeyBytes, err := os.ReadFile(testSSHKey)
 	require.NoError(t, err)
 	sshKeyPath := filepath.Join(dir, "id_rsa")
-	err = ioutil.WriteFile(sshKeyPath, sshKeyBytes, 0600)
+	err = os.WriteFile(sshKeyPath, sshKeyBytes, 0600)
 	require.NoError(t, err)
 
 	// Using default cache directory to ensure collision avoidance on IP allocations

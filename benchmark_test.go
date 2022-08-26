@@ -16,7 +16,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +29,7 @@ import (
 const numberOfVMs = 200
 
 func createMachine(ctx context.Context, name string, forwardSignals []os.Signal) (*Machine, func(), error) {
-	dir, err := ioutil.TempDir("", name)
+	dir, err := os.MkdirTemp("", name)
 	if err != nil {
 		return nil, nil, err
 	}
