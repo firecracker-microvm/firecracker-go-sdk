@@ -1952,18 +1952,20 @@ func TestLoadSnapshot(t *testing.T) {
 					},
 				}
 
+				cfg.Snapshot.ResumeVM = false
+
 				m, err := NewMachine(ctx, cfg, func(m *Machine) {
 					// Rewriting m.cmd partially wouldn't work since Cmd has
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath))
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath, func(config *SnapshotConfig) {
+					config.ResumeVM = true
+				}))
 				require.NoError(t, err)
+				require.Equal(t, m.Cfg.Snapshot.ResumeVM, true)
 
 				err = m.Start(ctx)
-				require.NoError(t, err)
-
-				err = m.ResumeVM(ctx)
 				require.NoError(t, err)
 
 				err = m.StopVMM()
