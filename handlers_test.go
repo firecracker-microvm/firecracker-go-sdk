@@ -532,6 +532,7 @@ func TestHandlers(t *testing.T) {
 	mmdsConfig := &models.MmdsConfig{
 		IPV4Address:       String(mmdsAddress.String()),
 		NetworkInterfaces: []string{"1"},
+		Version:           String(string(MMDSv1)),
 	}
 
 	cases := []struct {

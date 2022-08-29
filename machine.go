@@ -65,6 +65,13 @@ type SeccompConfig struct {
 // be started again.
 var ErrAlreadyStarted = errors.New("firecracker: machine already started")
 
+type MMDSVersion string
+
+const (
+	MMDSv1 = MMDSVersion("V1")
+	MMDSv2 = MMDSVersion("V2")
+)
+
 // Config is a collection of user-configurable VMM settings
 type Config struct {
 	// SocketPath defines the file path where the Firecracker control socket
@@ -151,6 +158,10 @@ type Config struct {
 	// It is possible to use a valid IPv4 link-local address (169.254.0.0/16).
 	// If not provided, the default address (169.254.169.254) will be used.
 	MmdsAddress net.IP
+
+	// MmdsVersion is the MMDS version to use.
+	// If not provided, the default version (1) will be used.
+	MmdsVersion MMDSVersion
 
 	// Configuration for snapshot loading
 	Snapshot SnapshotConfig
@@ -884,8 +895,15 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 	return err
 }
 
-func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces NetworkInterfaces) error {
+func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces NetworkInterfaces, version MMDSVersion) error {
 	var mmdsCfg models.MmdsConfig
+	// MMDS config supports v1 and v2, v1 is going to be deprecated.
+	// Default to the version 1 if no version is specified
+	if version == MMDSv1 || version == MMDSv2 {
+		mmdsCfg.Version = String(string(version))
+	} else {
+		mmdsCfg.Version = String(string(MMDSv1))
+	}
 	if address != nil {
 		mmdsCfg.IPV4Address = String(address.String())
 	}

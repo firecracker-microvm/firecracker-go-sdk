@@ -869,6 +869,100 @@ func TestWaitForSocket(t *testing.T) {
 	}
 }
 
+func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
+	fctesting.RequiresKVM(t)
+
+	var nCpus int64 = 2
+	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
+	var memSz int64 = 256
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	socketPath := filepath.Join(dir, "TestMicroVMExecution.sock")
+	logFifo := filepath.Join(dir, "firecracker.log")
+	metricsFifo := filepath.Join(dir, "firecracker-metrics")
+	capturedLog := filepath.Join(dir, "writer.fifo")
+	fw, err := os.OpenFile(capturedLog, os.O_CREATE|os.O_RDWR, 0600)
+	require.NoError(t, err, "failed to open fifo writer file")
+	defer fw.Close()
+
+	vmlinuxPath := getVmlinuxPath(t)
+
+	networkIfaces := []NetworkInterface{{
+		StaticConfiguration: &StaticNetworkConfiguration{
+			MacAddress:  "01-23-45-67-89-AB-CD-EF",
+			HostDevName: "tap0",
+		},
+	}}
+
+	cfg := Config{
+		SocketPath:  socketPath,
+		LogFifo:     logFifo,
+		MetricsFifo: metricsFifo,
+		LogLevel:    "Debug",
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(nCpus),
+			CPUTemplate: cpuTemplate,
+			MemSizeMib:  Int64(memSz),
+			Smt:         Bool(false),
+		},
+		DisableValidation: true,
+		NetworkInterfaces: networkIfaces,
+		FifoLogWriter:     fw,
+		MmdsVersion:       MMDSv2,
+	}
+
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(socketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	if err != nil {
+		t.Fatalf("failed to create new machine: %v", err)
+	}
+
+	m.Handlers.Validation = m.Handlers.Validation.Clear()
+
+	vmmCtx, vmmCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer vmmCancel()
+	exitchannel := make(chan error)
+	go func() {
+		err := m.startVMM(vmmCtx)
+		if err != nil {
+			exitchannel <- err
+			close(exitchannel)
+			return
+		}
+		defer m.StopVMM()
+
+		exitchannel <- m.Wait(vmmCtx)
+		close(exitchannel)
+	}()
+
+	deadlineCtx, deadlineCancel := context.WithTimeout(vmmCtx, 250*time.Millisecond)
+	defer deadlineCancel()
+	if err := waitForAliveVMM(deadlineCtx, m.client); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("TestCreateMachine", func(t *testing.T) { testCreateMachine(ctx, t, m) })
+	t.Run("TestCreateBootSource", func(t *testing.T) { testCreateBootSource(ctx, t, m, vmlinuxPath) })
+	t.Run("TestCreateNetworkInterface", func(t *testing.T) { testCreateNetworkInterfaceByID(ctx, t, m) })
+	t.Run("TestAttachRootDrive", func(t *testing.T) { testAttachRootDrive(ctx, t, m) })
+	t.Run("SetMetadata", func(t *testing.T) { testSetMetadata(ctx, t, m) })
+	t.Run("UpdateMetadata", func(t *testing.T) { testUpdateMetadata(ctx, t, m) })
+	t.Run("GetMetadata", func(t *testing.T) { testGetMetadata(ctx, t, m) }) // Should be after testSetMetadata and testUpdateMetadata
+
+	// unconditionally stop the VM here. TestShutdown may have triggered a shutdown, but if it
+	// didn't for some reason, we still need to terminate it:
+	err = m.StopVMM()
+	assert.NoError(t, err, "failed to stop VM")
+}
+
 func testSetMetadata(ctx context.Context, t *testing.T, m *Machine) {
 	metadata := map[string]string{"key": "value"}
 	err := m.SetMetadata(ctx, metadata)
