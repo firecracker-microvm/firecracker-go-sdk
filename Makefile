@@ -29,6 +29,8 @@ GID = $(shell id -g)
 
 firecracker_version=v1.0.0
 arch=$(shell uname -m)
+# Only works if go version is < 2.0
+goversion=$(shell go version | awk '{print $3}' | awk -F '.' '{print $2}')
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
@@ -123,7 +125,11 @@ $(FC_TEST_BIN_PATH)/tc-redirect-tap:
 
 $(FC_TEST_DATA_PATH)/ltag:
 	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_DATA_PATH)) \
-	go get github.com/kunalkushwaha/ltag
+	@if [ $(goversion) -le 15 ]; then\
+		go get github.com/kunalkushwaha/ltag@v0.2.3;\
+	else\
+		go get github.com/kunalkushwaha/ltag;\
+	fi
 
 $(FIRECRACKER_DIR):
 	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
