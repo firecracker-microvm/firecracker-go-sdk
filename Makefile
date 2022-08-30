@@ -122,8 +122,8 @@ $(FC_TEST_BIN_PATH)/tc-redirect-tap:
 	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap
 
 $(FC_TEST_DATA_PATH)/ltag:
-	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_DATA_PATH)) \
-	go get github.com/kunalkushwaha/ltag
+	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/kunalkushwaha/ltag@v0.2.3
 
 $(FIRECRACKER_DIR):
 	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
@@ -144,6 +144,6 @@ firecracker-clean:
 
 lint: deps
 	gofmt -s -l .
-	$(FC_TEST_DATA_PATH)/ltag -check -v -t .headers
+	$(FC_TEST_DATA_PATH)/bin/ltag -check -v -t .headers
 
 .PHONY: all generate clean distclean build test unit-tests all-tests check-kvm
