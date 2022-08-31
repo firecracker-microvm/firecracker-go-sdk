@@ -277,7 +277,7 @@ func NewSetMetadataHandler(metadata interface{}) Handler {
 var ConfigMmdsHandler = Handler{
 	Name: ConfigMmdsHandlerName,
 	Fn: func(ctx context.Context, m *Machine) error {
-		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress, m.Cfg.NetworkInterfaces)
+		return m.setMmdsConfig(ctx, m.Cfg.MmdsAddress, m.Cfg.NetworkInterfaces, m.Cfg.MmdsVersion)
 	},
 }
 
