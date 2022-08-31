@@ -2033,19 +2033,33 @@ func TestLoadSnapshot(t *testing.T) {
 			},
 
 			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
-				cfg := createValidConfig(t, socketPath+".load")
+				// Note that many fields are not necessary when loading a snapshot
+				cfg := Config{
+					SocketPath: socketPath + ".load",
+					Drives: []models.Drive{
+						{
+							DriveID:      String("root"),
+							IsRootDevice: Bool(true),
+							IsReadOnly:   Bool(true),
+							PathOnHost:   String(testRootfs),
+						},
+					},
+				}
+
+				cfg.Snapshot.ResumeVM = false
+
 				m, err := NewMachine(ctx, cfg, func(m *Machine) {
 					// Rewriting m.cmd partially wouldn't work since Cmd has
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath, func(config *SnapshotConfig) {
+					config.ResumeVM = true
+				}))
 				require.NoError(t, err)
+				require.Equal(t, m.Cfg.Snapshot.ResumeVM, true)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
-				require.NoError(t, err)
-
-				err = m.ResumeVM(ctx)
+				err = m.Start(ctx)
 				require.NoError(t, err)
 
 				err = m.StopVMM()
@@ -2065,10 +2079,10 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				err = m.Start(ctx)
 				require.Error(t, err)
 			},
 		},
@@ -2172,17 +2186,28 @@ func TestLoadSnapshot(t *testing.T) {
 						VMIfName:    "eth0",
 					},
 				}
-				cfg := createValidConfig(t, fmt.Sprintf("%s.load", socketPath),
-					withRootDrive(rootfsPath),
-					withNetworkInterface(networkInterface),
-				)
+
+				cfg := Config{
+					SocketPath: socketPath + ".load",
+					Drives: []models.Drive{
+						{
+							DriveID:      String("root"),
+							IsRootDevice: Bool(true),
+							IsReadOnly:   Bool(true),
+							PathOnHost:   String(rootfsPath),
+						},
+					},
+					NetworkInterfaces: []NetworkInterface{
+						networkInterface,
+					},
+				}
 
 				cmd := VMCommandBuilder{}.WithSocketPath(fmt.Sprintf("%s.load", socketPath)).WithBin(getFirecrackerBinaryPath()).Build(ctx)
 
-				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd))
+				m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
-				err = m.Start(ctx, WithSnapshot(memPath, snapPath))
+				err = m.Start(ctx)
 				require.NoError(t, err)
 				defer m.StopVMM()
 

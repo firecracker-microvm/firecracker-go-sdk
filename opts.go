@@ -21,7 +21,6 @@ import (
 
 // Opt represents a functional option to help modify functionality of a Machine.
 type Opt func(*Machine)
-type StartOpt func(*Machine)
 
 // WithClient will use the client in place rather than the client constructed
 // during bootstrapping of the machine. This option is useful for mocking out
@@ -54,7 +53,7 @@ func WithProcessRunner(cmd *exec.Cmd) Opt {
 type WithSnapshotOpt func(*SnapshotConfig)
 
 // WithSnapshot will allow for the machine to start using a given snapshot.
-func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) StartOpt {
+func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt {
 	return func(m *Machine) {
 		m.Cfg.Snapshot.MemFilePath = memFilePath
 		m.Cfg.Snapshot.SnapshotPath = snapshotPath
@@ -63,6 +62,7 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Sta
 			opt(&m.Cfg.Snapshot)
 		}
 
+		m.Handlers.Validation = loadSnapshotValidationHandlerList
 		m.Handlers.FcInit = loadSnapshotHandlerList
 	}
 }

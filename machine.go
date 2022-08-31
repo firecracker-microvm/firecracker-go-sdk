@@ -215,6 +215,33 @@ func (cfg *Config) Validate() error {
 	return nil
 }
 
+func (cfg *Config) ValidateLoadSnapshot() error {
+	if cfg.DisableValidation {
+		return nil
+	}
+
+	for _, drive := range cfg.Drives {
+		rootPath := StringValue(drive.PathOnHost)
+		if _, err := os.Stat(rootPath); err != nil {
+			return fmt.Errorf("failed to stat drive path, %q: %v", rootPath, err)
+		}
+	}
+
+	if _, err := os.Stat(cfg.SocketPath); err == nil {
+		return fmt.Errorf("socket %s already exists", cfg.SocketPath)
+	}
+
+	if _, err := os.Stat(cfg.Snapshot.MemFilePath); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(cfg.Snapshot.SnapshotPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cfg *Config) ValidateNetwork() error {
 	if cfg.DisableValidation {
 		return nil
@@ -350,10 +377,6 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.cmd = configureBuilder(defaultFirecrackerVMMCommandBuilder, cfg).Build(ctx)
 	}
 
-	for _, opt := range opts {
-		opt(m)
-	}
-
 	if m.logger == nil {
 		logger := log.New()
 
@@ -381,6 +404,10 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.Cfg.NetNS = m.defaultNetNSPath()
 	}
 
+	for _, opt := range opts {
+		opt(m)
+	}
+
 	m.logger.Debug("Called NewMachine()")
 	return m, nil
 }
@@ -393,7 +420,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 // handlers succeed, then this will start the VMM instance.
 // Start may only be called once per Machine.  Subsequent calls will return
 // ErrAlreadyStarted.
-func (m *Machine) Start(ctx context.Context, opts ...StartOpt) error {
+func (m *Machine) Start(ctx context.Context) error {
 	m.logger.Debug("Called Machine.Start()")
 	alreadyStarted := true
 	m.startOnce.Do(func() {
@@ -413,10 +440,6 @@ func (m *Machine) Start(ctx context.Context, opts ...StartOpt) error {
 			}
 		}
 	}()
-
-	for _, opt := range opts {
-		opt(m)
-	}
 
 	err = m.Handlers.Run(ctx, m)
 	if err != nil {

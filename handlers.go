@@ -37,9 +37,10 @@ const (
 	CreateBalloonHandlerName           = "fcinit.CreateBalloon"
 	LoadSnapshotHandlerName            = "fcinit.LoadSnapshot"
 
-	ValidateCfgHandlerName        = "validate.Cfg"
-	ValidateJailerCfgHandlerName  = "validate.JailerCfg"
-	ValidateNetworkCfgHandlerName = "validate.NetworkCfg"
+	ValidateCfgHandlerName             = "validate.Cfg"
+	ValidateJailerCfgHandlerName       = "validate.JailerCfg"
+	ValidateNetworkCfgHandlerName      = "validate.NetworkCfg"
+	ValidateLoadSnapshotCfgHandlerName = "validate.LoadSnapshotCfg"
 )
 
 // HandlersAdapter is an interface used to modify a given set of handlers.
@@ -54,6 +55,16 @@ var ConfigValidationHandler = Handler{
 	Fn: func(ctx context.Context, m *Machine) error {
 		// ensure that the configuration is valid for the FcInit handlers.
 		return m.Cfg.Validate()
+	},
+}
+
+// LoadSnapshotConfigValidationHandler is used to validate that required
+// fields are present.
+var LoadSnapshotConfigValidationHandler = Handler{
+	Name: ValidateLoadSnapshotCfgHandlerName,
+	Fn: func(ctx context.Context, m *Machine) error {
+		// ensure that the configuration is valid for the FcInit handlers.
+		return m.Cfg.ValidateLoadSnapshot()
 	},
 }
 
@@ -315,6 +326,11 @@ var loadSnapshotHandlerList = HandlerList{}.Append(
 
 var defaultValidationHandlerList = HandlerList{}.Append(
 	NetworkConfigValidationHandler,
+)
+
+var loadSnapshotValidationHandlerList = HandlerList{}.Append(
+	NetworkConfigValidationHandler,
+	LoadSnapshotConfigValidationHandler,
 )
 
 var defaultHandlers = Handlers{
