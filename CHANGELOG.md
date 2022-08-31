@@ -1,3 +1,14 @@
+# 1.0.0
+* Added support for MMDS version 2. (#441) 
+* Added support for set drive IO engine type. (#411) 
+* Added support for get Firecracker version. (#410)
+* Added a DriveOpt func for configuring CacheType. (#401)
+* Added GetExportVMConfig to read the /vm/config endpoint. (#400)
+* Added ability to allow passing cgroup-version to jailer. (#399)
+* Added support for the MMDS configuration. (#290)
+* Added PauseVM, ResumeVM, CreateSnapshot and LoadSnapshot capabilities. (#278) (#414)
+* Fixed InitrdPath usage. (#295)
+
 # 0.22.0
 * Since firecracker-microvm/firecracker#2125, `cargo build` doesn't build jailer by default. (#263)
 * Fix Benchmark Goroutine (#259)
