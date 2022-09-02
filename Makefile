@@ -106,20 +106,20 @@ else
 endif
 
 $(FC_TEST_BIN_PATH)/ptp:
-	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/main/ptp
+	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/main/ptp@v1.1.1
 
 $(FC_TEST_BIN_PATH)/host-local:
-	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/ipam/host-local
+	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/ipam/host-local@v1.1.1
 
 $(FC_TEST_BIN_PATH)/static:
-	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/ipam/static
+	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/containernetworking/plugins/plugins/ipam/static@v1.1.1
 
 $(FC_TEST_BIN_PATH)/tc-redirect-tap:
-	GO111MODULE=off GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap
+	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
+	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap@v0.0.0-20220715050423-f2af44521093
 
 $(FC_TEST_DATA_PATH)/ltag:
 	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
