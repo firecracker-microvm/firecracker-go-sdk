@@ -233,6 +233,13 @@ type CNIConfiguration struct {
 	// configuration directory.
 	NetworkConfig *libcni.NetworkConfigList
 
+	// CapabilityArgs (optional) is a dictionary of capability-specific
+	// data passed by the runtime to plugins as top-level keys in the
+	// 'runtimeConfig' dictionary of the plugin's stdin data. libcni
+	// will ensure that only keys in this map which match the capabilities
+	// of the plugin are passed to the plugin.
+	CapabilityArgs map[string]interface{}
+
 	// IfName (optional) corresponds to the CNI_IFNAME parameter as specified
 	// in the CNI spec. It generally specifies the name of the interface to be
 	// created by a CNI plugin being invoked.
@@ -310,10 +317,11 @@ func (cniConf *CNIConfiguration) setDefaults() {
 
 func (cniConf CNIConfiguration) asCNIRuntimeConf() *libcni.RuntimeConf {
 	return &libcni.RuntimeConf{
-		ContainerID: cniConf.containerID,
-		NetNS:       cniConf.netNSPath,
-		IfName:      cniConf.IfName,
-		Args:        cniConf.Args,
+		ContainerID:    cniConf.containerID,
+		NetNS:          cniConf.netNSPath,
+		IfName:         cniConf.IfName,
+		Args:           cniConf.Args,
+		CapabilityArgs: cniConf.CapabilityArgs,
 	}
 }
 
