@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/vishvananda/netns"
 	"io"
 	"io/ioutil"
 	"net"
@@ -797,6 +798,71 @@ func testStopVMM(ctx context.Context, t *testing.T, m *Machine) {
 	if err != nil {
 		t.Errorf("StopVMM failed: %s", err)
 	}
+}
+
+func TestStopVMMCleanup(t *testing.T) {
+	fctesting.RequiresKVM(t)
+	fctesting.RequiresRoot(t)
+
+	socketPath, cleanup := makeSocketPath(t)
+	defer cleanup()
+
+	dir, err := ioutil.TempDir("", t.Name())
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	cniConfDir := filepath.Join(dir, "cni.conf")
+	err = os.MkdirAll(cniConfDir, 0777)
+	require.NoError(t, err)
+
+	cniBinPath := []string{testDataBin}
+
+	const networkName = "fcnet"
+	const ifName = "veth0"
+
+	networkMask := "/24"
+	subnet := "10.168.0.0" + networkMask
+
+	cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
+	err = writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
+	require.NoError(t, err)
+	defer os.Remove(cniConfPath)
+
+	networkInterface := NetworkInterface{
+		CNIConfiguration: &CNIConfiguration{
+			NetworkName: networkName,
+			IfName:      ifName,
+			ConfDir:     cniConfDir,
+			BinPath:     cniBinPath,
+			VMIfName:    "eth0",
+		},
+	}
+
+	cfg := Config{
+		SocketPath:        socketPath,
+		DisableValidation: true,
+		KernelImagePath:   getVmlinuxPath(t),
+		NetworkInterfaces: []NetworkInterface{networkInterface},
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   Int64(1),
+			MemSizeMib:  Int64(64),
+			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
+			Smt:         Bool(false),
+		},
+	}
+	ctx := context.Background()
+	cmd := VMCommandBuilder{}.
+		WithSocketPath(cfg.SocketPath).
+		WithBin(getFirecrackerBinaryPath()).
+		Build(ctx)
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	require.NoError(t, err)
+	err = m.Start(ctx)
+	require.NoError(t, err)
+	err = m.stopVMM()
+	require.NoError(t, err)
+	_, err = netns.GetFromName(m.Cfg.VMID)
+	require.Error(t, err)
 }
 
 func testShutdown(ctx context.Context, t *testing.T, m *Machine) {

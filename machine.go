@@ -270,6 +270,8 @@ type Machine struct {
 	// callbacks that should be run when the machine is being torn down
 	cleanupOnce  sync.Once
 	cleanupFuncs []func() error
+	// cleanupCh is a channel that gets closed to notify cleanup cleanupFuncs has been called totally
+	cleanupCh chan struct{}
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
@@ -354,7 +356,8 @@ func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
 	m := &Machine{
-		exitCh: make(chan struct{}),
+		exitCh:    make(chan struct{}),
+		cleanupCh: make(chan struct{}),
 	}
 
 	if cfg.VMID == "" {
@@ -594,6 +597,8 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		// When err is nil, two reads are performed (waitForSocket and close exitCh goroutine),
 		// second one never ends as it tries to read from empty channel.
 		close(errCh)
+		close(m.cleanupCh)
+
 	}()
 
 	m.setupSignals()
@@ -642,6 +647,8 @@ func (m *Machine) stopVMM() error {
 		if err != nil && !strings.Contains(err.Error(), "os: process already finished") {
 			return err
 		}
+		// Wait for the cleanup to finish.
+		<-m.cleanupCh
 		return nil
 	}
 	m.logger.Debug("stopVMM(): no firecracker process running, not sending a signal")
