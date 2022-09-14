@@ -18,7 +18,20 @@ ARCH=$(shell uname -m)
 GID = $(shell id -g)
 
 PWD=$(shell pwd)
+GOBIN=$(PWD)/bin
 FC_TEST_DATA_PATH?=$(PWD)
+
+GO_VERSION = $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1,2)
+ifeq ($(GO_VERSION), $(filter $(GO_VERSION),1.14 1.15))
+    define install_go
+		cd .hack; GO111MODULE=on GOBIN=$(GOBIN) go get $(1)@$(2) 
+		cd .hack; GO111MODULE=on GOBIN=$(GOBIN) go install $(1)
+    endef
+else
+    define install_go
+		GOBIN=$(GOBIN) go install $(1)@$(2)
+    endef
+endif
 
 all: plugins image vmlinux firecracker
 
@@ -28,16 +41,13 @@ bin:
 	mkdir -p bin
 
 bin/tc-redirect-tap: bin
-	GO111MODULE=off GOBIN=$(PWD)/bin \
-	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap
+	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20220715050423-f2af44521093)
 
 bin/ptp: bin
-	GO111MODULE=off GOBIN=$(PWD)/bin \
-	go get github.com/containernetworking/plugins/plugins/main/ptp
+	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.1.1)
 
 bin/host-local: bin
-	GO111MODULE=off GOBIN=$(PWD)/bin \
-	go get github.com/containernetworking/plugins/plugins/ipam/host-local
+	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.1.1)
 	
 image:
 ifeq ($(GID), 0)

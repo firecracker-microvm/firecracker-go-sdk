@@ -76,8 +76,6 @@ steps:
       # To use ${FC_TEST_DATA_PATH} as testdata/, all files in the original directory must be
       # copied to the new directory.
       - cp -r testdata/* ${FC_TEST_DATA_PATH}
-      # Install tc-redirect-tap.
-      - 'go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap'
       # Copy vmlinux and root-drive.img.
       - ln -s /var/lib/fc-ci/vmlinux.bin ${FC_TEST_DATA_PATH}/vmlinux
       - ln -s /var/lib/fc-ci/rootfs.ext4 ${FC_TEST_DATA_PATH}/root-drive.img

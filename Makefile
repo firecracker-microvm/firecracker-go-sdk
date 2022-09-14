@@ -55,6 +55,18 @@ testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_
 # --location is needed to follow redirects on github.com
 curl = curl --location
 
+GO_VERSION = $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1,2)
+ifeq ($(GO_VERSION), $(filter $(GO_VERSION),1.14 1.15))
+    define install_go
+		cd .hack; GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go get $(1)@$(2) 
+		cd .hack; GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go install $(1)
+    endef
+else
+    define install_go
+		GOBIN=$(abspath $(FC_TEST_BIN_PATH)) go install $(1)@$(2)
+    endef
+endif
+
 all: build
 
 test: all-tests
@@ -106,24 +118,19 @@ else
 endif
 
 $(FC_TEST_BIN_PATH)/ptp:
-	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/main/ptp@v1.1.1
+	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.1.1)
 
 $(FC_TEST_BIN_PATH)/host-local:
-	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/ipam/host-local@v1.1.1
+	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.1.1)
 
 $(FC_TEST_BIN_PATH)/static:
-	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/containernetworking/plugins/plugins/ipam/static@v1.1.1
+	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/static,v1.1.1)
 
 $(FC_TEST_BIN_PATH)/tc-redirect-tap:
-	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap@v0.0.0-20220715050423-f2af44521093
+	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20220715050423-f2af44521093)
 
 $(FC_TEST_DATA_PATH)/ltag:
-	GO111MODULE=on GOBIN=$(abspath $(FC_TEST_BIN_PATH)) \
-	go get github.com/kunalkushwaha/ltag@v0.2.3
+	$(call install_go,github.com/kunalkushwaha/ltag,v0.2.3)
 
 $(FIRECRACKER_DIR):
 	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
