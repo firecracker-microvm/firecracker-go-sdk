@@ -5,7 +5,7 @@ go 1.11
 require (
 	github.com/containerd/fifo v1.0.0
 	github.com/containernetworking/cni v1.0.1
-	github.com/containernetworking/plugins v1.0.1
+	github.com/containernetworking/plugins v1.1.1
 	github.com/go-openapi/errors v0.20.2
 	github.com/go-openapi/runtime v0.24.0
 	github.com/go-openapi/strfmt v0.21.2
