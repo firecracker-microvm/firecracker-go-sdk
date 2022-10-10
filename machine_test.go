@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/vishvananda/netns"
 	"io"
 	"io/ioutil"
 	"net"
@@ -35,6 +34,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netns"
+
 	"github.com/containerd/fifo"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -44,6 +45,7 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	ops "github.com/firecracker-microvm/firecracker-go-sdk/client/operations"
 	"github.com/firecracker-microvm/firecracker-go-sdk/fctesting"
+	"github.com/firecracker-microvm/firecracker-go-sdk/internal"
 )
 
 const (
@@ -114,10 +116,9 @@ func TestNewMachine(t *testing.T) {
 		Config{
 			DisableValidation: true,
 			MachineCfg: models.MachineConfiguration{
-				VcpuCount:   Int64(1),
-				MemSizeMib:  Int64(100),
-				CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-				Smt:         Bool(false),
+				VcpuCount:  Int64(1),
+				MemSizeMib: Int64(100),
+				Smt:        Bool(false),
 			},
 		},
 		WithLogger(fctesting.NewLogEntry(t)))
@@ -172,7 +173,6 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	var nCpus int64 = 2
-	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
 	// short names and directory to prevent SUN_LEN error
@@ -210,10 +210,9 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		LogLevel:        "Debug",
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(nCpus),
-			CPUTemplate: cpuTemplate,
-			MemSizeMib:  Int64(memSz),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(nCpus),
+			MemSizeMib: Int64(memSz),
+			Smt:        Bool(false),
 		},
 		Drives: []models.Drive{
 			{
@@ -296,7 +295,6 @@ func TestMicroVMExecution(t *testing.T) {
 	fctesting.RequiresKVM(t)
 
 	var nCpus int64 = 2
-	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
 	dir, err := ioutil.TempDir("", t.Name())
@@ -326,10 +324,9 @@ func TestMicroVMExecution(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(nCpus),
-			CPUTemplate: cpuTemplate,
-			MemSizeMib:  Int64(memSz),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(nCpus),
+			MemSizeMib: Int64(memSz),
+			Smt:        Bool(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -498,10 +495,9 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(1),
-			MemSizeMib:  Int64(64),
-			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(1),
+			MemSizeMib: Int64(64),
+			Smt:        Bool(false),
 		},
 		MetricsPath: filepath.Join(dir, "fc-metrics.out"),
 		LogPath:     filepath.Join(dir, "fc.log"),
@@ -553,11 +549,13 @@ func TestStartVMMOnce(t *testing.T) {
 		DisableValidation: true,
 		KernelImagePath:   getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(1),
-			MemSizeMib:  Int64(64),
-			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(1),
+			MemSizeMib: Int64(64),
+			Smt:        Bool(false),
 		},
+	}
+	if cpu_temp, err := internal.SupportCPUTemplate(); cpu_temp && err == nil {
+		cfg.MachineCfg.CPUTemplate = models.CPUTemplate(models.CPUTemplateT2)
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.
@@ -844,10 +842,9 @@ func TestStopVMMCleanup(t *testing.T) {
 		KernelImagePath:   getVmlinuxPath(t),
 		NetworkInterfaces: []NetworkInterface{networkInterface},
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(1),
-			MemSizeMib:  Int64(64),
-			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(1),
+			MemSizeMib: Int64(64),
+			Smt:        Bool(false),
 		},
 	}
 	ctx := context.Background()
@@ -939,7 +936,6 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 	fctesting.RequiresKVM(t)
 
 	var nCpus int64 = 2
-	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 
 	dir, err := ioutil.TempDir("", t.Name())
@@ -969,10 +965,9 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 		MetricsFifo: metricsFifo,
 		LogLevel:    "Debug",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(nCpus),
-			CPUTemplate: cpuTemplate,
-			MemSizeMib:  Int64(memSz),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(nCpus),
+			MemSizeMib: Int64(memSz),
+			Smt:        Bool(false),
 		},
 		DisableValidation: true,
 		NetworkInterfaces: networkIfaces,
@@ -1344,7 +1339,6 @@ func TestPID(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	var nCpus int64 = 2
-	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSz int64 = 256
 	socketPath := filepath.Join(dir, "TestPID.sock")
 	defer os.Remove(socketPath)
@@ -1361,10 +1355,9 @@ func TestPID(t *testing.T) {
 		SocketPath:      socketPath,
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(nCpus),
-			CPUTemplate: cpuTemplate,
-			MemSizeMib:  Int64(memSz),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(nCpus),
+			MemSizeMib: Int64(memSz),
+			Smt:        Bool(false),
 		},
 		Drives: []models.Drive{
 			{
@@ -1675,10 +1668,9 @@ func createValidConfig(t *testing.T, socketPath string, opts ...machineConfigOpt
 		SocketPath:      socketPath,
 		KernelImagePath: getVmlinuxPath(t),
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(2),
-			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
-			MemSizeMib:  Int64(256),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(2),
+			MemSizeMib: Int64(256),
+			Smt:        Bool(false),
 		},
 		Drives: []models.Drive{
 			{

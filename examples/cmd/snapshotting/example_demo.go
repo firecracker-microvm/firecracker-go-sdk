@@ -77,7 +77,6 @@ func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 	kernelImagePath := filepath.Join(dir, "vmlinux")
 
 	var vcpuCount int64 = 2
-	cpuTemplate := models.CPUTemplate(models.CPUTemplateT2)
 	var memSizeMib int64 = 256
 	smt := false
 
@@ -91,7 +90,6 @@ func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 		KernelImagePath: kernelImagePath,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   &vcpuCount,
-			CPUTemplate: cpuTemplate,
 			MemSizeMib:  &memSizeMib,
 			Smt:         &smt,
 		},
