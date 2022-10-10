@@ -51,7 +51,6 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 		LogLevel:        "Info",
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   Int64(1),
-			CPUTemplate: models.CPUTemplate(models.CPUTemplateT2),
 			MemSizeMib:  Int64(256),
 			Smt:         Bool(false),
 		},
