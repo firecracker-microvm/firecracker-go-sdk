@@ -613,10 +613,16 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		return err
 	}
 
-	// This goroutine is used to kill the process by context cancelletion,
+	// This goroutine is used to kill the process by context cancellation,
 	// but doesn't tell anyone about that.
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+			break
+		case <-m.exitCh:
+			// VMM exited on its own; no need to stop it.
+			return
+		}
 		err := m.stopVMM()
 		if err != nil {
 			m.logger.WithError(err).Errorf("failed to stop vm %q", m.Cfg.VMID)
