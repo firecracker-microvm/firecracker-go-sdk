@@ -233,6 +233,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 			ChrootStrategy: NewNaiveChrootStrategy(vmlinuxPath),
 			Stdout:         logFd,
 			Stderr:         logFd,
+			CgroupVersion:  "2",
 		},
 		FifoLogWriter: fw,
 	}
