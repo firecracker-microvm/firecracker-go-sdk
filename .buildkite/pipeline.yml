@@ -78,7 +78,7 @@ steps:
       - make deps
       # Build a rootfs with SSH enabled.
       - sudo -E FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make ${FC_TEST_DATA_PATH}/root-drive-ssh-key
-      - stat ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img
+      - sudo chown $USER ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -103,8 +103,11 @@ steps:
   
   - label: ':book: examples'
     commands:
-      - "sudo -E PATH=$PATH FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make -C examples/cmd/snapshotting run"
-      - "sudo -E PATH=$PATH FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make -C examples/cmd/snapshotting clean"
+      - cp ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img ${FC_TEST_DATA_PATH}/vmlinux examples/cmd/snapshotting
+      - cd examples/cmd/snapshotting
+      - make all
+      - export FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH}
+      - sudo -E make run clean
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -120,7 +123,9 @@ steps:
 
   - label: ':hammer: root tests'
     commands:
-      - "sudo -E PATH=$PATH FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER} FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - export FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER}
+      - export FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH}
+      - make test EXTRAGOARGS="-exec 'sudo -E' -count=1 -race" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -132,7 +137,8 @@ steps:
       FC_TEST_JAILER_BIN: "${FC_TEST_DATA_PATH}/jailer-main"
       DOCKER_IMAGE_TAG: "$BUILDKITE_BUILD_NUMBER"
     commands:
-      - "sudo -E PATH=$PATH FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER} make test EXTRAGOARGS='-v -count=1 -race' DISABLE_ROOT_TESTS="
+      - export FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER}
+      - make test EXTRAGOARGS="-exec 'sudo -E' -v -count=1 -race" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
