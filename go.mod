@@ -8,7 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.1.1
 	github.com/go-openapi/errors v0.20.3
 	github.com/go-openapi/runtime v0.24.0
-	github.com/go-openapi/strfmt v0.21.2
+	github.com/go-openapi/strfmt v0.21.3
 	github.com/go-openapi/swag v0.21.1
 	github.com/go-openapi/validate v0.22.0
 	github.com/go-ping/ping v0.0.0-20211130115550-779d1e919534
