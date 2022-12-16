@@ -33,7 +33,7 @@ else
     endef
 endif
 
-all: plugins image vmlinux firecracker
+all: snapshot-example plugins root-drive-with-ssh.img root-drive-ssh-key vmlinux firecracker
 
 plugins: bin/tc-redirect-tap bin/ptp bin/host-local | bin
 
@@ -48,15 +48,6 @@ bin/ptp: bin
 
 bin/host-local: bin
 	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.1.1)
-	
-image:
-ifeq ($(GID), 0)
-	- cp ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img root-drive-with-ssh.img
-	- cp ${FC_TEST_DATA_PATH}/root-drive-ssh-key root-drive-ssh-key
-	$(MAKE) root-drive-with-ssh.img root-drive-ssh-key
-else
-	$(error unable to place ssh key without root permissions)
-endif
 
 vmlinux:
 	curl --location -o vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/${ARCH}/kernels/vmlinux.bin
@@ -74,10 +65,13 @@ root-drive-with-ssh.img root-drive-ssh-key:
 	cp temp/build/rootfs/ssh/id_rsa root-drive-ssh-key
 	rm -rf temp
 
-run: all
-	go run example_demo.go
+snapshot-example:
+	go build -o $@
+
+run: snapshot-example
+	./snapshot-example
 
 clean:
 	rm -rf bin firecracker root-drive-ssh-key root-drive-with-ssh.img vmlinux
 
-.PHONY: all clean image plugins run
+.PHONY: all clean plugins run
