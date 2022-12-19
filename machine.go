@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -64,6 +65,9 @@ type SeccompConfig struct {
 // ErrAlreadyStarted signifies that the Machine has already started and cannot
 // be started again.
 var ErrAlreadyStarted = errors.New("firecracker: machine already started")
+
+// ErrGraceShutdown signifies that the Machine will shutdown gracefully and SendCtrlAltDelete is unable to send
+//var ErrGraceShutdown = errors.New("Shutdown gracefully: SendCtrlAltDelete is not supported if the arch is ARM64")
 
 type MMDSVersion string
 
@@ -456,7 +460,11 @@ func (m *Machine) Start(ctx context.Context) error {
 // Shutdown requests a clean shutdown of the VM by sending CtrlAltDelete on the virtual keyboard
 func (m *Machine) Shutdown(ctx context.Context) error {
 	m.logger.Debug("Called machine.Shutdown()")
-	return m.sendCtrlAltDel(ctx)
+	if runtime.GOARCH != "arm64" {
+		return m.sendCtrlAltDel(ctx)
+	} else {
+		return m.StopVMM()
+	}
 }
 
 // Wait will wait until the firecracker process has finished.  Wait is safe to

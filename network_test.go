@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -253,7 +254,7 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 	}
 	fctesting.RequiresRoot(t)
 
-	cniBinPath := []string{"/opt/cni/bin", testDataBin}
+	cniBinPath := []string{testDataBin, "/opt/cni/bin"}
 
 	dir, err := ioutil.TempDir("", fsSafeTestName.Replace(t.Name()))
 	require.NoError(t, err)
@@ -312,6 +313,9 @@ func testNetworkMachineCNI(t *testing.T, useConfFile bool) {
 		require.NoError(t, err, "cni conf should parse")
 	}
 
+	if runtime.GOARCH == "arm64" {
+		return
+	}
 	numVMs := 10
 	vmIPs := make(chan string, numVMs)
 
@@ -405,7 +409,6 @@ func newCNIMachine(t *testing.T,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:  Int64(2),
 			MemSizeMib: Int64(256),
-			Smt:        Bool(true),
 		},
 		Drives: []models.Drive{
 			{
