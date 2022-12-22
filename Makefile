@@ -17,7 +17,8 @@ DISABLE_ROOT_TESTS?=1
 DOCKER_IMAGE_TAG?=latest
 EXTRAGOARGS:=
 FIRECRACKER_DIR=build/firecracker
-FIRECRACKER_TARGET?=x86_64-unknown-linux-musl
+arch=$(shell uname -m)
+FIRECRACKER_TARGET?=$(arch)-unknown-linux-musl
 
 FC_TEST_DATA_PATH?=testdata
 FC_TEST_BIN_PATH:=$(FC_TEST_DATA_PATH)/bin
@@ -28,7 +29,6 @@ UID = $(shell id -u)
 GID = $(shell id -g)
 
 firecracker_version=v1.0.0
-arch=$(shell uname -m)
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
