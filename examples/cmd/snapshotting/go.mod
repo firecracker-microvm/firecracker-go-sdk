@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/firecracker-microvm/firecracker-go-sdk v0.22.1-0.20220715225323-d48665a4cd7a
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
+	golang.org/x/crypto v0.4.0
+	golang.org/x/sys v0.3.0
 )
 
 require (
@@ -14,7 +14,7 @@ require (
 	github.com/containernetworking/cni v1.1.2 // indirect
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
-	github.com/go-openapi/errors v0.20.2 // indirect
+	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/loads v0.21.1 // indirect
@@ -36,7 +36,6 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
-	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
