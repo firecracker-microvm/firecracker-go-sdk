@@ -2062,12 +2062,12 @@ func TestLoadSnapshot(t *testing.T) {
 
 	cases := []struct {
 		name           string
-		createSnapshot func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
-		loadSnapshot   func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
+		createSnapshot func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
+		loadSnapshot   func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string)
 	}{
 		{
 			name: "TestLoadSnapshot",
-			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			createSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 				// Create a snapshot
 				cfg := createValidConfig(t, socketPath+".create")
 				m, err := NewMachine(ctx, cfg, func(m *Machine) {
@@ -2091,7 +2091,7 @@ func TestLoadSnapshot(t *testing.T) {
 				require.NoError(t, err)
 			},
 
-			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			loadSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 				// Note that many fields are not necessary when loading a snapshot
 				cfg := Config{
 					SocketPath: socketPath + ".load",
@@ -2127,11 +2127,11 @@ func TestLoadSnapshot(t *testing.T) {
 		},
 		{
 			name: "TestLoadSnapshot without create",
-			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			createSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 
 			},
 
-			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			loadSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 				cfg := createValidConfig(t, socketPath+".load")
 				m, err := NewMachine(ctx, cfg, func(m *Machine) {
 					// Rewriting m.cmd partially wouldn't work since Cmd has
@@ -2147,7 +2147,7 @@ func TestLoadSnapshot(t *testing.T) {
 		},
 		{
 			name: "TestLoadSnapshot and check contents (via ssh)",
-			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			createSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 				cniConfPath := fmt.Sprintf("%s/%s.conflist", cniConfDir, networkName)
 				err := writeCNIConfWithHostLocalSubnet(cniConfPath, networkName, subnet)
 				require.NoError(t, err)
@@ -2209,7 +2209,7 @@ func TestLoadSnapshot(t *testing.T) {
 				require.NoError(t, err)
 			},
 
-			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+			loadSnapshot: func(ctx context.Context, t *testing.T, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 				var ipFreed bool = false
 				var err error
 
@@ -2316,8 +2316,8 @@ func TestLoadSnapshot(t *testing.T) {
 			machineLogger := logrus.New()
 			machineLogger.Out = io.MultiWriter(os.Stderr, &logBuffer)
 
-			c.createSnapshot(ctx, machineLogger, socketPath, snapPath, memPath)
-			c.loadSnapshot(ctx, machineLogger, socketPath, snapPath, memPath)
+			c.createSnapshot(ctx, t, machineLogger, socketPath, snapPath, memPath)
+			c.loadSnapshot(ctx, t, machineLogger, socketPath, snapPath, memPath)
 		})
 	}
 
