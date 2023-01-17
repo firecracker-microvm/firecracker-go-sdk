@@ -42,19 +42,6 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  # Since make test-images mutates the source directory, it cannot be run with other steps.
-  - wait
-
-  - label: ':linux: build docker images'
-    commands:
-      - make test-images
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
-      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-
-  - wait
-
   - label: 'git log validation'
     command: './.buildkite/logcheck.sh'
     # This should run in the same queue, but we don't care whether it runs on
@@ -131,7 +118,28 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - label: ':hammer: test against firecracker main'
+  - label: 'go mod tidy'
+    commands:
+      - 'go mod tidy'
+      - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 1
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
+  - wait
+
+  - label: ':linux: build Firecracker from the tip of main branch'
+    commands:
+      - make test-images
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
+
+  - wait
+
+  - label: ':hammer: test against Firecracker above'
     env:
       FC_TEST_BIN: "${FC_TEST_DATA_PATH}/firecracker-main"
       FC_TEST_JAILER_BIN: "${FC_TEST_DATA_PATH}/jailer-main"
@@ -139,15 +147,6 @@ steps:
     commands:
       - export FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER}
       - make test EXTRAGOARGS="-exec 'sudo -E' -v -count=1 -race" DISABLE_ROOT_TESTS=
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
-      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
-
-  - label: 'go mod tidy'
-    commands:
-      - 'go mod tidy'
-      - test -z "$(git status --porcelain)" && exit 0 || git --no-pager diff && echo -e '\ngo.mod and/or go.sum differ from committed, please run "go mod tidy" and commit the updated files.\n' && exit 1
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
