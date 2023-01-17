@@ -139,8 +139,7 @@ $(FIRECRACKER_DIR):
 test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
 
 $(FIRECRACKER_BIN) $(JAILER_BIN): $(FIRECRACKER_DIR)
-	$(FIRECRACKER_DIR)/tools/devtool -y build --release && \
-		$(FIRECRACKER_DIR)/tools/devtool strip
+	$(FIRECRACKER_DIR)/tools/devtool -y build --release
 	cp $(FIRECRACKER_DIR)/build/cargo_target/$(FIRECRACKER_TARGET)/release/firecracker $(FIRECRACKER_BIN)
 	cp $(FIRECRACKER_DIR)/build/cargo_target/$(FIRECRACKER_TARGET)/release/jailer $(JAILER_BIN)
 
