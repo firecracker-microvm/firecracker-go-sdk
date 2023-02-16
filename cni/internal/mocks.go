@@ -14,8 +14,8 @@
 package internal
 
 import (
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
+	"github.com/containernetworking/plugins/pkg/ns"
 )
 
 // MockNetlinkOps provides a no-op implementation of the NetlinkOps interface
