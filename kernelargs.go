@@ -19,12 +19,10 @@ import (
 	"strings"
 )
 
-// kernelArgs serializes+deserializes kernel boot parameters from/into a map.
-// Kernel docs: https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt
-//
-// "key=value" will result in map["key"] = &"value"
-// "key=" will result in map["key"] = &""
-// "key" will result in map["key"] = nil
+// kernelArg represents a key and optional value pair for passing an argument
+// into the kernel. Additionally, it also saves the position of the argument
+// in the whole command line input. This is important because the kernel stops reading
+// everything after `--` and passes these keys into the init process
 type kernelArg struct {
 	position uint
 	key      string
@@ -38,10 +36,17 @@ func (karg kernelArg) String() string {
 	return karg.key
 }
 
+// kernelArgs serializes + deserializes kernel boot parameters from/into a map.
+// Kernel docs: https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt
+//
+// "key=value flag emptykey=" will be converted to
+// map["key"] = { position: 0, key: "key", value: &"value" }
+// map["flag"] = { position: 1, key: "flag", value: nil }
+// map["emptykey"] = { position: 2, key: "emptykey", value: &"" }
 type kernelArgs map[string]kernelArg
 
-// serialize the sorted kernelArgs back to a string that can be provided
-// to the kernel
+// Sorts the arguments by its position
+// and serializes the map back into a single string
 func (kargs kernelArgs) String() string {
 	sortedArgs := make([]kernelArg, 0)
 	for _, arg := range kargs {
@@ -58,6 +63,7 @@ func (kargs kernelArgs) String() string {
 	return strings.Join(args, " ")
 }
 
+// Add a new kernel argument to the kernelArgs, also the position is saved
 func (kargs kernelArgs) Add(key string, value *string) {
 	kargs[key] = kernelArg{
 		position: uint(len(kargs)),
@@ -66,7 +72,8 @@ func (kargs kernelArgs) Add(key string, value *string) {
 	}
 }
 
-// deserialize the provided string to a kernelArgs map
+// Parses an input string and deserializes it into a map
+// saving its position in the command line
 func parseKernelArgs(rawString string) kernelArgs {
 	args := make(map[string]kernelArg)
 	for index, kv := range strings.Fields(rawString) {
