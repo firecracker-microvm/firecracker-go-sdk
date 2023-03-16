@@ -37,30 +37,37 @@ func TestKernelArgsSerder(t *testing.T) {
 	expectedParsedArgs := kernelArgs(map[string]kernelArg{
 		"foo": {
 			position: 0,
+			key:      "foo",
 			value:    &fooVal,
 		},
 		"blah": {
 			position: 1,
+			key:      "blah",
 			value:    nil,
 		},
 		"doo": {
 			position: 2,
+			key:      "doo",
 			value:    &dooVal,
 		},
 		"huh": {
 			position: 3,
+			key:      "huh",
 			value:    &emptyVal,
 		},
 		"bleh": {
 			position: 4,
+			key:      "bleh",
 			value:    nil,
 		},
 		"duh": {
 			position: 5,
+			key:      "duh",
 			value:    &emptyVal,
 		},
 		"boo": {
 			position: 6,
+			key:      "boo",
 			value:    &booVal,
 		},
 	})
