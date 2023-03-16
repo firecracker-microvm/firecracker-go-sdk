@@ -13,7 +13,11 @@
 
 package firecracker
 
-import "strings"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // kernelArgs serializes+deserializes kernel boot parameters from/into a map.
 // Kernel docs: https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt
@@ -21,38 +25,66 @@ import "strings"
 // "key=value" will result in map["key"] = &"value"
 // "key=" will result in map["key"] = &""
 // "key" will result in map["key"] = nil
-type kernelArgs map[string]*string
+type kernelArg struct {
+	position uint
+	key      string
+	value    *string
+}
 
-// serialize the kernelArgs back to a string that can be provided
+func (karg kernelArg) String() string {
+	if karg.value != nil {
+		return fmt.Sprintf("%s=%s", karg.key, *karg.value)
+	}
+	return karg.key
+}
+
+type kernelArgs map[string]kernelArg
+
+// serialize the sorted kernelArgs back to a string that can be provided
 // to the kernel
 func (kargs kernelArgs) String() string {
-	var fields []string
-	for key, value := range kargs {
-		field := key
-		if value != nil {
-			field += "=" + *value
-		}
-		fields = append(fields, field)
+	sortedArgs := make([]kernelArg, 0)
+	for _, arg := range kargs {
+		sortedArgs = append(sortedArgs, arg)
 	}
-	return strings.Join(fields, " ")
+	sort.SliceStable(sortedArgs, func(i, j int) bool {
+		return sortedArgs[i].position < sortedArgs[j].position
+	})
+
+	args := make([]string, 0)
+	for _, arg := range sortedArgs {
+		args = append(args, arg.String())
+	}
+	return strings.Join(args, " ")
+}
+
+func (kargs kernelArgs) Add(key string, value *string) {
+	kargs[key] = kernelArg{
+		position: uint(len(kargs)),
+		key:      key,
+		value:    value,
+	}
 }
 
 // deserialize the provided string to a kernelArgs map
 func parseKernelArgs(rawString string) kernelArgs {
-	argMap := make(map[string]*string)
-	for _, kv := range strings.Fields(rawString) {
+	args := make(map[string]kernelArg)
+	for index, kv := range strings.Fields(rawString) {
 		// only split into up to 2 fields (before and after the first "=")
 		kvSplit := strings.SplitN(kv, "=", 2)
 
 		key := kvSplit[0]
-
 		var value *string
 		if len(kvSplit) == 2 {
 			value = &kvSplit[1]
 		}
 
-		argMap[key] = value
+		args[key] = kernelArg{
+			position: uint(index),
+			key:      key,
+			value:    value,
+		}
 	}
 
-	return argMap
+	return args
 }

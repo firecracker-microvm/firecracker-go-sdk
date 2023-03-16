@@ -504,7 +504,7 @@ func (m *Machine) setupKernelArgs(ctx context.Context) error {
 	// Validation that we are not overriding an existing "ip=" setting happens in the network validation
 	if staticIPInterface := m.Cfg.NetworkInterfaces.staticIPInterface(); staticIPInterface != nil {
 		ipBootParam := staticIPInterface.StaticConfiguration.IPConfiguration.ipBootParam()
-		kernelArgs["ip"] = &ipBootParam
+		kernelArgs.Add("ip", &ipBootParam)
 	}
 
 	m.Cfg.KernelArgs = kernelArgs.String()
@@ -649,7 +649,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	return nil
 }
 
-//StopVMM stops the current VMM.
+// StopVMM stops the current VMM.
 func (m *Machine) StopVMM() error {
 	return m.stopVMM()
 }
