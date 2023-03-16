@@ -5,7 +5,7 @@ info:
     The API is accessible through HTTP calls on specific URLs
     carrying JSON modeled data.
     The transport medium is a Unix Domain Socket.
-  version: 1.0.0
+  version: 1.4.0
   termsOfService: ""
   contact:
     email: "compute-capsule@amazon.com"
@@ -195,6 +195,32 @@ paths:
           schema:
             $ref: "#/definitions/Error"
 
+  /cpu-config:
+    put:
+      summary: Configures CPU features flags for the vCPUs of the guest VM. Pre-boot only.
+      description:
+        Provides configuration to the Firecracker process to specify vCPU resource configuration prior to
+        launching the guest machine.
+      operationId: putCpuConfiguration
+      parameters:
+        - name: body
+          in: body
+          description: CPU configuration request
+          schema:
+            $ref: "#/definitions/CpuConfig"
+      responses:
+        204:
+          description: CPU configuration set successfully
+        400:
+          description: CPU configuration cannot be updated due to invalid input format
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+
+
   /drives/{drive_id}:
     put:
       summary: Creates or updates a drive. Pre-boot only.
@@ -302,9 +328,12 @@ paths:
       description:
         Updates the Virtual Machine Configuration with the specified input.
         Firecracker starts with default values for vCPU count (=1) and memory size (=128 MiB).
-        With SMT enabled, the vCPU count is restricted to be 1 or an even number,
+        The vCPU count is restricted to the [1, 32] range.
+        With SMT enabled, the vCPU count is required to be either 1 or an even number in the range.
         otherwise there are no restrictions regarding the vCPU count.
         If any of the parameters has an incorrect value, the whole update fails.
+        All parameters that are optional and are not specified are set to their default values
+        (smt = false, track_dirty_pages = false, cpu_template = None).
       operationId: putMachineConfiguration
       parameters:
         - name: body
@@ -363,7 +392,7 @@ paths:
         204:
           description: Metrics system created.
         400:
-          description: Metrics system cannot be initialized due to bad input.
+          description: Metrics system cannot be initialized due to bad input request or metrics system already initialized.
           schema:
             $ref: "#/definitions/Error"
         default:
@@ -454,6 +483,28 @@ paths:
           description: Internal server error
           schema:
             $ref: "#/definitions/Error"
+
+  /entropy:
+    put:
+      summary: Creates an entropy device. Pre-boot only.
+      description:
+        Enables an entropy device that provides high-quality random data to the guest.
+      operationId: putEntropyDevice
+      parameters:
+        - name: body
+          in: body
+          description: Guest entropy device properties
+          required: true
+          schema:
+            $ref: "#/definitions/EntropyDevice"
+      responses:
+        204:
+          description: Entropy device created
+        default:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+
 
   /network-interfaces/{iface_id}:
     put:
@@ -609,7 +660,8 @@ paths:
     get:
       summary: Gets the full VM configuration.
       description:
-        Gets configuration for all VM resources.
+        Gets configuration for all VM resources. If the VM is restored from a snapshot, the boot-source,
+        machine-config.smt and machine-config.cpu_template will be empty.
       operationId: getExportVmConfig
       responses:
         200:
@@ -774,10 +826,31 @@ definitions:
     description:
       The CPU Template defines a set of flags to be disabled from the microvm so that
       the features exposed to the guest are the same as in the selected instance type.
-      Works only on Intel.
     enum:
       - C3
       - T2
+      - T2S
+      - T2CL
+      - T2A
+      - V1N1
+      - None
+    default: "None"
+
+  CpuConfig:
+    type: string
+    description:
+      The CPU configuration template defines a set of bit maps as modifiers of flags accessed by register
+      to be disabled/enabled for the microvm.
+    properties:
+      cpuid_modifiers:
+        type: object
+        description: A collection of CPUIDs to be modified. (x86_64)
+      msr_modifiers:
+        type: object
+        description: A collection of model specific registers to be modified. (x86_64)
+      reg_modifiers:
+        type: object
+        description: A collection of registers to be modified. (aarch64)
 
   Drive:
     type: object
@@ -947,6 +1020,7 @@ definitions:
           snapshots can be created. These belong to diff snapshots, which contain, besides
           the microVM state, only the memory dirtied since a previous snapshot. Full snapshots
           each contain a full copy of the guest memory.
+        default: false
       vcpu_count:
         type: integer
         minimum: 1
@@ -1182,6 +1256,14 @@ definitions:
         enum:
           - Paused
           - Resumed
+
+  EntropyDevice:
+    type: object
+    description:
+      Defines an entropy device.
+    properties:
+      rate_limiter:
+        $ref: "#/definitions/RateLimiter"
 
   FirecrackerVersion:
     type: object

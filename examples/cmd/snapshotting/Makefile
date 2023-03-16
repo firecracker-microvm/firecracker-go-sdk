@@ -12,7 +12,7 @@
 # permissions and limitations under the License.
 
 RELEASE_URL=https://github.com/firecracker-microvm/firecracker/releases
-VER=v1.0.0
+VER=v1.4.0
 
 ARCH=$(shell uname -m)
 GID = $(shell id -g)

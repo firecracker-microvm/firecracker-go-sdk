@@ -89,7 +89,7 @@ func NewPutMetricsBadRequest() *PutMetricsBadRequest {
 
 /*PutMetricsBadRequest handles this case with default header values.
 
-Metrics system cannot be initialized due to bad input.
+Metrics system cannot be initialized due to bad input request or metrics system already initialized.
 */
 type PutMetricsBadRequest struct {
 	Payload *models.Error
