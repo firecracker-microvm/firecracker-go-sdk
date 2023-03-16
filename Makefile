@@ -34,25 +34,21 @@ firecracker_version=v1.0.0
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
 
 testdata_objects = \
-$(FC_TEST_DATA_PATH)/vmlinux \
-$(FC_TEST_DATA_PATH)/root-drive.img \
-$(FC_TEST_DATA_PATH)/jailer \
 $(FC_TEST_DATA_PATH)/firecracker \
+$(FC_TEST_BIN_PATH)/host-local \
+$(FC_TEST_DATA_PATH)/jailer \
 $(FC_TEST_DATA_PATH)/ltag \
 $(FC_TEST_BIN_PATH)/ptp \
-$(FC_TEST_BIN_PATH)/host-local \
+$(FC_TEST_DATA_PATH)/root-drive.img \
+$(FC_TEST_DATA_PATH)/root-drive-with-ssh.img \
+$(FC_TEST_DATA_PATH)/root-drive-ssh-key \
 $(FC_TEST_BIN_PATH)/static \
-$(FC_TEST_BIN_PATH)/tc-redirect-tap
-
-# Enable pulling of artifacts from S3 instead of building
-# TODO: https://github.com/firecracker-microvm/firecracker-go-sdk/issues/418
-ifeq ($(GID), 0)
-testdata_objects += $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img $(FC_TEST_DATA_PATH)/root-drive-ssh-key
-endif
+$(FC_TEST_BIN_PATH)/tc-redirect-tap \
+$(FC_TEST_DATA_PATH)/vmlinux 
 
 testdata_dir = testdata/firecracker.tgz testdata/firecracker_spec-$(firecracker_version).yaml testdata/LICENSE testdata/NOTICE testdata/THIRD-PARTY
 
-# --location is needed to follow redirects on github.com
+# --location is needed to follow redirects
 curl = curl --location
 
 GO_VERSION = $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1,2)
@@ -96,26 +92,23 @@ $(FC_TEST_DATA_PATH)/vmlinux:
 
 $(FC_TEST_DATA_PATH)/firecracker $(FC_TEST_DATA_PATH)/jailer: $(FC_TEST_DATA_PATH)/fc.stamp
 
+# Download the pinned release version of firecracker and jailer version from github
 $(FC_TEST_DATA_PATH)/fc.stamp:
 	$(curl) ${release_url} | tar -xvzf - -C $(FC_TEST_DATA_PATH)
 	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/firecracker-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/firecracker
 	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/jailer-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/jailer
+	rm -rf $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)
 	touch $@
 
 $(FC_TEST_DATA_PATH)/root-drive.img:
 	$(curl) -o $@ https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
 
+# Download pre-built rootfs image and its ssh key from S3
+# TODO: Change the pre-built rootfs to ubuntu 22.04 once firecracker team has it in the public S3 bucket
+# Currently the S3 bucket only has ubuntu 18.04 image
 $(FC_TEST_DATA_PATH)/root-drive-ssh-key $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img: 
-# Need root to move ssh key to testdata location
-ifeq ($(GID), 0)
-	$(MAKE) $(FIRECRACKER_DIR)
-	$(FIRECRACKER_DIR)/tools/devtool build_rootfs -m $(FC_TEST_DATA_PATH)/mnt
-	cp $(FIRECRACKER_DIR)/build/rootfs/bionic.rootfs.ext4 $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img
-	cp $(FIRECRACKER_DIR)/build/rootfs/ssh/id_rsa $(FC_TEST_DATA_PATH)/root-drive-ssh-key
-	rm -rf $(FIRECRACKER_DIR)
-else
-	$(error unable to place ssh key without root permissions)
-endif
+	$(curl) -o $(FC_TEST_DATA_PATH)/root-drive-with-ssh.img https://s3.amazonaws.com/spec.ccfc.min/ci-artifacts/disks/$(arch)/ubuntu-18.04.ext4
+	$(curl) -o $(FC_TEST_DATA_PATH)/root-drive-ssh-key https://s3.amazonaws.com/spec.ccfc.min/ci-artifacts/disks/$(arch)/ubuntu-18.04.id_rsa
 
 $(FC_TEST_BIN_PATH)/ptp:
 	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.1.1)
@@ -132,11 +125,13 @@ $(FC_TEST_BIN_PATH)/tc-redirect-tap:
 $(FC_TEST_DATA_PATH)/ltag:
 	$(call install_go,github.com/kunalkushwaha/ltag,v0.2.3)
 
-$(FIRECRACKER_DIR):
-	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
-
+# test-images builds firecracker and jailer from main branch of firecracker
+# to test against HEAD of firecracker  
 .PHONY: test-images
 test-images: $(FIRECRACKER_BIN) $(JAILER_BIN)
+
+$(FIRECRACKER_DIR):
+	- git clone https://github.com/firecracker-microvm/firecracker.git $(FIRECRACKER_DIR)
 
 $(FIRECRACKER_BIN) $(JAILER_BIN): $(FIRECRACKER_DIR)
 	$(FIRECRACKER_DIR)/tools/devtool -y build --release

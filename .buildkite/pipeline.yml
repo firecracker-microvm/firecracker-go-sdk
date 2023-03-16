@@ -61,11 +61,9 @@ steps:
       # Copy vmlinux and root-drive.img.
       - ln -s /var/lib/fc-ci/vmlinux.bin ${FC_TEST_DATA_PATH}/vmlinux
       - ln -s /var/lib/fc-ci/rootfs.ext4 ${FC_TEST_DATA_PATH}/root-drive.img
-      # Download Firecracker and its jailer.
-      - make deps
-      # Build a rootfs with SSH enabled.
-      - sudo -E FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH} make ${FC_TEST_DATA_PATH}/root-drive-ssh-key
-      - sudo chown $USER ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img
+      # Download Firecracker and its jailer
+      # Download pre-built rootfs with SSH enabled and its ssh key.
+      - make deps  
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
@@ -90,6 +88,7 @@ steps:
   
   - label: ':book: examples'
     commands:
+      # Copy those deps from install step to save time re-downloading
       - cp ${FC_TEST_DATA_PATH}/root-drive-ssh-key ${FC_TEST_DATA_PATH}/root-drive-with-ssh.img ${FC_TEST_DATA_PATH}/vmlinux examples/cmd/snapshotting
       - cd examples/cmd/snapshotting
       - make all
@@ -112,7 +111,7 @@ steps:
     commands:
       - export FC_TEST_TAP=fc-root-tap${BUILDKITE_BUILD_NUMBER}
       - export FC_TEST_DATA_PATH=${FC_TEST_DATA_PATH}
-      - make test EXTRAGOARGS="-exec 'sudo -E' -count=1 -race" DISABLE_ROOT_TESTS=
+      - make test EXTRAGOARGS="-exec 'sudo -E' -v -count=1 -race" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"

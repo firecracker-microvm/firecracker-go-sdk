@@ -21,6 +21,9 @@ PWD=$(shell pwd)
 GOBIN=$(PWD)/bin
 FC_TEST_DATA_PATH?=$(PWD)
 
+# --location is needed to follow redirects on github.com
+curl = curl --location
+
 GO_VERSION = $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1,2)
 ifeq ($(GO_VERSION), $(filter $(GO_VERSION),1.14 1.15))
     define install_go
@@ -50,21 +53,22 @@ bin/host-local: bin
 	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.1.1)
 
 vmlinux:
-	curl --location -o vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/${ARCH}/kernels/vmlinux.bin
+	$(curl) -o vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/${ARCH}/kernels/vmlinux.bin
 
 firecracker:
-	curl -L ${RELEASE_URL}/download/${VER}/firecracker-${VER}-${ARCH}.tgz | tar -xz
+	$(curl) ${RELEASE_URL}/download/${VER}/firecracker-${VER}-${ARCH}.tgz | tar -xz
 	mv release-${VER}-${ARCH}/firecracker-${VER}-${ARCH} firecracker
 	rm -rf release-${VER}-${ARCH}
 
+# Use rootfs and ssh key pre-built from S3 following firecracker getting-started guide
+# https://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md
+# TODO: Change the pre-built rootfs to ubuntu 22.04 once firecracker team has that in the public S3 bucket
+# Currently the S3 bucket only has ubuntu 18.04 image
 root-drive-with-ssh.img root-drive-ssh-key:
-	- mkdir temp
-	- git clone https://github.com/firecracker-microvm/firecracker temp
-	temp/tools/devtool build_rootfs
-	cp temp/build/rootfs/bionic.rootfs.ext4 root-drive-with-ssh.img
-	cp temp/build/rootfs/ssh/id_rsa root-drive-ssh-key
-	rm -rf temp
-
+	$(curl) -o root-drive-with-ssh.img https://s3.amazonaws.com/spec.ccfc.min/ci-artifacts/disks/${ARCH}/ubuntu-18.04.ext4
+	$(curl) -o root-drive-ssh-key https://s3.amazonaws.com/spec.ccfc.min/ci-artifacts/disks/${ARCH}/ubuntu-18.04.id_rsa
+	
+	
 snapshot-example:
 	go build -o $@
 
@@ -72,6 +76,6 @@ run: snapshot-example
 	./snapshot-example
 
 clean:
-	rm -rf bin firecracker root-drive-ssh-key root-drive-with-ssh.img vmlinux
+	rm -rf bin firecracker root-drive-ssh-key root-drive-with-ssh.img snapshot-example vmlinux  
 
 .PHONY: all clean plugins run
