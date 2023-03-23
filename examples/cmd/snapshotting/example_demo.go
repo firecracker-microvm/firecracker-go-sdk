@@ -89,9 +89,9 @@ func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 		SocketPath:      socketPath,
 		KernelImagePath: kernelImagePath,
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   &vcpuCount,
-			MemSizeMib:  &memSizeMib,
-			Smt:         &smt,
+			VcpuCount:  &vcpuCount,
+			MemSizeMib: &memSizeMib,
+			Smt:        &smt,
 		},
 		Drives: []models.Drive{
 			{
@@ -412,13 +412,15 @@ func main() {
 	defer os.Remove(tempdir)
 	socketPath := filepath.Join(tempdir, "snapshotssh")
 
-	err = os.Mkdir("snapshotssh", 0777)
+	snapshotsshPath := filepath.Join(dir, "snapshotssh")
+	err = os.Mkdir(snapshotsshPath, 0777)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		log.Fatal(err)
 	}
+	defer os.RemoveAll(snapshotsshPath)
 
-	snapPath := filepath.Join(dir, "snapshotssh/SnapFile")
-	memPath := filepath.Join(dir, "snapshotssh/MemFile")
+	snapPath := filepath.Join(snapshotsshPath, "SnapFile")
+	memPath := filepath.Join(snapshotsshPath, "MemFile")
 
 	ctx := context.Background()
 

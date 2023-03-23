@@ -9,7 +9,7 @@ This test requires both KVM and root access.
 Run this test by first running
 
 ```
-sudo -E env PATH=$PATH make all
+make all
 ```
 
 followed by
@@ -18,7 +18,7 @@ followed by
 sudo -E env PATH=$PATH go run example_demo.go
 ```
 
-Alternatively, to do both of the above,
+or,
 ```
 sudo -E env PATH=$PATH make run
 ```
@@ -62,20 +62,5 @@ Pressing enter resumes execution of the program.
 You can remove dependencies via a simple `make clean`.
 
 ```
-sudo make clean
-```
-
-## Issues
-
-You may encounter an issue where the image does not build properly. This is often indicated via the following near the end of terminal output:
-
-```
-umount: /firecracker/build/rootfs/mnt: not mounted.
-```
-
-This is due to an issue in Firecracker's devtool command used to dynamically create an image. Fixing this is often as simple as rerunning the command.
-
-```
-sudo rm -rf root-drive-with-ssh.img root-drive-ssh-key
-sudo make image
+make clean
 ```
