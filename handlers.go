@@ -109,10 +109,6 @@ var JailerConfigValidationHandler = Handler{
 			return fmt.Errorf("UID must be specified when using jailer mode")
 		}
 
-		if m.Cfg.JailerCfg.NumaNode == nil {
-			return fmt.Errorf("ID must be specified when using jailer mode")
-		}
-
 		return nil
 	},
 }
