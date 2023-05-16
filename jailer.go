@@ -86,6 +86,8 @@ type JailerConfig struct {
 	// CgroupVersion is the version of the cgroup filesystem to use.
 	CgroupVersion string
 
+	CgroupArgs []string
+
 	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
 	Stdout io.Writer
 	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
@@ -109,6 +111,7 @@ type JailerCommandBuilder struct {
 	daemonize       bool
 	firecrackerArgs []string
 	cgroupVersion   string
+	cgroupArgs      []string
 	node            *int
 
 	stdin  io.Reader
@@ -138,6 +141,10 @@ func (b JailerCommandBuilder) Args() []string {
 	args = append(args, "--uid", strconv.Itoa(b.uid))
 	args = append(args, "--gid", strconv.Itoa(b.gid))
 	args = append(args, "--exec-file", b.execFile)
+
+	for _, cgroupArg := range b.cgroupArgs {
+		args = append(args, "--cgroup", cgroupArg)
+	}
 
 	if b.node != nil {
 		if cpulist := getNumaCpuset(*b.node); len(cpulist) > 0 {
@@ -211,6 +218,11 @@ func (b JailerCommandBuilder) WithExecFile(path string) JailerCommandBuilder {
 // node that the process will get assigned to.
 func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
 	b.node = &node
+	return b
+}
+
+func (b JailerCommandBuilder) WithCgroupArgs(cgroupArgs ...string) JailerCommandBuilder {
+	b.cgroupArgs = cgroupArgs
 	return b
 }
 
@@ -350,6 +362,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithCgroupVersion(cfg.JailerCfg.CgroupVersion).
+		WithCgroupArgs(cfg.JailerCfg.CgroupArgs...).
 		WithFirecrackerArgs(fcArgs...).
 		WithStdout(stdout).
 		WithStderr(stderr)
