@@ -98,6 +98,7 @@ func TestJailerBuilder(t *testing.T) {
 				ChrootBaseDir:  "/tmp",
 				JailerBinary:   "/path/to/the/jailer",
 				CgroupVersion:  "2",
+				CgroupArgs:     []string{"cpu.weight=200"},
 			},
 			expectedArgs: []string{
 				"/path/to/the/jailer",
@@ -109,6 +110,8 @@ func TestJailerBuilder(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
+				"--cgroup",
+				"cpu.weight=200",
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
@@ -140,6 +143,10 @@ func TestJailerBuilder(t *testing.T) {
 
 			if c.jailerCfg.NumaNode != nil {
 				b = b.WithNumaNode(IntValue(c.jailerCfg.NumaNode))
+			}
+
+			if len(c.jailerCfg.CgroupArgs) > 0 {
+				b = b.WithCgroupArgs(c.jailerCfg.CgroupArgs...)
 			}
 
 			if len(c.jailerCfg.JailerBinary) > 0 {
@@ -253,6 +260,7 @@ func TestJail(t *testing.T) {
 				ChrootBaseDir:  "/tmp",
 				JailerBinary:   "/path/to/the/jailer",
 				CgroupVersion:  "2",
+				CgroupArgs:     []string{"cpu.weight=200"},
 			},
 			expectedArgs: []string{
 				"/path/to/the/jailer",
@@ -264,6 +272,8 @@ func TestJail(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
+				"--cgroup",
+				"cpu.weight=200",
 				"--cgroup",
 				"cpuset.mems=0",
 				"--cgroup",
