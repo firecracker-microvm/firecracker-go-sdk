@@ -86,6 +86,7 @@ type JailerConfig struct {
 	// CgroupVersion is the version of the cgroup filesystem to use.
 	CgroupVersion string
 
+	// CgroupArgs are the cgroup arguments to pass to the jailer.
 	CgroupArgs []string
 
 	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
@@ -221,6 +222,8 @@ func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
 	return b
 }
 
+// WithCgroupArgs will set the specified cgroup args to the builder. This
+// represents the cgroup settings that the process will get assigned.
 func (b JailerCommandBuilder) WithCgroupArgs(cgroupArgs ...string) JailerCommandBuilder {
 	b.cgroupArgs = cgroupArgs
 	return b
