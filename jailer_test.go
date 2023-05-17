@@ -34,7 +34,6 @@ func TestJailerBuilder(t *testing.T) {
 				ID:             "my-test-id",
 				UID:            Int(123),
 				GID:            Int(100),
-				NumaNode:       Int(0),
 				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
 				ExecFile:       "/path/to/firecracker",
 			},
@@ -48,10 +47,6 @@ func TestJailerBuilder(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
-				"--cgroup",
-				"cpuset.mems=0",
-				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -67,7 +62,6 @@ func TestJailerBuilder(t *testing.T) {
 				ID:             "my-test-id",
 				UID:            Int(123),
 				GID:            Int(100),
-				NumaNode:       Int(0),
 				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
 				ExecFile:       "/path/to/firecracker",
 				JailerBinary:   "imprisoner",
@@ -82,10 +76,6 @@ func TestJailerBuilder(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
-				"--cgroup",
-				"cpuset.mems=0",
-				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
 			},
 			expectedSockPath: filepath.Join(
 				defaultJailerPath,
@@ -145,9 +135,12 @@ func TestJailerBuilder(t *testing.T) {
 				WithID(c.jailerCfg.ID).
 				WithUID(IntValue(c.jailerCfg.UID)).
 				WithGID(IntValue(c.jailerCfg.GID)).
-				WithNumaNode(IntValue(c.jailerCfg.NumaNode)).
 				WithCgroupVersion(c.jailerCfg.CgroupVersion).
 				WithExecFile(c.jailerCfg.ExecFile)
+
+			if c.jailerCfg.NumaNode != nil {
+				b = b.WithNumaNode(IntValue(c.jailerCfg.NumaNode))
+			}
 
 			if len(c.jailerCfg.JailerBinary) > 0 {
 				b = b.WithBin(c.jailerCfg.JailerBinary)
@@ -188,7 +181,6 @@ func TestJail(t *testing.T) {
 				ID:             "my-test-id",
 				UID:            Int(123),
 				GID:            Int(100),
-				NumaNode:       Int(0),
 				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
 				ExecFile:       "/path/to/firecracker",
 			},
@@ -202,10 +194,6 @@ func TestJail(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
-				"--cgroup",
-				"cpuset.mems=0",
-				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
 				"--",
 				"--no-seccomp",
 				"--api-sock",
@@ -225,7 +213,6 @@ func TestJail(t *testing.T) {
 				ID:             "my-test-id",
 				UID:            Int(123),
 				GID:            Int(100),
-				NumaNode:       Int(0),
 				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
 				ExecFile:       "/path/to/firecracker",
 				JailerBinary:   "imprisoner",
@@ -240,10 +227,6 @@ func TestJail(t *testing.T) {
 				"100",
 				"--exec-file",
 				"/path/to/firecracker",
-				"--cgroup",
-				"cpuset.mems=0",
-				"--cgroup",
-				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
 				"--",
 				"--no-seccomp",
 				"--api-sock",

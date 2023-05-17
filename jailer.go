@@ -149,7 +149,7 @@ func (b JailerCommandBuilder) Args() []string {
 
 	if b.node != nil {
 		if cpulist := getNumaCpuset(*b.node); len(cpulist) > 0 {
-			args = append(args, "--cgroup", fmt.Sprintf("cpuset.mems=%d", b.node))
+			args = append(args, "--cgroup", fmt.Sprintf("cpuset.mems=%d", *b.node))
 			args = append(args, "--cgroup", fmt.Sprintf("cpuset.cpus=%s", cpulist))
 		}
 	}
