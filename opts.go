@@ -16,6 +16,7 @@ package firecracker
 import (
 	"os/exec"
 
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,7 +53,9 @@ func WithProcessRunner(cmd *exec.Cmd) Opt {
 // to be passed to LoadSnapshot
 type WithSnapshotOpt func(*SnapshotConfig)
 
-// WithSnapshot will allow for the machine to start using a given snapshot.
+// WithSnapshot will allow for the machine to start using a given snapshot. A
+// UFFD socket file path may be used as memFilePath if a MemoryBackendType opt
+// is passed setting the backend type to models.MemoryBackendBackendTypeUffd.
 func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt {
 	return func(m *Machine) {
 		m.Cfg.Snapshot.MemFilePath = memFilePath
@@ -64,5 +67,19 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 
 		m.Handlers.Validation = loadSnapshotValidationHandlerList
 		m.Handlers.FcInit = loadSnapshotHandlerList
+	}
+}
+
+// MemoryBackendType sets the memory backend type to the given value.
+func MemoryBackendType(typ string) WithSnapshotOpt {
+	return func(cfg *SnapshotConfig) {
+		if cfg.MemBackend == nil {
+			cfg.MemBackend = &models.MemoryBackend{
+				BackendPath: String(cfg.MemFilePath),
+			}
+		}
+		cfg.MemBackend.BackendType = String(typ)
+		// Clear MemFilePath since only one of MemFilePath or MemBackend is allowed.
+		cfg.MemFilePath = ""
 	}
 }
