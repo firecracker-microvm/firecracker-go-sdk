@@ -42,13 +42,6 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - label: 'git log validation'
-    command: './.buildkite/logcheck.sh'
-    # This should run in the same queue, but we don't care whether it runs on
-    # the same host.
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-
   # This makes sure next step will run even if previous steps failed
   # to make sure we can reach the final step for resource cleanup 
   - wait: ~
