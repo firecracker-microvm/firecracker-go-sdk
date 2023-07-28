@@ -23,7 +23,7 @@ type SnapshotConfig struct {
 	ResumeVM            bool
 }
 
-func (cfg *SnapshotConfig) GetMemFilePath() string {
+func (cfg *SnapshotConfig) GetMemBackendPath() string {
 	if cfg.MemBackend != nil && cfg.MemBackend.BackendPath != nil {
 		return *cfg.MemBackend.BackendPath
 	}

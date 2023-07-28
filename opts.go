@@ -53,9 +53,15 @@ func WithProcessRunner(cmd *exec.Cmd) Opt {
 // to be passed to LoadSnapshot
 type WithSnapshotOpt func(*SnapshotConfig)
 
-// WithSnapshot will allow for the machine to start using a given snapshot. A
-// UFFD socket file path may be used as memFilePath if a MemoryBackendType opt
-// is passed setting the backend type to models.MemoryBackendBackendTypeUffd.
+// WithSnapshot will allow for the machine to start using a given snapshot.
+//
+// If using the UFFD memory backend, the memFilePath may be empty (it is
+// ignored), and instead the UFFD socket should be specified using
+// MemoryBackendType, as in the following example:
+//
+//	WithSnapshot(
+//	  "", snapshotPath,
+//	  WithMemoryBackend(models.MemoryBackendBackendTypeUffd, "uffd.sock"))
 func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt {
 	return func(m *Machine) {
 		m.Cfg.Snapshot.MemFilePath = memFilePath
@@ -70,16 +76,18 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 	}
 }
 
-// MemoryBackendType sets the memory backend type to the given value.
-func MemoryBackendType(typ string) WithSnapshotOpt {
+// WithMemoryBackend sets the memory backend to the given type, using the given
+// backing file path (a regular file for "File" type, or a UFFD socket path for
+// "Uffd" type).
+//
+// Note that if MemFilePath is already configured for the snapshot config, it
+// will be ignored, and the backendPath specified here will be used instead.
+func WithMemoryBackend(backendType, backendPath string) WithSnapshotOpt {
 	return func(cfg *SnapshotConfig) {
-		if cfg.MemBackend == nil {
-			cfg.MemBackend = &models.MemoryBackend{
-				BackendPath: String(cfg.MemFilePath),
-			}
+		cfg.MemBackend = &models.MemoryBackend{
+			BackendType: String(backendType),
+			BackendPath: String(backendPath),
 		}
-		cfg.MemBackend.BackendType = String(typ)
-		// Clear MemFilePath since only one of MemFilePath or MemBackend is allowed.
 		cfg.MemFilePath = ""
 	}
 }

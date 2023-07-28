@@ -172,7 +172,7 @@ type Config struct {
 }
 
 func (cfg *Config) hasSnapshot() bool {
-	return cfg.Snapshot.GetMemFilePath() != "" || cfg.Snapshot.SnapshotPath != ""
+	return cfg.Snapshot.GetMemBackendPath() != "" || cfg.Snapshot.SnapshotPath != ""
 }
 
 // Validate will ensure that the required fields are set and that
@@ -235,7 +235,7 @@ func (cfg *Config) ValidateLoadSnapshot() error {
 		return fmt.Errorf("socket %s already exists", cfg.SocketPath)
 	}
 
-	if _, err := os.Stat(cfg.Snapshot.GetMemFilePath()); err != nil {
+	if _, err := os.Stat(cfg.Snapshot.GetMemBackendPath()); err != nil {
 		return err
 	}
 
