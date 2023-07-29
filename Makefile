@@ -28,7 +28,7 @@ JAILER_BIN=$(FC_TEST_DATA_PATH)/jailer-main
 UID = $(shell id -u)
 GID = $(shell id -g)
 
-firecracker_version=v1.0.0
+firecracker_version=v1.4.0
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
