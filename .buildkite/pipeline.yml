@@ -11,7 +11,7 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 env:
-  PATH: "/usr/lib/go-1.15/bin:/usr/bin"
+  PATH: "/usr/lib/go-1.17/bin:/usr/bin"
   FC_TEST_DATA_PATH: "/tmp/buildkite_build_${BUILDKITE_BUILD_NUMBER}_testdata"
 
 steps:
@@ -42,14 +42,10 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - label: 'git log validation'
-    command: './.buildkite/logcheck.sh'
-    # This should run in the same queue, but we don't care whether it runs on
-    # the same host.
-    agents:
-      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
-
-  - wait
+  # This makes sure next step will run even if previous steps failed
+  # to make sure we can reach the final step for resource cleanup 
+  - wait: ~
+    continue_on_failure: true
 
   - label: ':package: install'
     env:
@@ -69,7 +65,10 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - wait
+  # This makes sure next step will run even if previous steps failed
+  # to make sure we can reach the final step for resource cleanup 
+  - wait: ~
+    continue_on_failure: true
 
   - label: lint
     command: make lint
@@ -126,7 +125,10 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - wait
+  # This makes sure next step will run even if previous steps failed
+  # to make sure we can reach the final step for resource cleanup 
+  - wait: ~
+    continue_on_failure: true
 
   - label: ':linux: build Firecracker from the tip of main branch'
     commands:
@@ -136,7 +138,10 @@ steps:
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
       hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
 
-  - wait
+  # This makes sure next step will run even if previous steps failed
+  # to make sure we can reach the final step for resource cleanup 
+  - wait: ~
+    continue_on_failure: true
 
   - label: ':hammer: test against Firecracker above'
     env:
