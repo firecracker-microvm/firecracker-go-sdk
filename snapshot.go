@@ -23,6 +23,8 @@ type SnapshotConfig struct {
 	ResumeVM            bool
 }
 
+// GetMemBackendPath returns the effective memory backend path. If MemBackend
+// is not set, then MemFilePath from SnapshotConfig will be returned.
 func (cfg *SnapshotConfig) GetMemBackendPath() string {
 	if cfg.MemBackend != nil && cfg.MemBackend.BackendPath != nil {
 		return *cfg.MemBackend.BackendPath

@@ -88,6 +88,5 @@ func WithMemoryBackend(backendType, backendPath string) WithSnapshotOpt {
 			BackendType: String(backendType),
 			BackendPath: String(backendPath),
 		}
-		cfg.MemFilePath = ""
 	}
 }
