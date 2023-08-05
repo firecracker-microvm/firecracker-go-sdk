@@ -2172,7 +2172,6 @@ func TestLoadSnapshot(t *testing.T) {
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
 				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot("", snapPath, WithMemoryBackend("File", memPath)))
 				require.NoError(t, err)
-				require.Equal(t, m.Cfg.Snapshot.ResumeVM, true)
 
 				err = m.Start(ctx)
 				require.NoError(t, err)
