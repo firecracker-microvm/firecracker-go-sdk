@@ -172,7 +172,7 @@ type Config struct {
 }
 
 func (cfg *Config) hasSnapshot() bool {
-	return cfg.Snapshot.MemFilePath != "" || cfg.Snapshot.SnapshotPath != ""
+	return cfg.Snapshot.GetMemBackendPath() != "" || cfg.Snapshot.SnapshotPath != ""
 }
 
 // Validate will ensure that the required fields are set and that
@@ -235,7 +235,7 @@ func (cfg *Config) ValidateLoadSnapshot() error {
 		return fmt.Errorf("socket %s already exists", cfg.SocketPath)
 	}
 
-	if _, err := os.Stat(cfg.Snapshot.MemFilePath); err != nil {
+	if _, err := os.Stat(cfg.Snapshot.GetMemBackendPath()); err != nil {
 		return err
 	}
 
@@ -649,7 +649,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	return nil
 }
 
-//StopVMM stops the current VMM.
+// StopVMM stops the current VMM.
 func (m *Machine) StopVMM() error {
 	return m.stopVMM()
 }
@@ -1171,7 +1171,8 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 // loadSnapshot loads a snapshot of the VM
 func (m *Machine) loadSnapshot(ctx context.Context, snapshot *SnapshotConfig) error {
 	snapshotParams := &models.SnapshotLoadParams{
-		MemFilePath:         &snapshot.MemFilePath,
+		MemFilePath:         snapshot.MemFilePath,
+		MemBackend:          snapshot.MemBackend,
 		SnapshotPath:        &snapshot.SnapshotPath,
 		EnableDiffSnapshots: snapshot.EnableDiffSnapshots,
 		ResumeVM:            snapshot.ResumeVM,

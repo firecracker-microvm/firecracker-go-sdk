@@ -26,16 +26,18 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-// SnapshotLoadParams snapshot load params
+// SnapshotLoadParams Defines the configuration used for handling snapshot resume. Exactly one of the two `mem_*` fields must be present in the body of the request.
 // swagger:model SnapshotLoadParams
 type SnapshotLoadParams struct {
 
 	// Enable support for incremental (diff) snapshots by tracking dirty guest pages.
 	EnableDiffSnapshots bool `json:"enable_diff_snapshots,omitempty"`
 
-	// Path to the file that contains the guest memory to be loaded.
-	// Required: true
-	MemFilePath *string `json:"mem_file_path"`
+	// Configuration for the backend that handles memory load. If this field is specified, `mem_file_path` is forbidden. Either `mem_backend` or `mem_file_path` must be present at a time.
+	MemBackend *MemoryBackend `json:"mem_backend,omitempty"`
+
+	// Path to the file that contains the guest memory to be loaded. This parameter has been deprecated and is only allowed if `mem_backend` is not present.
+	MemFilePath string `json:"mem_file_path,omitempty"`
 
 	// When set to true, the vm is also resumed if the snapshot load is successful.
 	ResumeVM bool `json:"resume_vm,omitempty"`
@@ -49,7 +51,7 @@ type SnapshotLoadParams struct {
 func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateMemFilePath(formats); err != nil {
+	if err := m.validateMemBackend(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -63,10 +65,19 @@ func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *SnapshotLoadParams) validateMemFilePath(formats strfmt.Registry) error {
+func (m *SnapshotLoadParams) validateMemBackend(formats strfmt.Registry) error {
 
-	if err := validate.Required("mem_file_path", "body", m.MemFilePath); err != nil {
-		return err
+	if swag.IsZero(m.MemBackend) { // not required
+		return nil
+	}
+
+	if m.MemBackend != nil {
+		if err := m.MemBackend.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("mem_backend")
+			}
+			return err
+		}
 	}
 
 	return nil

@@ -2126,6 +2126,61 @@ func TestLoadSnapshot(t *testing.T) {
 			},
 		},
 		{
+			name: "TestLoadSnapshotWithMemoryBackend",
+			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				// Create a snapshot
+				cfg := createValidConfig(t, socketPath+".create")
+				m, err := NewMachine(ctx, cfg, func(m *Machine) {
+					// Rewriting m.cmd partially wouldn't work since Cmd has
+					// some unexported members
+					args := m.cmd.Args[1:]
+					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+				}, WithLogger(logrus.NewEntry(machineLogger)))
+				require.NoError(t, err)
+
+				err = m.Start(ctx)
+				require.NoError(t, err)
+
+				err = m.PauseVM(ctx)
+				require.NoError(t, err)
+
+				err = m.CreateSnapshot(ctx, memPath, snapPath)
+				require.NoError(t, err)
+
+				err = m.StopVMM()
+				require.NoError(t, err)
+			},
+
+			loadSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
+				// Note that many fields are not necessary when loading a snapshot
+				cfg := Config{
+					SocketPath: socketPath + ".load",
+					Drives: []models.Drive{
+						{
+							DriveID:      String("root"),
+							IsRootDevice: Bool(true),
+							IsReadOnly:   Bool(true),
+							PathOnHost:   String(testRootfs),
+						},
+					},
+				}
+
+				m, err := NewMachine(ctx, cfg, func(m *Machine) {
+					// Rewriting m.cmd partially wouldn't work since Cmd has
+					// some unexported members
+					args := m.cmd.Args[1:]
+					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
+				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot("", snapPath, WithMemoryBackend("File", memPath)))
+				require.NoError(t, err)
+
+				err = m.Start(ctx)
+				require.NoError(t, err)
+
+				err = m.StopVMM()
+				require.NoError(t, err)
+			},
+		},
+		{
 			name: "TestLoadSnapshot without create",
 			createSnapshot: func(ctx context.Context, machineLogger *logrus.Logger, socketPath, memPath, snapPath string) {
 

@@ -16,6 +16,7 @@ package firecracker
 import (
 	"os/exec"
 
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -53,6 +54,14 @@ func WithProcessRunner(cmd *exec.Cmd) Opt {
 type WithSnapshotOpt func(*SnapshotConfig)
 
 // WithSnapshot will allow for the machine to start using a given snapshot.
+//
+// If using the UFFD memory backend, the memFilePath may be empty (it is
+// ignored), and instead the UFFD socket should be specified using
+// MemoryBackendType, as in the following example:
+//
+//	WithSnapshot(
+//	  "", snapshotPath,
+//	  WithMemoryBackend(models.MemoryBackendBackendTypeUffd, "uffd.sock"))
 func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt {
 	return func(m *Machine) {
 		m.Cfg.Snapshot.MemFilePath = memFilePath
@@ -64,5 +73,20 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 
 		m.Handlers.Validation = loadSnapshotValidationHandlerList
 		m.Handlers.FcInit = loadSnapshotHandlerList
+	}
+}
+
+// WithMemoryBackend sets the memory backend to the given type, using the given
+// backing file path (a regular file for "File" type, or a UFFD socket path for
+// "Uffd" type).
+//
+// Note that if MemFilePath is already configured for the snapshot config, it
+// will be ignored, and the backendPath specified here will be used instead.
+func WithMemoryBackend(backendType, backendPath string) WithSnapshotOpt {
+	return func(cfg *SnapshotConfig) {
+		cfg.MemBackend = &models.MemoryBackend{
+			BackendType: String(backendType),
+			BackendPath: String(backendPath),
+		}
 	}
 }
