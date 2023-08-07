@@ -62,10 +62,11 @@ type WithSnapshotOpt func(*SnapshotConfig)
 //	WithSnapshot(
 //	  "", snapshotPath,
 //	  WithMemoryBackend(models.MemoryBackendBackendTypeUffd, "uffd.sock"))
-func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt {
+func WithSnapshot(memFilePath, snapshotPath, ContainerSnapshotPath string, opts ...WithSnapshotOpt) Opt {
 	return func(m *Machine) {
 		m.Cfg.Snapshot.MemFilePath = memFilePath
 		m.Cfg.Snapshot.SnapshotPath = snapshotPath
+		m.Cfg.Snapshot.ContainerSnapshotPath = ContainerSnapshotPath
 
 		for _, opt := range opts {
 			opt(&m.Cfg.Snapshot)

@@ -16,11 +16,12 @@ package firecracker
 import "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 
 type SnapshotConfig struct {
-	MemFilePath         string
-	MemBackend          *models.MemoryBackend
-	SnapshotPath        string
-	EnableDiffSnapshots bool
-	ResumeVM            bool
+	MemFilePath           string
+	MemBackend            *models.MemoryBackend
+	SnapshotPath          string
+	EnableDiffSnapshots   bool
+	ResumeVM              bool
+	ContainerSnapshotPath string
 }
 
 // GetMemBackendPath returns the effective memory backend path. If MemBackend
