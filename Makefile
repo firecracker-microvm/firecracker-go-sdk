@@ -29,7 +29,7 @@ UID = $(shell id -u)
 GID = $(shell id -g)
 
 # Version has to be in format of vx.x.x
-firecracker_version=v1.4.0
+firecracker_version=v1.4.1
 
 # The below files are needed and can be downloaded from the internet
 release_url=https://github.com/firecracker-microvm/firecracker/releases/download/$(firecracker_version)/firecracker-$(firecracker_version)-$(arch).tgz
