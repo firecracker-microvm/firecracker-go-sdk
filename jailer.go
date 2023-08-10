@@ -17,7 +17,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,7 +123,7 @@ func NewJailerCommandBuilder() JailerCommandBuilder {
 
 // getNumaCpuset returns the CPU list assigned to a NUMA node
 func getNumaCpuset(node int) string {
-	if cpus, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/system/node/node%d/cpulist", node)); err == nil {
+	if cpus, err := os.ReadFile(fmt.Sprintf("/sys/devices/system/node/node%d/cpulist", node)); err == nil {
 		return strings.TrimSuffix(string(cpus), "\n")
 	}
 	return ""
