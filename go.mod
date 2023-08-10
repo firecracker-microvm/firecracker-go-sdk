@@ -3,7 +3,7 @@ module github.com/firecracker-microvm/firecracker-go-sdk
 go 1.17
 
 require (
-	github.com/containerd/fifo v1.0.0
+	github.com/containerd/fifo v1.1.0
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.1.1
 	github.com/go-openapi/errors v0.20.3
@@ -40,7 +40,6 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
