@@ -41,7 +41,7 @@ type MachineConfiguration struct {
 	Smt *bool `json:"smt,omitempty"`
 
 	// Enable dirty page tracking. If this is enabled, then incremental guest memory snapshots can be created. These belong to diff snapshots, which contain, besides the microVM state, only the memory dirtied since a previous snapshot. Full snapshots each contain a full copy of the guest memory.
-	TrackDirtyPages bool `json:"track_dirty_pages,omitempty"`
+	TrackDirtyPages *bool `json:"track_dirty_pages,omitempty"`
 
 	// Number of vCPUs (either 1 or an even number)
 	// Required: true

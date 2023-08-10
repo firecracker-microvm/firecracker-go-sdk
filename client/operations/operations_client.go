@@ -190,7 +190,7 @@ func (a *Client) DescribeInstance(params *DescribeInstanceParams) (*DescribeInst
 /*
 GetExportVMConfig gets the full VM configuration
 
-Gets configuration for all VM resources.
+Gets configuration for all VM resources. If the VM is restored from a snapshot, the boot-source, machine-config.smt and machine-config.cpu_template will be empty.
 */
 func (a *Client) GetExportVMConfig(params *GetExportVMConfigParams) (*GetExportVMConfigOK, error) {
 	// TODO: Validate the params before sending
@@ -572,6 +572,66 @@ func (a *Client) PutBalloon(params *PutBalloonParams) (*PutBalloonNoContent, err
 }
 
 /*
+PutCPUConfiguration configures CPU features flags for the v c p us of the guest VM pre boot only
+
+Provides configuration to the Firecracker process to specify vCPU resource configuration prior to launching the guest machine.
+*/
+func (a *Client) PutCPUConfiguration(params *PutCPUConfigurationParams) (*PutCPUConfigurationNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutCPUConfigurationParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "putCpuConfiguration",
+		Method:             "PUT",
+		PathPattern:        "/cpu-config",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PutCPUConfigurationReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PutCPUConfigurationNoContent), nil
+
+}
+
+/*
+PutEntropyDevice creates an entropy device pre boot only
+
+Enables an entropy device that provides high-quality random data to the guest.
+*/
+func (a *Client) PutEntropyDevice(params *PutEntropyDeviceParams) (*PutEntropyDeviceNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutEntropyDeviceParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "putEntropyDevice",
+		Method:             "PUT",
+		PathPattern:        "/entropy",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &PutEntropyDeviceReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*PutEntropyDeviceNoContent), nil
+
+}
+
+/*
 PutGuestBootSource creates or updates the boot source pre boot only
 
 Creates new boot source if one does not already exist, otherwise updates it. Will fail if update is not possible.
@@ -722,7 +782,7 @@ func (a *Client) PutLogger(params *PutLoggerParams) (*PutLoggerNoContent, error)
 /*
 PutMachineConfiguration updates the machine configuration of the VM pre boot only
 
-Updates the Virtual Machine Configuration with the specified input. Firecracker starts with default values for vCPU count (=1) and memory size (=128 MiB). With SMT enabled, the vCPU count is restricted to be 1 or an even number, otherwise there are no restrictions regarding the vCPU count. If any of the parameters has an incorrect value, the whole update fails.
+Updates the Virtual Machine Configuration with the specified input. Firecracker starts with default values for vCPU count (=1) and memory size (=128 MiB). The vCPU count is restricted to the [1, 32] range. With SMT enabled, the vCPU count is required to be either 1 or an even number in the range. otherwise there are no restrictions regarding the vCPU count. If any of the parameters has an incorrect value, the whole update fails. All parameters that are optional and are not specified are set to their default values (smt = false, track_dirty_pages = false, cpu_template = None).
 */
 func (a *Client) PutMachineConfiguration(params *PutMachineConfigurationParams) (*PutMachineConfigurationNoContent, error) {
 	// TODO: Validate the params before sending
@@ -861,6 +921,8 @@ type ClientIface interface {
 	PatchMmds(params *PatchMmdsParams) (*PatchMmdsNoContent, error)
 	PatchVM(params *PatchVMParams) (*PatchVMNoContent, error)
 	PutBalloon(params *PutBalloonParams) (*PutBalloonNoContent, error)
+	PutCPUConfiguration(params *PutCPUConfigurationParams) (*PutCPUConfigurationNoContent, error)
+	PutEntropyDevice(params *PutEntropyDeviceParams) (*PutEntropyDeviceNoContent, error)
 	PutGuestBootSource(params *PutGuestBootSourceParams) (*PutGuestBootSourceNoContent, error)
 	PutGuestDriveByID(params *PutGuestDriveByIDParams) (*PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByID(params *PutGuestNetworkInterfaceByIDParams) (*PutGuestNetworkInterfaceByIDNoContent, error)

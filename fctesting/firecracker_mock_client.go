@@ -38,6 +38,8 @@ type MockClient struct {
 	PatchMmdsFn                      func(params *ops.PatchMmdsParams) (*ops.PatchMmdsNoContent, error)
 	PatchVMFn                        func(params *ops.PatchVMParams) (*ops.PatchVMNoContent, error)
 	PutBalloonFn                     func(params *ops.PutBalloonParams) (*ops.PutBalloonNoContent, error)
+	PutCPUConfigurationFn            func(params *ops.PutCPUConfigurationParams) (*ops.PutCPUConfigurationNoContent, error)
+	PutEntropyDeviceFn               func(params *ops.PutEntropyDeviceParams) (*ops.PutEntropyDeviceNoContent, error)
 	PutGuestBootSourceFn             func(params *ops.PutGuestBootSourceParams) (*ops.PutGuestBootSourceNoContent, error)
 	PutGuestDriveByIDFn              func(params *ops.PutGuestDriveByIDParams) (*ops.PutGuestDriveByIDNoContent, error)
 	PutGuestNetworkInterfaceByIDFn   func(params *ops.PutGuestNetworkInterfaceByIDParams) (*ops.PutGuestNetworkInterfaceByIDNoContent, error)
@@ -188,6 +190,22 @@ func (c *MockClient) PatchVM(params *ops.PatchVMParams) (*ops.PatchVMNoContent, 
 func (c *MockClient) PutBalloon(params *ops.PutBalloonParams) (*ops.PutBalloonNoContent, error) {
 	if c.PutBalloonFn != nil {
 		return c.PutBalloonFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PutCPUConfiguration(params *ops.PutCPUConfigurationParams) (*ops.PutCPUConfigurationNoContent, error) {
+	if c.PutCPUConfigurationFn != nil {
+		return c.PutCPUConfigurationFn(params)
+	}
+
+	return nil, nil
+}
+
+func (c *MockClient) PutEntropyDevice(params *ops.PutEntropyDeviceParams) (*ops.PutEntropyDeviceNoContent, error) {
+	if c.PutEntropyDeviceFn != nil {
+		return c.PutEntropyDeviceFn(params)
 	}
 
 	return nil, nil
