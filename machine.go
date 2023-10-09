@@ -1265,7 +1265,6 @@ func (m *Machine) UpdateBalloonStats(ctx context.Context, statsPollingIntervals 
 // Reset Firecracker binary
 func (m *Machine) WithFcBin(bin string) {
 	m.cmd.Path = bin
-	m.cmd.Args[0] = bin
 }
 
 // Reset Firecracker running Stdin
