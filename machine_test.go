@@ -456,10 +456,11 @@ func TestLogAndMetrics(t *testing.T) {
 	tests := []struct {
 		logLevel string
 		quiet    bool
+		expect   string
 	}{
-		{logLevel: "", quiet: false},
-		{logLevel: "Info", quiet: false},
-		{logLevel: "Error", quiet: true},
+		{logLevel: "Warning", quiet: false, expect: "Warn"},
+		{logLevel: "Info", quiet: false, expect: "Info"},
+		{logLevel: "Error", quiet: true, expect: "Error"},
 	}
 	for _, test := range tests {
 		t.Run(test.logLevel, func(t *testing.T) {
@@ -471,11 +472,7 @@ func TestLogAndMetrics(t *testing.T) {
 				return
 			}
 
-			// By default, Firecracker's log level is Warn.
-			logLevel := "WARN"
-			if test.logLevel != "" {
-				logLevel = strings.ToUpper(test.logLevel)
-			}
+			logLevel := strings.ToUpper(test.expect)
 			assert.Contains(t, out, ":"+logLevel+"]")
 		})
 	}
