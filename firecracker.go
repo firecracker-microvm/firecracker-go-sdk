@@ -15,11 +15,10 @@ package firecracker
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/go-openapi/strfmt"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -34,7 +33,7 @@ const (
 )
 
 // newFirecrackerClient creates a FirecrackerClient
-func newFirecrackerClient(socketPath string, logger *logrus.Entry, debug bool) *client.Firecracker {
+func newFirecrackerClient(socketPath string, logger *slog.Logger, debug bool) *client.Firecracker {
 	httpClient := client.NewHTTPClient(strfmt.NewFormats())
 
 	transport := NewUnixSocketTransport(socketPath, logger, debug)
@@ -62,7 +61,7 @@ type Client struct {
 }
 
 // NewClient creates a Client
-func NewClient(socketPath string, logger *logrus.Entry, debug bool, opts ...ClientOpt) *Client {
+func NewClient(socketPath string, logger *slog.Logger, debug bool, opts ...ClientOpt) *Client {
 	httpClient := newFirecrackerClient(socketPath, logger, debug)
 	c := &Client{client: httpClient}
 	c.firecrackerRequestTimeout = envValueOrDefaultInt(firecrackerRequestTimeoutEnv, defaultFirecrackerRequestTimeout)

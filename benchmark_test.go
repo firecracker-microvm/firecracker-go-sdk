@@ -16,12 +16,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
@@ -69,9 +68,7 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	log := logrus.New()
-	log.SetLevel(logrus.FatalLevel)
-	machine, err := NewMachine(ctx, config, WithProcessRunner(cmd), WithLogger(logrus.NewEntry(log)))
+	machine, err := NewMachine(ctx, config, WithProcessRunner(cmd), WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 	if err != nil {
 		return nil, cleanup, err
 	}

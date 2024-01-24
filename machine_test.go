@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -120,7 +121,7 @@ func TestNewMachine(t *testing.T) {
 				Smt:        Bool(false),
 			},
 		},
-		WithLogger(fctesting.NewLogEntry(t)))
+		WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -272,7 +273,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	m, err := NewMachine(ctx, cfg, WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -339,7 +340,7 @@ func TestMicroVMExecution(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -421,7 +422,7 @@ func TestStartVMM(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -505,7 +506,7 @@ func testLogAndMetrics(t *testing.T, logLevel string) string {
 	}
 	ctx := context.Background()
 	cmd := configureBuilder(VMCommandBuilder{}.WithBin(getFirecrackerBinaryPath()), cfg).Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	require.NoError(t, err)
 
 	timeout, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
@@ -562,7 +563,7 @@ func TestStartVMMOnce(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -852,7 +853,7 @@ func TestStopVMMCleanup(t *testing.T) {
 		WithSocketPath(cfg.SocketPath).
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	require.NoError(t, err)
 	err = m.Start(ctx)
 	require.NoError(t, err)
@@ -889,7 +890,7 @@ func TestWaitForSocket(t *testing.T) {
 
 	m := Machine{
 		Cfg:    Config{SocketPath: filename},
-		logger: fctesting.NewLogEntry(t),
+		logger: fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout),
 	}
 
 	go func() {
@@ -902,13 +903,13 @@ func TestWaitForSocket(t *testing.T) {
 	}()
 
 	// Socket file created, HTTP request succeeded
-	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&okClient))
+	m.client = NewClient(filename, fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true, WithOpsClient(&okClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != nil {
 		t.Errorf("waitForSocket returned unexpected error %s", err)
 	}
 
 	// Socket file exists, HTTP request failed
-	m.client = NewClient(filename, fctesting.NewLogEntry(t), true, WithOpsClient(&errClient))
+	m.client = NewClient(filename, fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true, WithOpsClient(&errClient))
 	if err := m.waitForSocket(500*time.Millisecond, errchan); err != context.DeadlineExceeded {
 		t.Error("waitforSocket did not return an expected timeout error")
 	}
@@ -981,7 +982,7 @@ func TestMicroVMExecutionWithMmdsV2(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err := NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
 	}
@@ -1099,7 +1100,7 @@ func TestLogFiles(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	client := NewClient("socket-path", fctesting.NewLogEntry(t), true, WithOpsClient(&opClient))
+	client := NewClient("socket-path", fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true, WithOpsClient(&opClient))
 
 	stdoutPath := filepath.Join(testDataPath, "stdout.log")
 	stderrPath := filepath.Join(testDataPath, "stderr.log")
@@ -1134,7 +1135,7 @@ func TestLogFiles(t *testing.T) {
 		cfg,
 		WithClient(client),
 		WithProcessRunner(cmd),
-		WithLogger(fctesting.NewLogEntry(t)),
+		WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)),
 	)
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
@@ -1197,7 +1198,7 @@ func TestCaptureFifoToFile(t *testing.T) {
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
-	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -1243,7 +1244,7 @@ func TestCaptureFifoToFile_nonblock(t *testing.T) {
 	m := &Machine{
 		exitCh: make(chan struct{}),
 	}
-	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t), fifoPath, testWriter); err != nil {
+	if err := m.captureFifoToFile(context.Background(), fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), fifoPath, testWriter); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
@@ -1377,7 +1378,7 @@ func TestPID(t *testing.T) {
 		WithBin(getFirecrackerBinaryPath()).
 		Build(ctx)
 
-	m, err = NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t)))
+	m, err = NewMachine(ctx, cfg, WithProcessRunner(cmd), WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)))
 	if err != nil {
 		t.Errorf("expected no error during create machine, but received %v", err)
 	}
@@ -1441,9 +1442,7 @@ func TestCaptureFifoToFile_leak(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 
 	loggerBuffer := bytes.NewBuffer(nil)
-	logger := fctesting.NewLogEntry(t)
-	logger.Logger.Level = logrus.WarnLevel
-	logger.Logger.Out = loggerBuffer
+	logger := fctesting.NewLogEntry(t, slog.LevelWarn, loggerBuffer)
 
 	done := make(chan error)
 	err = m.captureFifoToFileWithChannel(context.Background(), logger, fifoPath, buf, done)
@@ -1528,7 +1527,9 @@ func TestWait(t *testing.T) {
 				// some unexported members
 				args := m.cmd.Args[1:]
 				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-			}, WithLogger(logrus.NewEntry(machineLogger)))
+			},
+				WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
+
 			require.NoError(t, err)
 
 			err = m.Start(vmContext)
@@ -1723,7 +1724,7 @@ func TestSignalForwarding(t *testing.T) {
 	opClient := fctesting.MockClient{}
 
 	ctx := context.Background()
-	client := NewClient(cfg.SocketPath, fctesting.NewLogEntry(t), true, WithOpsClient(&opClient))
+	client := NewClient(cfg.SocketPath, fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true, WithOpsClient(&opClient))
 
 	fd, err := net.Listen("unix", cfg.SocketPath)
 	if err != nil {
@@ -1744,7 +1745,7 @@ func TestSignalForwarding(t *testing.T) {
 		cfg,
 		WithClient(client),
 		WithProcessRunner(cmd),
-		WithLogger(fctesting.NewLogEntry(t)),
+		WithLogger(fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout)),
 	)
 	if err != nil {
 		t.Fatalf("failed to create new machine: %v", err)
@@ -1880,7 +1881,8 @@ func TestPauseResume(t *testing.T) {
 				// some unexported members
 				args := m.cmd.Args[1:]
 				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-			}, WithLogger(logrus.NewEntry(machineLogger)))
+			},
+				WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 			require.NoError(t, err)
 
 			err = m.PauseVM(ctx)
@@ -1959,7 +1961,8 @@ func TestCreateSnapshot(t *testing.T) {
 				// some unexported members
 				args := m.cmd.Args[1:]
 				m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-			}, WithLogger(logrus.NewEntry(machineLogger)))
+			},
+				WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 			require.NoError(t, err)
 
 			err = m.Start(ctx)
@@ -2074,7 +2077,8 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				},
+					WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)
@@ -2111,9 +2115,11 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath, func(config *SnapshotConfig) {
-					config.ResumeVM = true
-				}))
+				},
+					WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))),
+					WithSnapshot(memPath, snapPath, func(config *SnapshotConfig) {
+						config.ResumeVM = true
+					}))
 				require.NoError(t, err)
 				require.Equal(t, m.Cfg.Snapshot.ResumeVM, true)
 
@@ -2134,7 +2140,8 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)))
+				},
+					WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)
@@ -2169,7 +2176,8 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot("", snapPath, WithMemoryBackend("File", memPath)))
+				}, WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))),
+					WithSnapshot("", snapPath, WithMemoryBackend("File", memPath)))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)
@@ -2192,7 +2200,7 @@ func TestLoadSnapshot(t *testing.T) {
 					// some unexported members
 					args := m.cmd.Args[1:]
 					m.cmd = exec.Command(getFirecrackerBinaryPath(), args...)
-				}, WithLogger(logrus.NewEntry(machineLogger)), WithSnapshot(memPath, snapPath))
+				}, WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))), WithSnapshot(memPath, snapPath))
 				require.NoError(t, err)
 
 				err = m.Start(ctx)

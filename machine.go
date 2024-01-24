@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -35,8 +36,6 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-
-	log "github.com/sirupsen/logrus"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
@@ -262,7 +261,7 @@ type Machine struct {
 	Cfg           Config
 	client        *Client
 	cmd           *exec.Cmd
-	logger        *log.Entry
+	logger        *slog.Logger
 	machineConfig models.MachineConfiguration // The actual machine config as reported by Firecracker
 	// startOnce ensures that the machine can only be started once
 	startOnce sync.Once
@@ -279,8 +278,8 @@ type Machine struct {
 }
 
 // Logger returns a logrus logger appropriate for logging hypervisor messages
-func (m *Machine) Logger() *log.Entry {
-	return m.logger.WithField("subsystem", userAgent)
+func (m *Machine) Logger() *slog.Logger {
+	return m.logger.With(slog.String("subsystem", userAgent))
 }
 
 // PID returns the machine's running process PID or an error if not running
@@ -385,9 +384,7 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 	}
 
 	if m.logger == nil {
-		logger := log.New()
-
-		m.logger = log.NewEntry(logger)
+		m.logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
 
 	if m.client == nil {
@@ -442,8 +439,8 @@ func (m *Machine) Start(ctx context.Context) error {
 	defer func() {
 		if err != nil {
 			if cleanupErr := m.doCleanup(); cleanupErr != nil {
-				m.Logger().Errorf(
-					"failed to cleanup VM after previous start failure: %v", cleanupErr)
+				m.Logger().Error(
+					"failed to cleanup VM after previous start failure", slog.Any("err", cleanupErr))
 			}
 		}
 	}()
@@ -483,7 +480,7 @@ func (m *Machine) Wait(ctx context.Context) error {
 func (m *Machine) GetFirecrackerVersion(ctx context.Context) (string, error) {
 	resp, err := m.client.GetFirecrackerVersion(ctx)
 	if err != nil {
-		m.logger.Errorf("Getting firecracker version: %s", err)
+		m.logger.Error("Getting firecracker version", slog.Any("err", err))
 		return "", err
 	}
 
@@ -533,10 +530,10 @@ func (m *Machine) addVsocks(ctx context.Context, vsocks ...VsockDevice) error {
 func (m *Machine) attachDrives(ctx context.Context, drives ...models.Drive) error {
 	for _, dev := range drives {
 		if err := m.attachDrive(ctx, dev); err != nil {
-			m.logger.Errorf("While attaching drive %s, got error %s", StringValue(dev.PathOnHost), err)
+			m.logger.Error("Errored while attaching drive", slog.String("drive", StringValue(dev.PathOnHost)), slog.Any("err", err))
 			return err
 		}
-		m.logger.Debugf("attachDrive returned for %s", StringValue(dev.PathOnHost))
+		m.logger.Debug("attachDrive returned", slog.String("drive", StringValue(dev.PathOnHost)))
 	}
 
 	return nil
@@ -548,10 +545,10 @@ func (m *Machine) defaultNetNSPath() string {
 
 // startVMM starts the firecracker vmm process and configures logging.
 func (m *Machine) startVMM(ctx context.Context) error {
-	m.logger.Printf("Called startVMM(), setting up a VMM on %s", m.Cfg.SocketPath)
+	m.logger.Info("Called startVMM(), setting up a VMM", slog.String("socket_path", m.Cfg.SocketPath))
 	startCmd := m.cmd.Start
 
-	m.logger.Debugf("Starting %v", m.cmd.Args)
+	m.logger.Debug("Starting", slog.String("args", strings.Join(m.cmd.Args, " ")))
 
 	var err error
 	if m.Cfg.NetNS != "" && m.Cfg.JailerCfg == nil {
@@ -567,14 +564,14 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	}
 
 	if err != nil {
-		m.logger.Errorf("Failed to start VMM: %s", err)
+		m.logger.Error("Failed to start VMM", slog.Any("err", err))
 
 		m.fatalErr = err
 		close(m.exitCh)
 
 		return err
 	}
-	m.logger.Debugf("VMM started socket path is %s", m.Cfg.SocketPath)
+	m.logger.Debug("VMM started", slog.String("socket_path", m.Cfg.SocketPath))
 
 	m.cleanupFuncs = append(m.cleanupFuncs,
 		func() error {
@@ -589,14 +586,14 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	go func() {
 		waitErr := m.cmd.Wait()
 		if waitErr != nil {
-			m.logger.Warnf("firecracker exited: %s", waitErr.Error())
+			m.logger.Warn("firecracker exited", slog.String("err", waitErr.Error()))
 		} else {
-			m.logger.Printf("firecracker exited: status=0")
+			m.logger.Info("firecracker exited: status=0")
 		}
 
 		cleanupErr := m.doCleanup()
 		if cleanupErr != nil {
-			m.logger.Errorf("failed to cleanup after VM exit: %v", cleanupErr)
+			m.logger.Error("failed to cleanup after VM exit", slog.Any("err", cleanupErr))
 		}
 
 		errCh <- multierror.Append(waitErr, cleanupErr).ErrorOrNil()
@@ -633,7 +630,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		}
 		err := m.stopVMM()
 		if err != nil {
-			m.logger.WithError(err).Errorf("failed to stop vm %q", m.Cfg.VMID)
+			m.logger.Error("failed to stop vm", slog.String("vmid", m.Cfg.VMID), slog.Any("err", err))
 		}
 	}()
 
@@ -641,11 +638,11 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	// (gracefully or not).
 	go func() {
 		m.fatalErr = <-errCh
-		m.logger.Debugf("closing the exitCh %v", m.fatalErr)
+		m.logger.Debug("closing the exitCh", slog.Any("err", m.fatalErr))
 		close(m.exitCh)
 	}()
 
-	m.logger.Debugf("returning from startVMM()")
+	m.logger.Debug("returning from startVMM()")
 	return nil
 }
 
@@ -672,8 +669,8 @@ func (m *Machine) stopVMM() error {
 }
 
 // createFifo sets up a FIFOs
-func createFifo(path string) error {
-	log.Debugf("Creating FIFO %s", path)
+func createFifo(path string, log *slog.Logger) error {
+	log.Debug("Creating FIFO", slog.String("path", path))
 	if err := syscall.Mkfifo(path, 0700); err != nil {
 		return fmt.Errorf("Failed to create log fifo: %v", err)
 	}
@@ -688,7 +685,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 
 	if len(path) == 0 {
 		// No logging configured
-		m.logger.Printf("VMM logging disabled.")
+		m.logger.Info("VMM logging disabled.")
 		return nil
 	}
 
@@ -711,7 +708,7 @@ func (m *Machine) setupLogging(ctx context.Context) error {
 		return err
 	}
 
-	m.logger.Debugf("Configured VMM logging to %s", path)
+	m.logger.Debug("Configured VMM logging", slog.String("path", path))
 
 	return nil
 }
@@ -724,7 +721,7 @@ func (m *Machine) setupMetrics(ctx context.Context) error {
 
 	if len(path) == 0 {
 		// No logging configured
-		m.logger.Printf("VMM metrics disabled.")
+		m.logger.Info("VMM metrics disabled.")
 		return nil
 	}
 
@@ -735,16 +732,16 @@ func (m *Machine) setupMetrics(ctx context.Context) error {
 		return err
 	}
 
-	m.logger.Debugf("Configured VMM metrics to %s", path)
+	m.logger.Debug("Configured VMM metrics", slog.String("path", path))
 
 	return nil
 }
 
-func (m *Machine) captureFifoToFile(ctx context.Context, logger *log.Entry, fifoPath string, w io.Writer) error {
+func (m *Machine) captureFifoToFile(ctx context.Context, logger *slog.Logger, fifoPath string, w io.Writer) error {
 	return m.captureFifoToFileWithChannel(ctx, logger, fifoPath, w, make(chan error, 1))
 }
 
-func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.Entry, fifoPath string, w io.Writer, done chan error) error {
+func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *slog.Logger, fifoPath string, w io.Writer, done chan error) error {
 	// open the fifo pipe which will be used
 	// to write its contents to a file.
 	fifoPipe, err := fifo.OpenFifo(ctx, fifoPath, syscall.O_RDONLY|syscall.O_NONBLOCK, 0600)
@@ -752,7 +749,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 		return fmt.Errorf("Failed to open fifo path at %q: %v", fifoPath, err)
 	}
 
-	logger.Debugf("Capturing %q to writer", fifoPath)
+	logger.Debug("Capturing to writer", slog.String("fifoPath", fifoPath))
 
 	// this goroutine is to track the life of the application along with whether
 	// or not the context has been cancelled which is signified by the exitCh. In
@@ -760,7 +757,7 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 	go func() {
 		<-m.exitCh
 		if err := fifoPipe.Close(); err != nil {
-			logger.WithError(err).Debug("failed to close fifo")
+			logger.Debug("failed to close fifo", slog.Any("err", err))
 		}
 	}()
 
@@ -771,16 +768,16 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 	go func() {
 		defer func() {
 			if err := fifoPipe.Close(); err != nil {
-				logger.Warnf("Failed to close fifo pipe: %v", err)
+				logger.Warn("Failed to close fifo pipe", slog.Any("err", err))
 			}
 
 			if err := syscall.Unlink(fifoPath); err != nil {
-				logger.Warnf("Failed to unlink %s: %v", fifoPath, err)
+				logger.Warn("Failed to unlink", slog.String("fifoPath", fifoPath), slog.Any("err", err))
 			}
 		}()
 
 		if _, err := io.Copy(w, fifoPipe); err != nil {
-			logger.WithError(err).Warn("io.Copy failed to copy contents of fifo pipe")
+			logger.Warn("io.Copy failed to copy contents of fifo pipe", slog.Any("err", err))
 			done <- err
 		}
 
@@ -793,14 +790,14 @@ func (m *Machine) captureFifoToFileWithChannel(ctx context.Context, logger *log.
 func (m *Machine) createMachine(ctx context.Context) error {
 	resp, err := m.client.PutMachineConfiguration(ctx, &m.Cfg.MachineCfg)
 	if err != nil {
-		m.logger.Errorf("PutMachineConfiguration returned %s", resp.Error())
+		m.logger.Error("PutMachineConfiguration failed", slog.Any("err", resp.Error()))
 		return err
 	}
 
 	m.logger.Debug("PutMachineConfiguration returned")
 	err = m.refreshMachineConfiguration()
 	if err != nil {
-		m.logger.Errorf("Unable to inspect Firecracker MachineConfiguration. Continuing anyway. %s", err)
+		m.logger.Warn("Unable to inspect Firecracker MachineConfiguration. Continuing anyway.", slog.Any("err", err))
 	}
 	m.logger.Debug("createMachine returning")
 	return err
@@ -815,7 +812,7 @@ func (m *Machine) createBootSource(ctx context.Context, imagePath, initrdPath, k
 
 	resp, err := m.client.PutGuestBootSource(ctx, &bsrc)
 	if err == nil {
-		m.logger.Printf("PutGuestBootSource: %s", resp.Error())
+		m.logger.Info("PutGuestBootSource", slog.Any("err", resp.Error()))
 	}
 
 	return err
@@ -830,8 +827,11 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		return errors.New("invalid nil state for network interface")
 	}
 
-	m.logger.Printf("Attaching NIC %s (hwaddr %s) at index %s",
-		iface.StaticConfiguration.HostDevName, iface.StaticConfiguration.MacAddress, ifaceID)
+	m.logger.Info("Attaching NIC at index",
+		slog.String("device_name", iface.StaticConfiguration.HostDevName),
+		slog.String("mac_addr", iface.StaticConfiguration.MacAddress),
+		slog.String("interface_id", ifaceID),
+	)
 
 	ifaceCfg := models.NetworkInterface{
 		IfaceID:     &ifaceID,
@@ -849,10 +849,10 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 
 	resp, err := m.client.PutGuestNetworkInterfaceByID(ctx, ifaceID, &ifaceCfg)
 	if err == nil {
-		m.logger.Debugf("PutGuestNetworkInterfaceByID: %s", resp.Error())
+		m.logger.Debug("PutGuestNetworkInterfaceByID", slog.Any("err", resp.Error()))
 	}
 
-	m.logger.Debugf("createNetworkInterface returned for %s", iface.StaticConfiguration.HostDevName)
+	m.logger.Debug("createNetworkInterface returned", slog.String("device_name", iface.StaticConfiguration.HostDevName))
 	return err
 }
 
@@ -868,23 +868,23 @@ func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifac
 		iface.TxRateLimiter = rateLimiters.InRateLimiter
 	}
 	if _, err := m.client.PatchGuestNetworkInterfaceByID(ctx, ifaceID, &iface, opts...); err != nil {
-		m.logger.Errorf("Update network interface failed: %s: %v", ifaceID, err)
+		m.logger.Error("Update network interface failed: %s: %v", slog.String("interface_id", ifaceID), slog.Any("err", err))
 		return err
 	}
 
-	m.logger.Infof("Updated network interface: %s", ifaceID)
+	m.logger.Info("Updated network interface", slog.String("interface_id", ifaceID))
 	return nil
 }
 
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 	hostPath := StringValue(dev.PathOnHost)
-	m.logger.Infof("Attaching drive %s, slot %s, root %t.", hostPath, StringValue(dev.DriveID), BoolValue(dev.IsRootDevice))
+	m.logger.Info("Attaching drive", slog.String("drive_path", hostPath), slog.String("slot", StringValue(dev.DriveID)), slog.Bool("root", BoolValue(dev.IsRootDevice)))
 	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
-		m.logger.Printf("Attached drive %s: %s", hostPath, respNoContent.Error())
+		m.logger.Info("Attached drive", slog.String("drive_path", hostPath), slog.String("err", respNoContent.Error()))
 	} else {
-		m.logger.Errorf("Attach drive failed: %s: %s", hostPath, err)
+		m.logger.Error("Attach drive failed", slog.String("drive_path", hostPath), slog.Any("err", err))
 	}
 	return err
 }
@@ -901,7 +901,7 @@ func (m *Machine) addVsock(ctx context.Context, dev VsockDevice) error {
 	if err != nil {
 		return err
 	}
-	m.logger.Debugf("Attach vsock %s successful: %s", dev.Path, resp.Error())
+	m.logger.Debug("Attach vsock successful", slog.String("path", dev.Path), slog.String("err", resp.Error()))
 	return nil
 }
 
@@ -917,9 +917,9 @@ func (m *Machine) startInstance(ctx context.Context) error {
 
 	resp, err := m.client.CreateSyncAction(ctx, &info)
 	if err == nil {
-		m.logger.Printf("startInstance successful: %s", resp.Error())
+		m.logger.Info("startInstance successful", slog.String("err", resp.Error()))
 	} else {
-		m.logger.Errorf("Starting instance: %s", err)
+		m.logger.Error("Starting instance failed", slog.Any("err", err))
 	}
 	return err
 }
@@ -932,9 +932,9 @@ func (m *Machine) sendCtrlAltDel(ctx context.Context) error {
 
 	resp, err := m.client.CreateSyncAction(ctx, &info)
 	if err == nil {
-		m.logger.Printf("Sent instance shutdown request: %s", resp.Error())
+		m.logger.Info("Sent instance shutdown request", slog.String("err", resp.Error()))
 	} else {
-		m.logger.Errorf("Unable to send CtrlAltDel: %s", err)
+		m.logger.Error("Unable to send CtrlAltDel", slog.Any("err", err))
 	}
 	return err
 }
@@ -960,11 +960,11 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 	// When configuring the microVM, if MMDS needs to be activated, a network interface
 	// has to be configured to allow MMDS requests.
 	if len(mmdsCfg.NetworkInterfaces) == 0 {
-		m.logger.Infof("No interfaces are allowed to access MMDS, skipping MMDS config")
+		m.logger.Info("No interfaces are allowed to access MMDS, skipping MMDS config")
 		return nil
 	}
 	if _, err := m.client.PutMmdsConfig(ctx, &mmdsCfg); err != nil {
-		m.logger.Errorf("Setting mmds configuration failed: %s: %v", address, err)
+		m.logger.Error("Setting mmds configuration failed", slog.Any("address", address), slog.Any("err", err))
 		return err
 	}
 
@@ -975,22 +975,22 @@ func (m *Machine) setMmdsConfig(ctx context.Context, address net.IP, ifaces Netw
 // SetMetadata sets the machine's metadata for MDDS
 func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 	if _, err := m.client.PutMmds(ctx, metadata); err != nil {
-		m.logger.Errorf("Setting metadata: %s", err)
+		m.logger.Error("Setting metadata", slog.Any("err", err))
 		return err
 	}
 
-	m.logger.Printf("SetMetadata successful")
+	m.logger.Info("SetMetadata successful")
 	return nil
 }
 
 // UpdateMetadata patches the machine's metadata for MDDS
 func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) error {
 	if _, err := m.client.PatchMmds(ctx, metadata); err != nil {
-		m.logger.Errorf("Updating metadata: %s", err)
+		m.logger.Error("Updating metadata", slog.Any("err", err))
 		return err
 	}
 
-	m.logger.Printf("UpdateMetadata successful")
+	m.logger.Info("UpdateMetadata successful")
 	return nil
 }
 
@@ -998,22 +998,22 @@ func (m *Machine) UpdateMetadata(ctx context.Context, metadata interface{}) erro
 func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
 	resp, err := m.client.GetMmds(ctx)
 	if err != nil {
-		m.logger.Errorf("Getting metadata: %s", err)
+		m.logger.Error("Getting metadata", slog.Any("err", err))
 		return err
 	}
 
 	payloadData, err := json.Marshal(resp.Payload)
 	if err != nil {
-		m.logger.Errorf("Getting metadata failed parsing payload: %s", err)
+		m.logger.Error("Getting metadata failed parsing payload", slog.Any("err", err))
 		return err
 	}
 
 	if err := json.Unmarshal(payloadData, v); err != nil {
-		m.logger.Errorf("Getting metadata failed parsing payload: %s", err)
+		m.logger.Error("Getting metadata failed parsing payload", slog.Any("err", err))
 		return err
 	}
 
-	m.logger.Printf("GetMetadata successful")
+	m.logger.Info("GetMetadata successful")
 	return nil
 }
 
@@ -1021,11 +1021,11 @@ func (m *Machine) GetMetadata(ctx context.Context, v interface{}) error {
 // parameters of the partialDrive.
 func (m *Machine) UpdateGuestDrive(ctx context.Context, driveID, pathOnHost string, opts ...PatchGuestDriveByIDOpt) error {
 	if _, err := m.client.PatchGuestDriveByID(ctx, driveID, pathOnHost, opts...); err != nil {
-		m.logger.Errorf("PatchGuestDrive failed: %v", err)
+		m.logger.Error("PatchGuestDrive failed", slog.Any("err", err))
 		return err
 	}
 
-	m.logger.Printf("PatchGuestDrive successful")
+	m.logger.Info("PatchGuestDrive successful")
 	return nil
 }
 
@@ -1033,16 +1033,16 @@ func (m *Machine) DescribeInstanceInfo(ctx context.Context) (models.InstanceInfo
 	var instanceInfo models.InstanceInfo
 	resp, err := m.client.GetInstanceInfo(ctx)
 	if err != nil {
-		m.logger.Errorf("Getting Instance Info: %s", err)
+		m.logger.Error("Getting Instance Info", slog.Any("err", err))
 		return instanceInfo, err
 	}
 
 	instanceInfo = *resp.Payload
 	if err != nil {
-		m.logger.Errorf("Getting Instance info failed parsing payload: %s", err)
+		m.logger.Error("Getting Instance info failed parsing payload", slog.Any("err", err))
 	}
 
-	m.logger.Printf("GetInstanceInfo successful")
+	m.logger.Info("GetInstanceInfo successful")
 	return instanceInfo, err
 }
 
@@ -1054,7 +1054,7 @@ func (m *Machine) refreshMachineConfiguration() error {
 		return err
 	}
 
-	m.logger.Infof("refreshMachineConfiguration: %s", resp.Error())
+	m.logger.Info("refreshMachineConfiguration", slog.String("err", resp.Error()))
 	m.machineConfig = *resp.Payload
 	return nil
 }
@@ -1099,7 +1099,7 @@ func (m *Machine) setupSignals() {
 		return
 	}
 
-	m.logger.Debugf("Setting up signal handler: %v", signals)
+	m.logger.Debug("Setting up signal handler", slog.Any("signals", signals))
 	sigchan := make(chan os.Signal, len(signals))
 	signal.Notify(sigchan, signals...)
 
@@ -1108,7 +1108,7 @@ func (m *Machine) setupSignals() {
 		for {
 			select {
 			case sig := <-sigchan:
-				m.logger.Debugf("Caught signal %s", sig)
+				m.logger.Debug("Caught signal", slog.Any("sig", sig))
 				// Some signals kill the process, some of them are not.
 				m.cmd.Process.Signal(sig)
 			case <-m.exitCh:
@@ -1129,7 +1129,7 @@ func (m *Machine) PauseVM(ctx context.Context, opts ...PatchVMOpt) error {
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
-		m.logger.Errorf("failed to pause the VM: %v", err)
+		m.logger.Error("failed to pause the VM", slog.Any("err", err))
 		return err
 	}
 
@@ -1144,7 +1144,7 @@ func (m *Machine) ResumeVM(ctx context.Context, opts ...PatchVMOpt) error {
 	}
 
 	if _, err := m.client.PatchVM(ctx, vm, opts...); err != nil {
-		m.logger.Errorf("failed to resume the VM: %v", err)
+		m.logger.Error("failed to resume the VM", slog.Any("err", err))
 		return err
 	}
 
@@ -1160,7 +1160,7 @@ func (m *Machine) CreateSnapshot(ctx context.Context, memFilePath, snapshotPath 
 	}
 
 	if _, err := m.client.CreateSnapshot(ctx, snapshotParams, opts...); err != nil {
-		m.logger.Errorf("failed to create a snapshot of the VM: %v", err)
+		m.logger.Error("failed to create a snapshot of the VM", slog.Any("err", err))
 		return err
 	}
 
@@ -1196,7 +1196,7 @@ func (m *Machine) CreateBalloon(ctx context.Context, amountMib int64, deflateOnO
 	_, err := m.client.PutBalloon(ctx, &balloon, opts...)
 
 	if err != nil {
-		m.logger.Errorf("Create balloon device failed : %s", err)
+		m.logger.Error("Create balloon device failed", slog.Any("err", err))
 		return err
 	}
 
@@ -1209,7 +1209,7 @@ func (m *Machine) GetBalloonConfig(ctx context.Context) (models.Balloon, error) 
 	var balloonConfig models.Balloon
 	resp, err := m.client.DescribeBalloonConfig(ctx)
 	if err != nil {
-		m.logger.Errorf("Getting balloonConfig: %s", err)
+		m.logger.Error("Getting balloonConfig", slog.Any("err", err))
 		return balloonConfig, err
 	}
 
@@ -1225,7 +1225,7 @@ func (m *Machine) UpdateBalloon(ctx context.Context, amountMib int64, opts ...Pa
 	}
 	_, err := m.client.PatchBalloon(ctx, &ballonUpdate, opts...)
 	if err != nil {
-		m.logger.Errorf("Update balloon device failed : %s", err)
+		m.logger.Error("Update balloon device failed", slog.Any("err", err))
 		return err
 	}
 
@@ -1238,7 +1238,7 @@ func (m *Machine) GetBalloonStats(ctx context.Context) (models.BalloonStats, err
 	var balloonStats models.BalloonStats
 	resp, err := m.client.DescribeBalloonStats(ctx)
 	if err != nil {
-		m.logger.Errorf("Getting balloonStats: %s", err)
+		m.logger.Error("Getting balloonStats", slog.Any("err", err))
 		return balloonStats, err
 	}
 	balloonStats = *resp.Payload
@@ -1254,7 +1254,7 @@ func (m *Machine) UpdateBalloonStats(ctx context.Context, statsPollingIntervals 
 	}
 
 	if _, err := m.client.PatchBalloonStatsInterval(ctx, &balloonStatsUpdate, opts...); err != nil {
-		m.logger.Errorf("UpdateBalloonStats failed: %v", err)
+		m.logger.Error("UpdateBalloonStats failed", slog.Any("err", err))
 		return err
 	}
 

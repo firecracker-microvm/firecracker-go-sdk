@@ -15,10 +15,9 @@ package firecracker_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -279,8 +278,7 @@ func ExampleJailerConfig_enablingJailer() {
 		f.Close()
 	}
 
-	logger := log.New()
-	m, err := firecracker.NewMachine(vmmCtx, fcCfg, firecracker.WithLogger(log.NewEntry(logger)))
+	m, err := firecracker.NewMachine(vmmCtx, fcCfg, firecracker.WithLogger(slog.New(slog.NewTextHandler(os.Stdout, nil))))
 	if err != nil {
 		panic(err)
 	}
