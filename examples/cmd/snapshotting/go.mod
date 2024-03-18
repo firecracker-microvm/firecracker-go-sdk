@@ -3,9 +3,9 @@ module main
 go 1.18
 
 require (
-	github.com/firecracker-microvm/firecracker-go-sdk v0.22.1-0.20220715225323-d48665a4cd7a
-	golang.org/x/crypto v0.14.0
-	golang.org/x/sys v0.13.0
+	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0
+	golang.org/x/crypto v0.18.0
+	golang.org/x/sys v0.16.0
 )
 
 require (
@@ -36,7 +36,6 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.mongodb.org/mongo-driver v1.10.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
