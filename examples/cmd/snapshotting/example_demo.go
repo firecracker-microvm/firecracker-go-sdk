@@ -11,6 +11,15 @@
 // express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
+// Package main provides a Go program for managing snapshots of Firecracker microVMs.
+// The program utilizes the Firecracker Go SDK for creating and loading snapshots,
+// and it demonstrates how to establish SSH connections to interact with microVMs.
+// Comments are provided to explain each function's purpose and usage.
+
+// In this program, a "snapshot" refers to a point-in-time copy of the state of a Firecracker microVM.
+// Snapshots capture the complete memory and state of the microVM, allowing users to save and restore its exact configuration and execution context.
+// They enable quick deployment and management of microVM instances with pre-defined configurations and states, which is useful for testing, development, and deployment scenarios.
+
 package main
 
 import (
@@ -31,19 +40,21 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
+// Constants for CNI configuration
 const (
 	// Using default cache directory to ensure collision avoidance on IP allocations
-	cniCacheDir = "/var/lib/cni"
-	networkName = "fcnet"
-	ifName      = "veth0"
+	cniCacheDir = "/var/lib/cni" // Default cache directory for IP allocations
+	networkName = "fcnet"        // Name of the network
+	ifName      = "veth0"        // Interface name
 
-	networkMask string = "/24"
-	subnet      string = "10.168.0.0" + networkMask
+	networkMask = "/24" // Subnet mask
+	subnet      = "10.168.0.0" + networkMask
 
-	maxRetries    int           = 10
-	backoffTimeMs time.Duration = 500
+	maxRetries    = 10                     // Maximum number of retries for SSH connection
+	backoffTimeMs = 500 * time.Millisecond // Backoff time for retries
 )
 
+// writeCNIConfWithHostLocalSubnet writes CNI configuration to a file with a host-local subnet
 func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
 	return ioutil.WriteFile(path, []byte(fmt.Sprintf(`{
 		"cniVersion": "0.3.1",
@@ -63,14 +74,17 @@ func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
 	  }`, networkName, subnet)), 0644)
 }
 
+// configOpt is a functional option for configuring the Firecracker microVM
 type configOpt func(*sdk.Config)
 
+// withNetworkInterface adds a network interface configuration option to the Firecracker microVM config
 func withNetworkInterface(networkInterface sdk.NetworkInterface) configOpt {
 	return func(c *sdk.Config) {
 		c.NetworkInterfaces = append(c.NetworkInterfaces, networkInterface)
 	}
 }
 
+// createNewConfig creates a new Firecracker microVM configuration
 func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 	dir, _ := os.Getwd()
 	fmt.Println(dir)
@@ -110,6 +124,7 @@ func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 	return cfg
 }
 
+// connectToVM establishes an SSH connection to the Firecracker microVM
 func connectToVM(m *sdk.Machine, sshKeyPath string) (*ssh.Client, error) {
 	key, err := ioutil.ReadFile(sshKeyPath)
 	if err != nil {
@@ -139,6 +154,7 @@ func connectToVM(m *sdk.Machine, sshKeyPath string) (*ssh.Client, error) {
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), config)
 }
 
+// createSnapshotSSH creates a snapshot of a Firecracker microVM and returns the IP of the VM
 func createSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath string) string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -246,6 +262,7 @@ func createSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath string
 	return vmIP
 }
 
+// loadSnapshotSSH loads a snapshot of the Firecracker microVM using SSH
 func loadSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath, ipToRestore string) {
 	var ipFreed bool = false
 	var err error
@@ -383,48 +400,57 @@ func loadSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath, ipToRes
 
 func main() {
 	// Check for kvm and root access
-	err := unix.Access("/dev/kvm", unix.W_OK)
-	if err != nil {
+	err := unix.Access("/dev/kvm", unix.W_OK) // Check if the program has write access to /dev/kvm
+	if err != nil {                           // If there's an error (e.g., access denied), log and exit
 		log.Fatal(err)
 	}
 
+	// Check if the program is running with root privileges
 	if x, y := 0, os.Getuid(); x != y {
 		log.Fatal("Root acccess denied")
 	}
 
+	// Get the current working directory
 	dir, err := os.Getwd()
-	if err != nil {
+	if err != nil { // If there's an error getting the working directory, log and exit
 		log.Fatal(err)
 	}
 
+	// Create a directory for CNI configuration files
 	cniConfDir := filepath.Join(dir, "cni.conf")
-	err = os.Mkdir(cniConfDir, 0777)
-	if err != nil {
+	err = os.Mkdir(cniConfDir, 0777) // Create the directory with full permissions
+	if err != nil {                  // If there's an error creating the directory, log and exit
 		log.Fatal(err)
 	}
-	defer os.Remove(cniConfDir)
+	defer os.Remove(cniConfDir) // Remove the directory when main function exits
 
-	// Setup socket and snapshot + memory paths
-	tempdir, err := ioutil.TempDir("", "FCGoSDKSnapshotExample")
-	if err != nil {
+	// Setup temporary directory and paths for socket, snapshot, and memory files
+	tempdir, err := ioutil.TempDir("", "FCGoSDKSnapshotExample") // Create a temporary directory
+	if err != nil {                                              // If there's an error creating the temporary directory, log and exit
 		log.Fatal(err)
 	}
-	defer os.Remove(tempdir)
-	socketPath := filepath.Join(tempdir, "snapshotssh")
+	defer os.Remove(tempdir)                            // Remove the temporary directory when main function exits
+	socketPath := filepath.Join(tempdir, "snapshotssh") // Create a socket path within the temporary directory
 
+	// Create a directory for snapshot and memory files
 	snapshotsshPath := filepath.Join(dir, "snapshotssh")
-	err = os.Mkdir(snapshotsshPath, 0777)
-	if err != nil && !errors.Is(err, os.ErrExist) {
+	err = os.Mkdir(snapshotsshPath, 0777)           // Create the directory with full permissions
+	if err != nil && !errors.Is(err, os.ErrExist) { // If there's an error creating the directory and it's not already exist, log and exit
 		log.Fatal(err)
 	}
-	defer os.RemoveAll(snapshotsshPath)
+	defer os.RemoveAll(snapshotsshPath) // Remove the directory and its contents when main function exits
 
+	// Set paths for snapshot and memory files
 	snapPath := filepath.Join(snapshotsshPath, "SnapFile")
 	memPath := filepath.Join(snapshotsshPath, "MemFile")
 
+	// Create a background context
 	ctx := context.Background()
 
+	// Create a snapshot of the Firecracker microVM and get the IP address to restore
 	ipToRestore := createSnapshotSSH(ctx, socketPath, memPath, snapPath)
 	fmt.Println()
+
+	// Load the snapshot of the Firecracker microVM
 	loadSnapshotSSH(ctx, socketPath, memPath, snapPath, ipToRestore)
 }
