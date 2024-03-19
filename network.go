@@ -98,6 +98,8 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	vmID string,
 	netNSPath string,
 	logger *log.Entry,
+	uid *int,
+	gid *int,
 ) (error, []func() error) {
 	var cleanupFuncs []func() error
 
@@ -111,6 +113,22 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	cniNetworkInterface.CNIConfiguration.containerID = vmID
 	cniNetworkInterface.CNIConfiguration.netNSPath = netNSPath
 	cniNetworkInterface.CNIConfiguration.setDefaults()
+	if uid != nil && gid != nil {
+		cniNetworkInterface.CNIConfiguration.Args = [][2]string{
+			{
+				"IgnoreUnknown",
+				"true",
+			},
+			{
+				"TC_REDIRECT_TAP_UID",
+				fmt.Sprintf("%d", *uid),
+			},
+			{
+				"TC_REDIRECT_TAP_GID",
+				fmt.Sprintf("%d", *gid),
+			},
+		}
+	}
 
 	// Make sure the netns is setup. If the path doesn't yet exist, it will be
 	// initialized with a new empty netns.
