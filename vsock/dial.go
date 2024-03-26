@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -37,7 +37,7 @@ type config struct {
 
 func defaultConfig() config {
 	noop := logrus.New()
-	noop.Out = ioutil.Discard
+	noop.Out = io.Discard
 
 	return config{
 		DialTimeout:       100 * time.Millisecond,

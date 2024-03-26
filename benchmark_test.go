@@ -16,7 +16,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,13 +23,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 const numberOfVMs = 200
 
 func createMachine(ctx context.Context, name string, forwardSignals []os.Signal) (*Machine, func(), error) {
-	dir, err := ioutil.TempDir("", name)
+	dir, err := os.MkdirTemp("", name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,9 +49,9 @@ func createMachine(ctx context.Context, name string, forwardSignals []os.Signal)
 		MetricsFifo:     metrics,
 		LogLevel:        "Info",
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   Int64(1),
-			MemSizeMib:  Int64(256),
-			Smt:         Bool(false),
+			VcpuCount:  Int64(1),
+			MemSizeMib: Int64(256),
+			Smt:        Bool(false),
 		},
 		Drives: []models.Drive{
 			{

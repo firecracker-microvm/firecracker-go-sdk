@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -45,7 +44,7 @@ const (
 )
 
 func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
-	return ioutil.WriteFile(path, []byte(fmt.Sprintf(`{
+	return os.WriteFile(path, []byte(fmt.Sprintf(`{
 		"cniVersion": "0.3.1",
 		"name": "%s",
 		"plugins": [
@@ -60,7 +59,7 @@ func writeCNIConfWithHostLocalSubnet(path, networkName, subnet string) error {
 			"type": "tc-redirect-tap"
 		  }
 		]
-	  }`, networkName, subnet)), 0644)
+	 }`, networkName, subnet)), 0644)
 }
 
 type configOpt func(*sdk.Config)
@@ -111,7 +110,7 @@ func createNewConfig(socketPath string, opts ...configOpt) sdk.Config {
 }
 
 func connectToVM(m *sdk.Machine, sshKeyPath string) (*ssh.Client, error) {
-	key, err := ioutil.ReadFile(sshKeyPath)
+	key, err := os.ReadFile(sshKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +404,7 @@ func main() {
 	defer os.Remove(cniConfDir)
 
 	// Setup socket and snapshot + memory paths
-	tempdir, err := ioutil.TempDir("", "FCGoSDKSnapshotExample")
+	tempdir, err := os.MkdirTemp("", "FCGoSDKSnapshotExample")
 	if err != nil {
 		log.Fatal(err)
 	}
