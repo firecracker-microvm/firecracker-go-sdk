@@ -44,13 +44,13 @@ bin:
 	mkdir -p bin
 
 bin/tc-redirect-tap: bin
-	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20220715050423-f2af44521093)
+	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20240321155514-f4bce16532c3)
 
 bin/ptp: bin
-	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.1.1)
+	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.4.1)
 
 bin/host-local: bin
-	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.1.1)
+	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/host-local,v1.4.1)
 
 vmlinux:
 	$(curl) -o vmlinux https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/${ARCH}/kernels/vmlinux.bin
