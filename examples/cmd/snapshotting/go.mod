@@ -1,6 +1,6 @@
 module main
 
-go 1.18
+go 1.21
 
 require (
 	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0
@@ -11,8 +11,8 @@ require (
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/containerd/fifo v1.0.0 // indirect
-	github.com/containernetworking/cni v1.1.2 // indirect
-	github.com/containernetworking/plugins v1.1.1 // indirect
+	github.com/containernetworking/cni v1.4.1 // indirect
+	github.com/containernetworking/plugins v1.4.1 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect

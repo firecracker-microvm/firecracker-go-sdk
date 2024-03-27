@@ -1,2 +1,4 @@
 bin/
-
+root-drive-*
+root-drive-with-ssh.img
+snapshot-example
