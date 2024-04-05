@@ -426,6 +426,22 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
 			}
 
+			if err := os.Link(
+				m.Cfg.Snapshot.SnapshotPath,
+				filepath.Join(rootfs, filepath.Base(m.Cfg.Snapshot.SnapshotPath)),
+			); err != nil {
+				return err
+			}
+			m.Cfg.Snapshot.SnapshotPath = filepath.Base(m.Cfg.Snapshot.SnapshotPath)
+
+			if err := os.Link(
+				m.Cfg.Snapshot.GetMemBackendPath(),
+				filepath.Join(rootfs, filepath.Base(m.Cfg.Snapshot.MemFilePath)),
+			); err != nil {
+				return err
+			}
+			m.Cfg.Snapshot.MemFilePath = filepath.Base(m.Cfg.Snapshot.MemFilePath)
+
 			m.Cfg.KernelImagePath = kernelImageFileName
 			if m.Cfg.InitrdPath != "" {
 				m.Cfg.InitrdPath = initrdFilename
