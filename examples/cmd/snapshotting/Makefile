@@ -44,7 +44,7 @@ bin:
 	mkdir -p bin
 
 bin/tc-redirect-tap: bin
-	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20220715050423-f2af44521093)
+	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20240408144842-496fddc89db6)
 
 bin/ptp: bin
 	$(call install_go,github.com/containernetworking/plugins/plugins/main/ptp,v1.1.1)

@@ -21,7 +21,7 @@ Please see [HACKING](HACKING.md)
 Building
 ---
 
-This library requires Go 1.17 or later and Go modules to build.  A Makefile is provided
+This library requires Go 1.18 or later and Go modules to build.  A Makefile is provided
 for convenience, but is not required.  When using the Makefile, you can pass
 additional flags to the Go compiler via the `EXTRAGOARGS` make variable.
 
