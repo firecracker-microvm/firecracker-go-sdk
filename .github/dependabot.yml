@@ -1,7 +1,13 @@
 version: 2
 updates:
-  - package-ecosystem: gomod
-    directory: /
+  # Automatic upgrade for Go modules.
+  - package-ecosystem: "gomod"
+    directory: "/"
     schedule:
-      interval: daily
+      interval: "daily"
 
+  # Automatic upgrade for GitHub Actions packages.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
