@@ -10,7 +10,7 @@ module hack
 go 1.11
 
 require (
-	github.com/awslabs/tc-redirect-tap v0.0.0-20220715050423-f2af44521093 // indirect
+	github.com/awslabs/tc-redirect-tap v0.0.0-20240408144842-496fddc89db6 // indirect
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/kunalkushwaha/ltag v0.2.3 // indirect
 )

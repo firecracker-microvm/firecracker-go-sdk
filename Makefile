@@ -121,7 +121,7 @@ $(FC_TEST_BIN_PATH)/static:
 	$(call install_go,github.com/containernetworking/plugins/plugins/ipam/static,v1.1.1)
 
 $(FC_TEST_BIN_PATH)/tc-redirect-tap:
-	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20220715050423-f2af44521093)
+	$(call install_go,github.com/awslabs/tc-redirect-tap/cmd/tc-redirect-tap,v0.0.0-20240408144842-496fddc89db6)
 
 $(FC_TEST_DATA_PATH)/ltag:
 	$(call install_go,github.com/kunalkushwaha/ltag,v0.2.3)
