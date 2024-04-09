@@ -11,7 +11,7 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 env:
-  PATH: "/usr/lib/go-1.17/bin:/usr/bin"
+  PATH: "/usr/lib/go-1.18/bin:/usr/bin"
   FC_TEST_DATA_PATH: "/tmp/buildkite_build_${BUILDKITE_BUILD_NUMBER}_testdata"
 
 steps:
