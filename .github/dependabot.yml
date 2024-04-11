@@ -6,6 +6,14 @@ updates:
     schedule:
       interval: "daily"
 
+  # Automatic upgrade for Go modules in examples/cmd/snapshotting
+  - package-ecosystem: "gomod"
+    directory: "/examples/cmd/snapshotting"
+    schedule:
+      interval: "daily"
+    ignore:
+      - dependency-name: "github.com/firecracker-microvm/firecracker-go-sdk"
+
   # Automatic upgrade for GitHub Actions packages.
   - package-ecosystem: "github-actions"
     directory: "/"
