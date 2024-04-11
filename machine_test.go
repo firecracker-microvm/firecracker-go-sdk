@@ -457,8 +457,8 @@ func TestLogAndMetrics(t *testing.T) {
 		quiet    bool
 	}{
 		{logLevel: "", quiet: false},
-		{logLevel: "Info", quiet: true},
-		{logLevel: "Error", quiet: false},
+		{logLevel: "Info", quiet: false},
+		{logLevel: "Error", quiet: true},
 	}
 	for _, test := range tests {
 		t.Run(test.logLevel, func(t *testing.T) {
