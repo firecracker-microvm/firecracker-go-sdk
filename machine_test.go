@@ -470,12 +470,22 @@ func TestLogAndMetrics(t *testing.T) {
 				return
 			}
 
-			// By default, Firecracker's log level is Warn.
-			logLevel := "WARN"
-			if test.logLevel != "" {
-				logLevel = strings.ToUpper(test.logLevel)
+			// Firecracker logging behavior has changed after
+			// https://github.com/firecracker-microvm/firecracker/pull/4047
+			// This includes default log level being changed from WARN to INFO
+			// TODO: Update this test once firecracker version is upgraded to  > v1.5.0
+			version, err := getFirecrackerVersion()
+			if err != nil {
+				t.Fatal(err)
 			}
-			assert.Contains(t, out, ":"+logLevel+"]")
+			if strings.Contains(version, "1.4") {
+				// By default, Firecracker's log level is Warn in version < v1.5.0
+				logLevel := "WARN"
+				if test.logLevel != "" {
+					logLevel = strings.ToUpper(test.logLevel)
+				}
+				assert.Contains(t, out, ":"+logLevel+"]")
+			}
 		})
 	}
 }
