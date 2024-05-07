@@ -451,6 +451,9 @@ func TestStartVMM(t *testing.T) {
 }
 
 func TestLogAndMetrics(t *testing.T) {
+	if skipLogAndMetricsTest() {
+		t.Skip()
+	}
 	fctesting.RequiresKVM(t)
 
 	tests := []struct {
@@ -479,6 +482,21 @@ func TestLogAndMetrics(t *testing.T) {
 			assert.Contains(t, out, ":"+logLevel+"]")
 		})
 	}
+}
+
+func skipLogAndMetricsTest() bool {
+	// Firecracker logging behavior has changed after
+	// https://github.com/firecracker-microvm/firecracker/pull/4047
+	// This includes default log level being changed from WARN to INFO
+	// TODO: Update this test once firecracker version is upgraded to >v1.5.0
+	version, err := getFirecrackerVersion()
+	if err != nil {
+		return true
+	}
+	// match version 1.4.x
+	pattern := `^1\.4\.\d+$`
+	match, _ := regexp.MatchString(pattern, version)
+	return !match
 }
 
 func testLogAndMetrics(t *testing.T, logLevel string) string {
