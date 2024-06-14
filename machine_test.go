@@ -2015,7 +2015,7 @@ func connectToVM(m *Machine, sshKeyPath string) (*ssh.Client, error) {
 		return nil, errors.New("No network interfaces")
 	}
 
-	ip := m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration.IPAddr.IP
+	ip := m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration[0].IPAddr.IP
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), config)
 }
@@ -2265,7 +2265,7 @@ func TestLoadSnapshot(t *testing.T) {
 				require.NoError(t, err)
 				defer client.Close()
 
-				ipToRestore = m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration.IPAddr.IP.String()
+				ipToRestore = m.Cfg.NetworkInterfaces.staticIPInterface().StaticConfiguration.IPConfiguration[0].IPAddr.IP.String()
 
 				session, err := client.NewSession()
 				require.NoError(t, err)
