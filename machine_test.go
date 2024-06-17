@@ -206,7 +206,7 @@ func TestJailerMicroVMExecution(t *testing.T) {
 		SocketPath:      socketPath,
 		LogFifo:         logFifo,
 		MetricsFifo:     metricsFifo,
-		LogLevel:        "Debug",
+		LogLevel:        "DEBUG",
 		KernelImagePath: vmlinuxPath,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:  Int64(nCpus),
