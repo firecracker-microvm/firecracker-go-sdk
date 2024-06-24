@@ -339,10 +339,6 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 	fcArgs := seccompArgs(cfg)
 	fcArgs = append(fcArgs, "--api-sock", machineSocketPath)
 
-	if cfg.LogLevel != "" {
-		fcArgs = append(fcArgs, "--level", cfg.LogLevel)
-	}
-
 	builder := NewJailerCommandBuilder().
 		WithID(cfg.JailerCfg.ID).
 		WithUID(*cfg.JailerCfg.UID).
