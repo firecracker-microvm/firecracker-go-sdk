@@ -134,6 +134,11 @@ Also note that use of CNI-configured network interfaces will require the SDK to 
 `CAP_SYS_ADMIN` and `CAP_NET_ADMIN` Linux capabilities (in order to have the 
 ability to create and configure network namespaces).
 
+#### Commmunication between VM guests
+
+`ptp` only allows the host and the VM guest to communicate with each other. To enable communication between 
+VM guests, the `bridge` plugin needs to be used. An example configuration can be found [here](https://github.com/firecracker-microvm/firecracker-containerd/blob/main/tools/demo/fcnet.conflist).
+
 ### Network Setup Limitations
 These limitations are a result of the current implementation and may be lifted in the future:
 * For a given VM, if a CNI-configured network interface is specified or a static interface
