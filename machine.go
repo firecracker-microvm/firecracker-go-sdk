@@ -236,11 +236,11 @@ func (cfg *Config) ValidateLoadSnapshot() error {
 	}
 
 	if _, err := os.Stat(cfg.Snapshot.GetMemBackendPath()); err != nil {
-		return err
+		return fmt.Errorf("failed to stat mem backend path, %q: %v", cfg.Snapshot.GetMemBackendPath(), err)
 	}
 
 	if _, err := os.Stat(cfg.Snapshot.SnapshotPath); err != nil {
-		return err
+		return fmt.Errorf("failed to stat snapshot path, %q: %v", cfg.Snapshot.SnapshotPath, err)
 	}
 
 	return nil

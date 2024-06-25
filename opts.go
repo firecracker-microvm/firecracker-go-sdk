@@ -73,6 +73,9 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 
 		m.Handlers.Validation = loadSnapshotValidationHandlerList
 		m.Handlers.FcInit = loadSnapshotHandlerList
+		if m.Cfg.JailerCfg != nil {
+			m.Cfg.JailerCfg.ChrootStrategy.AdaptHandlers(&m.Handlers)
+		}
 	}
 }
 
