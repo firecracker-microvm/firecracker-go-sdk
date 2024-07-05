@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0
 	golang.org/x/crypto v0.23.0
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.22.0
 )
 
 require (
