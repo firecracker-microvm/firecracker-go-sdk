@@ -588,7 +588,7 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		if waitErr != nil {
 			m.logger.Warn("firecracker exited", slog.String("err", waitErr.Error()))
 		} else {
-			m.logger.Info("firecracker exited: status=0")
+			m.logger.Debug("firecracker exited: status=0")
 		}
 
 		cleanupErr := m.doCleanup()
@@ -812,7 +812,7 @@ func (m *Machine) createBootSource(ctx context.Context, imagePath, initrdPath, k
 
 	resp, err := m.client.PutGuestBootSource(ctx, &bsrc)
 	if err == nil {
-		m.logger.Error("PutGuestBootSource", slog.Any("err", resp.Error()))
+		m.logger.Debug("PutGuestBootSource", slog.Any("err", resp.Error()))
 	}
 
 	return err
