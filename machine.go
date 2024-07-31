@@ -545,7 +545,7 @@ func (m *Machine) defaultNetNSPath() string {
 
 // startVMM starts the firecracker vmm process and configures logging.
 func (m *Machine) startVMM(ctx context.Context) error {
-	m.logger.Info("Called startVMM(), setting up a VMM", slog.String("socket_path", m.Cfg.SocketPath))
+	m.logger.Debug("Called startVMM(), setting up a VMM", slog.String("socket_path", m.Cfg.SocketPath))
 	startCmd := m.cmd.Start
 
 	m.logger.Debug("Starting", slog.String("args", strings.Join(m.cmd.Args, " ")))
@@ -721,7 +721,7 @@ func (m *Machine) setupMetrics(ctx context.Context) error {
 
 	if len(path) == 0 {
 		// No logging configured
-		m.logger.Info("VMM metrics disabled.")
+		m.logger.Debug("VMM metrics disabled.")
 		return nil
 	}
 
@@ -812,7 +812,7 @@ func (m *Machine) createBootSource(ctx context.Context, imagePath, initrdPath, k
 
 	resp, err := m.client.PutGuestBootSource(ctx, &bsrc)
 	if err == nil {
-		m.logger.Info("PutGuestBootSource", slog.Any("err", resp.Error()))
+		m.logger.Error("PutGuestBootSource", slog.Any("err", resp.Error()))
 	}
 
 	return err
@@ -827,7 +827,7 @@ func (m *Machine) createNetworkInterface(ctx context.Context, iface NetworkInter
 		return errors.New("invalid nil state for network interface")
 	}
 
-	m.logger.Info("Attaching NIC at index",
+	m.logger.Debug("Attaching NIC at index",
 		slog.String("device_name", iface.StaticConfiguration.HostDevName),
 		slog.String("mac_addr", iface.StaticConfiguration.MacAddress),
 		slog.String("interface_id", ifaceID),
@@ -879,10 +879,10 @@ func (m *Machine) UpdateGuestNetworkInterfaceRateLimit(ctx context.Context, ifac
 // attachDrive attaches a secondary block device
 func (m *Machine) attachDrive(ctx context.Context, dev models.Drive) error {
 	hostPath := StringValue(dev.PathOnHost)
-	m.logger.Info("Attaching drive", slog.String("drive_path", hostPath), slog.String("slot", StringValue(dev.DriveID)), slog.Bool("root", BoolValue(dev.IsRootDevice)))
+	m.logger.Debug("Attaching drive", slog.String("drive_path", hostPath), slog.String("slot", StringValue(dev.DriveID)), slog.Bool("root", BoolValue(dev.IsRootDevice)))
 	respNoContent, err := m.client.PutGuestDriveByID(ctx, StringValue(dev.DriveID), &dev)
 	if err == nil {
-		m.logger.Info("Attached drive", slog.String("drive_path", hostPath), slog.String("err", respNoContent.Error()))
+		m.logger.Debug("Attached drive", slog.String("drive_path", hostPath), slog.String("err", respNoContent.Error()))
 	} else {
 		m.logger.Error("Attach drive failed", slog.String("drive_path", hostPath), slog.Any("err", err))
 	}
@@ -917,7 +917,7 @@ func (m *Machine) startInstance(ctx context.Context) error {
 
 	resp, err := m.client.CreateSyncAction(ctx, &info)
 	if err == nil {
-		m.logger.Info("startInstance successful", slog.String("err", resp.Error()))
+		m.logger.Debug("startInstance successful", slog.String("err", resp.Error()))
 	} else {
 		m.logger.Error("Starting instance failed", slog.Any("err", err))
 	}
@@ -979,7 +979,7 @@ func (m *Machine) SetMetadata(ctx context.Context, metadata interface{}) error {
 		return err
 	}
 
-	m.logger.Info("SetMetadata successful")
+	m.logger.Debug("SetMetadata successful")
 	return nil
 }
 
@@ -1051,10 +1051,10 @@ func (m *Machine) DescribeInstanceInfo(ctx context.Context) (models.InstanceInfo
 func (m *Machine) refreshMachineConfiguration() error {
 	resp, err := m.client.GetMachineConfiguration()
 	if err != nil {
+		m.logger.Error("refreshMachineConfiguration", slog.String("err", resp.Error()))
 		return err
 	}
 
-	m.logger.Info("refreshMachineConfiguration", slog.String("err", resp.Error()))
 	m.machineConfig = *resp.Payload
 	return nil
 }
