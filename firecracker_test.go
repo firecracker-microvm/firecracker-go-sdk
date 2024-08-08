@@ -14,6 +14,8 @@ package firecracker
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -54,7 +56,7 @@ func TestClient(t *testing.T) {
 		PathOnHost:   String(filepath.Join(testDataPath, "drive-2.img")),
 	}
 
-	client := NewClient(socketpath, fctesting.NewLogEntry(t), true)
+	client := NewClient(socketpath, fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true)
 	deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer deadlineCancel()
 	if err := waitForAliveVMM(deadlineCtx, client); err != nil {
@@ -90,7 +92,7 @@ func TestGetFirecrackerVersion(t *testing.T) {
 		}
 	}()
 
-	client := NewClient(socketpath, fctesting.NewLogEntry(t), true)
+	client := NewClient(socketpath, fctesting.NewLogEntry(t, slog.LevelDebug, os.Stdout), true)
 	deadlineCtx, deadlineCancel := context.WithTimeout(ctx, 250*time.Millisecond)
 	defer deadlineCancel()
 	if err := waitForAliveVMM(deadlineCtx, client); err != nil {

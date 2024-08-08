@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 )
 
@@ -135,7 +136,7 @@ var StartVMMHandler = Handler{
 
 func createFifoOrFile(ctx context.Context, m *Machine, fifo, path string) error {
 	if len(fifo) > 0 {
-		if err := createFifo(fifo); err != nil {
+		if err := createFifo(fifo, m.logger); err != nil {
 			return err
 		}
 
@@ -171,7 +172,7 @@ var CreateLogFilesHandler = Handler{
 
 		if m.Cfg.FifoLogWriter != nil {
 			if err := m.captureFifoToFile(ctx, m.logger, m.Cfg.LogFifo, m.Cfg.FifoLogWriter); err != nil {
-				m.logger.Warnf("captureFifoToFile() returned %s. Continuing anyway.", err)
+				m.logger.Warn("captureFifoToFile() errored. Continuing anyway.", slog.Any("err", err))
 			}
 		}
 
@@ -192,7 +193,7 @@ var BootstrapLoggingHandler = Handler{
 		if err := m.setupMetrics(ctx); err != nil {
 			return err
 		}
-		m.logger.Debugf("setup logging: success")
+		m.logger.Debug("setup logging: success")
 		return nil
 	},
 }
@@ -466,9 +467,9 @@ func (l HandlerList) Clear() HandlerList {
 // any of the handlers, then the list will halt execution and return the error.
 func (l HandlerList) Run(ctx context.Context, m *Machine) error {
 	for _, handler := range l.list {
-		m.logger.Debugf("Running handler %s", handler.Name)
+		m.logger.Debug("Running handler", slog.String("handler_name", handler.Name))
 		if err := handler.Fn(ctx, m); err != nil {
-			m.logger.Warnf("Failed handler %q: %v", handler.Name, err)
+			m.logger.Warn("Failed handler", slog.String("handler_name", handler.Name), slog.Any("err", err))
 			return err
 		}
 	}
