@@ -430,7 +430,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 					"",
 				); err != nil {
 					return fmt.Errorf(
-						"Failed to bind mount %s to %s: %v",
+						"failed to bind mount %s to %s: %v",
 						hostPath,
 						rootfsPath,
 						err,

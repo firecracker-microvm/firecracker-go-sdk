@@ -35,6 +35,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"golang.org/x/sys/unix"
 
 	log "github.com/sirupsen/logrus"
 
@@ -463,10 +464,29 @@ func (m *Machine) Start(ctx context.Context) error {
 func (m *Machine) Shutdown(ctx context.Context) error {
 	m.logger.Debug("Called machine.Shutdown()")
 	if runtime.GOARCH != "arm64" {
-		return m.sendCtrlAltDel(ctx)
+		if err := m.sendCtrlAltDel(ctx); err != nil {
+			return err
+		}
 	} else {
-		return m.StopVMM()
+		if err := m.StopVMM(); err != nil {
+			return err
+		}
 	}
+	rootfs := filepath.Join(
+		m.Cfg.JailerCfg.ChrootBaseDir,
+		filepath.Base(m.Cfg.JailerCfg.ExecFile),
+		m.Cfg.JailerCfg.ID,
+		rootfsFolderName,
+	)
+	for _, drive := range m.Cfg.Drives {
+		hostPath := StringValue(drive.PathOnHost)
+		driveFileName := filepath.Base(hostPath)
+		rootfsPath := filepath.Join(rootfs, driveFileName)
+		if err := unix.Unmount(rootfsPath, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Wait will wait until the firecracker process has finished.  Wait is safe to
