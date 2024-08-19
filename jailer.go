@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	unix "golang.org/x/sys/unix"
 	"io"
 	"os"
 	"os/exec"
@@ -415,12 +416,25 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 			for i, drive := range m.Cfg.Drives {
 				hostPath := StringValue(drive.PathOnHost)
 				driveFileName := filepath.Base(hostPath)
+				rootfsPath := filepath.Join(rootfs, driveFileName)
 
-				if err := os.Link(
+				if _, err := os.OpenFile(rootfsPath, os.O_RDONLY|os.O_CREATE, 0000); err != nil {
+					return fmt.Errorf("Failed to create directory %s: %v", rootfsPath, err)
+				}
+
+				if err := unix.Mount(
 					hostPath,
-					filepath.Join(rootfs, driveFileName),
+					rootfsPath,
+					"bind",
+					unix.MS_BIND,
+					"",
 				); err != nil {
-					return err
+					return fmt.Errorf(
+						"Failed to bind mount %s to %s: %v",
+						hostPath,
+						rootfsPath,
+						err,
+					)
 				}
 
 				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
