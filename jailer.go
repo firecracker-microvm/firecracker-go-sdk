@@ -419,7 +419,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 				rootfsPath := filepath.Join(rootfs, driveFileName)
 
 				if _, err := os.OpenFile(rootfsPath, os.O_RDONLY|os.O_CREATE, 0000); err != nil {
-					return fmt.Errorf("Failed to create directory %s: %v", rootfsPath, err)
+					return fmt.Errorf("failed to create directory %s: %v", rootfsPath, err)
 				}
 
 				if err := unix.Mount(

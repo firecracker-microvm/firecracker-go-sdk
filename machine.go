@@ -483,7 +483,7 @@ func (m *Machine) Shutdown(ctx context.Context) error {
 		driveFileName := filepath.Base(hostPath)
 		rootfsPath := filepath.Join(rootfs, driveFileName)
 		if err := unix.Unmount(rootfsPath, 0); err != nil {
-			return err
+			return fmt.Errorf("failed to unmount %s: %v", rootfsPath, err)
 		}
 	}
 	return nil
