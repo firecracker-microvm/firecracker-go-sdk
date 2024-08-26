@@ -1,6 +1,6 @@
 module github.com/firecracker-microvm/firecracker-go-sdk
 
-go 1.18
+go 1.21
 
 require (
 	github.com/containerd/fifo v1.1.0
