@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containernetworking/cni v1.2.3
-	github.com/containernetworking/plugins v1.4.1
+	github.com/containernetworking/plugins v1.5.1
 	github.com/go-openapi/errors v0.22.0
 	github.com/go-openapi/runtime v0.24.0
 	github.com/go-openapi/strfmt v0.23.0
@@ -20,7 +20,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	golang.org/x/crypto v0.23.0
-	golang.org/x/sys v0.20.0
+	golang.org/x/sys v0.21.0
 )
 
 require (
