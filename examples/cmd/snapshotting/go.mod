@@ -11,7 +11,7 @@ require (
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
-	github.com/containernetworking/cni v1.1.2 // indirect
+	github.com/containernetworking/cni v1.2.3 // indirect
 	github.com/containernetworking/plugins v1.4.1 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.22.0 // indirect
