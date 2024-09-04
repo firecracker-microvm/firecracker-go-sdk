@@ -644,7 +644,7 @@ func testCreateMachine(ctx context.Context, t *testing.T, m *Machine) {
 }
 
 func parseVersionFromStdout(stdout []byte) (string, error) {
-	pattern := regexp.MustCompile(`Firecracker v(?P<version>[0-9]\.[0-9]\.[0-9]-?.*)`)
+	pattern := regexp.MustCompile(`Firecracker v(?P<version>[0-9]+\.[0-9]+\.[0-9]+-?.*)`)
 	groupNames := pattern.SubexpNames()
 	matches := pattern.FindStringSubmatch(string(stdout))
 
