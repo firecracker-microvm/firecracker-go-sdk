@@ -415,7 +415,7 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 			// copy all drives to the root fs
 			for i, drive := range m.Cfg.Drives {
 				hostPath := StringValue(drive.PathOnHost)
-				driveFileName := filepath.Base(hostPath)
+				driveFileName := "rootfs"
 				rootfsPath := filepath.Join(rootfs, driveFileName)
 
 				if _, err := os.OpenFile(rootfsPath, os.O_RDONLY|os.O_CREATE, 0000); err != nil {
