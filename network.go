@@ -16,17 +16,18 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ns"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -97,7 +98,7 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 	ctx context.Context,
 	vmID string,
 	netNSPath string,
-	logger *log.Entry,
+	logger *slog.Logger,
 ) (error, []func() error) {
 	var cleanupFuncs []func() error
 
@@ -143,8 +144,8 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 
 		if vmNetConf.VMIPConfig != nil {
 			if len(vmNetConf.VMNameservers) > 2 {
-				logger.Warnf("more than 2 nameservers provided from CNI result, only the first 2 %+v will be applied",
-					vmNetConf.VMNameservers[:2])
+				logger.Warn("more than 2 nameservers provided from CNI result, only the first 2 will be applied",
+					slog.String("nameservers", strings.Join(vmNetConf.VMNameservers[:2], ",")))
 				vmNetConf.VMNameservers = vmNetConf.VMNameservers[:2]
 			}
 
@@ -317,7 +318,7 @@ func (cniConf CNIConfiguration) asCNIRuntimeConf() *libcni.RuntimeConf {
 	}
 }
 
-func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry) (*types.Result, error, []func() error) {
+func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *slog.Logger) (*types.Result, error, []func() error) {
 	var cleanupFuncs []func() error
 
 	cniPlugin := libcni.NewCNIConfigWithCacheDir(cniConf.BinPath, cniConf.CacheDir, nil)
@@ -360,7 +361,7 @@ func (cniConf CNIConfiguration) invokeCNI(ctx context.Context, logger *log.Entry
 			// try to create a new network on top of a possibly half-deleted previous one.
 			return nil, fmt.Errorf(errMsg+": %w", err), cleanupFuncs
 		}
-		logger.Error(err, errMsg)
+		logger.Error("invoke cni failed", slog.Any("err", err), slog.String("errMsg", errMsg))
 	}
 
 	// Append cleanup of the network list before calling AddNetworkList to handle
