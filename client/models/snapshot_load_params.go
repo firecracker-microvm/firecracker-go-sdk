@@ -33,6 +33,10 @@ type SnapshotLoadParams struct {
 	// Enable support for incremental (diff) snapshots by tracking dirty guest pages.
 	EnableDiffSnapshots bool `json:"enable_diff_snapshots,omitempty"`
 
+	// Path to the disk device backing the container snapshot.
+	// Required: true
+	ContainerSnapshotPath *string `json:"container_snapshot_path"`
+
 	// Configuration for the backend that handles memory load. If this field is specified, `mem_file_path` is forbidden. Either `mem_backend` or `mem_file_path` must be present at a time.
 	MemBackend *MemoryBackend `json:"mem_backend,omitempty"`
 
@@ -51,6 +55,10 @@ type SnapshotLoadParams struct {
 func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateContainerSnapshotPath(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateMemBackend(formats); err != nil {
 		res = append(res, err)
 	}
@@ -62,6 +70,15 @@ func (m *SnapshotLoadParams) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *SnapshotLoadParams) validateContainerSnapshotPath(formats strfmt.Registry) error {
+
+	if err := validate.Required("container_snapshot_path", "body", m.ContainerSnapshotPath); err != nil {
+		return err
+	}
+
 	return nil
 }
 
