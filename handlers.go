@@ -321,7 +321,6 @@ var loadSnapshotHandlerList = HandlerList{}.Append(
 	CreateLogFilesHandler,
 	BootstrapLoggingHandler,
 	LoadSnapshotHandler,
-	AddVsocksHandler,
 )
 
 var defaultValidationHandlerList = HandlerList{}.Append(
