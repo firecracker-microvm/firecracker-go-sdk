@@ -163,7 +163,7 @@ GitHub issues, but instead follow
 [Firecracker's security reporting guidelines](https://github.com/firecracker-microvm/firecracker/blob/main/SECURITY.md).
 
 Other discussion: For general discussion, please join us in the
-`#general` channel on the [Firecracker Slack](https://join.slack.com/t/firecracker-microvm/shared_invite/zt-oxbm7tqt-GLlze9zZ7sdRSDY6OnXXHg).
+`#general` channel on the [Firecracker Slack](https://join.slack.com/t/firecracker-microvm/shared_invite/zt-1zlb87h4z-NED1rBhVqOQ1ygBgT76wlg).
 
 License
 ====
