@@ -16,6 +16,7 @@ package firecracker
 import (
 	"context"
 	"fmt"
+	unix "golang.org/x/sys/unix"
 	"io"
 	"os"
 	"os/exec"
@@ -414,16 +415,47 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 			// copy all drives to the root fs
 			for i, drive := range m.Cfg.Drives {
 				hostPath := StringValue(drive.PathOnHost)
-				driveFileName := filepath.Base(hostPath)
+				driveFileName := "rootfs"
+				rootfsPath := filepath.Join(rootfs, driveFileName)
 
-				if err := os.Link(
+				if _, err := os.OpenFile(rootfsPath, os.O_RDONLY|os.O_CREATE, 0000); err != nil {
+					return fmt.Errorf("failed to create directory %s: %v", rootfsPath, err)
+				}
+
+				if err := unix.Mount(
 					hostPath,
-					filepath.Join(rootfs, driveFileName),
+					rootfsPath,
+					"bind",
+					unix.MS_BIND,
+					"",
 				); err != nil {
-					return err
+					return fmt.Errorf(
+						"failed to bind mount %s to %s: %v",
+						hostPath,
+						rootfsPath,
+						err,
+					)
 				}
 
 				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
+			}
+
+			if m.Cfg.hasSnapshot() {
+				if err := os.Link(
+					m.Cfg.Snapshot.SnapshotPath,
+					filepath.Join(rootfs, filepath.Base(m.Cfg.Snapshot.SnapshotPath)),
+				); err != nil {
+					return err
+				}
+				m.Cfg.Snapshot.SnapshotPath = filepath.Base(m.Cfg.Snapshot.SnapshotPath)
+
+				if err := os.Link(
+					m.Cfg.Snapshot.GetMemBackendPath(),
+					filepath.Join(rootfs, filepath.Base(m.Cfg.Snapshot.MemFilePath)),
+				); err != nil {
+					return err
+				}
+				m.Cfg.Snapshot.MemFilePath = filepath.Base(m.Cfg.Snapshot.MemFilePath)
 			}
 
 			m.Cfg.KernelImagePath = kernelImageFileName
