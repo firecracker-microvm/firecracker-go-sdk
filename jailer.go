@@ -393,9 +393,12 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 			)
 
 			// copy kernel image to root fs
-			if err := os.Link(
+			if err := unix.Mount(
 				m.Cfg.KernelImagePath,
 				filepath.Join(rootfs, kernelImageFileName),
+				"bind",
+				unix.MS_BIND,
+				"",
 			); err != nil {
 				return err
 			}
