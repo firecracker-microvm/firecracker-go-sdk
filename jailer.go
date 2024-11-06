@@ -85,6 +85,10 @@ type JailerConfig struct {
 	// CgroupVersion is the version of the cgroup filesystem to use.
 	CgroupVersion string
 
+	// CgroupArgs are cgroup settings applied by the jailer. Each arg must be
+	// formatted like <cgroup_file>=<value>, like "cpu.shares=10"
+	CgroupArgs []string
+
 	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
 	Stdout io.Writer
 	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
@@ -109,6 +113,7 @@ type JailerCommandBuilder struct {
 	daemonize       bool
 	firecrackerArgs []string
 	cgroupVersion   string
+	cgroupArgs      []string
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -141,6 +146,10 @@ func (b JailerCommandBuilder) Args() []string {
 	if cpulist := getNumaCpuset(b.node); len(cpulist) > 0 {
 		args = append(args, "--cgroup", fmt.Sprintf("cpuset.mems=%d", b.node))
 		args = append(args, "--cgroup", fmt.Sprintf("cpuset.cpus=%s", cpulist))
+	}
+
+	for _, cgroupArg := range b.cgroupArgs {
+		args = append(args, "--cgroup", cgroupArg)
 	}
 
 	if len(b.cgroupVersion) > 0 {
@@ -204,10 +213,27 @@ func (b JailerCommandBuilder) WithExecFile(path string) JailerCommandBuilder {
 	return b
 }
 
-// WithNumaNode uses the specfied node for the jailer. This represents the numa
+// WithNumaNode uses the specified node for the jailer. This represents the numa
 // node that the process will get assigned to.
+// Note: this is a convenience function that just sets the values of the cgroup
+// files "cpuset.mems" and "cpuset.cpus".
+// If those files are also configured using WithCgroupArgs, the values passed to
+// WithCgroupArgs will take precedence.
 func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
 	b.node = node
+	return b
+}
+
+// WithCgroupArgs sets cgroup file values to be set by the jailer.
+// Each arg must be of the form <cgroup_file>=<value>.
+// Each call to this function resets the cgroup arguments, rather than
+// appending.
+//
+// Example:
+//
+//	b = b.WithCgroupArgs("cpu.shares=10")
+func (b JailerCommandBuilder) WithCgroupArgs(cgroupArgs ...string) JailerCommandBuilder {
+	b.cgroupArgs = cgroupArgs
 	return b
 }
 
@@ -348,6 +374,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithChrootBaseDir(cfg.JailerCfg.ChrootBaseDir).
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithCgroupVersion(cfg.JailerCfg.CgroupVersion).
+		WithCgroupArgs(cfg.JailerCfg.CgroupArgs...).
 		WithFirecrackerArgs(fcArgs...).
 		WithStdout(stdout).
 		WithStderr(stderr)
