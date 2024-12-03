@@ -15,13 +15,13 @@ package fctesting
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"os/user"
 	"testing"
 
 	"golang.org/x/sys/unix"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const rootDisableEnvName = "DISABLE_ROOT_TESTS"
@@ -68,23 +68,24 @@ func RequiresRoot(t testing.TB) {
 	}
 }
 
-func newLogger(t testing.TB) *log.Logger {
-	str := os.Getenv(logLevelEnvName)
-	l := log.New()
-	if str == "" {
-		return l
-	}
-
-	logLevel, err := log.ParseLevel(str)
-	if err != nil {
-		t.Fatalf("Failed to parse %q as Log Level: %v", str, err)
-	}
-
-	l.SetLevel(logLevel)
-	return l
-}
+// func newLogger(t testing.TB) *log.Logger {
+// 	str := os.Getenv(logLevelEnvName)
+// 	l := log.New()
+// 	if str == "" {
+// 		return l
+// 	}
+//
+// 	logLevel, err := log.ParseLevel(str)
+// 	if err != nil {
+// 		t.Fatalf("Failed to parse %q as Log Level: %v", str, err)
+// 	}
+//
+// 	l.SetLevel(logLevel)
+// 	return l
+// }
 
 // NewLogEntry creates log.Entry. The level is specified by "FC_TEST_LOG_LEVEL" environment variable
-func NewLogEntry(t testing.TB) *log.Entry {
-	return log.NewEntry(newLogger(t))
+func NewLogEntry(t testing.TB, level slog.Level, w io.Writer) *slog.Logger {
+	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}))
+	//return log.NewEntry(newLogger(t))
 }
