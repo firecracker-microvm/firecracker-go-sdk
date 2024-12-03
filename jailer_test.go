@@ -103,6 +103,7 @@ func TestJailerBuilder(t *testing.T) {
 				UID:            Int(123),
 				GID:            Int(100),
 				NumaNode:       Int(0),
+				CgroupArgs:     []string{"cpu.shares=10"},
 				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
 				ExecFile:       "/path/to/firecracker",
 				ChrootBaseDir:  "/tmp",
@@ -123,6 +124,8 @@ func TestJailerBuilder(t *testing.T) {
 				"cpuset.mems=0",
 				"--cgroup",
 				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"--cgroup",
+				"cpu.shares=10",
 				"--cgroup-version",
 				"2",
 				"--chroot-base-dir",
@@ -146,6 +149,7 @@ func TestJailerBuilder(t *testing.T) {
 				WithUID(IntValue(c.jailerCfg.UID)).
 				WithGID(IntValue(c.jailerCfg.GID)).
 				WithNumaNode(IntValue(c.jailerCfg.NumaNode)).
+				WithCgroupArgs(c.jailerCfg.CgroupArgs...).
 				WithCgroupVersion(c.jailerCfg.CgroupVersion).
 				WithExecFile(c.jailerCfg.ExecFile)
 
