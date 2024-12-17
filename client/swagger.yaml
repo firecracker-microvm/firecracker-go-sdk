@@ -1026,6 +1026,12 @@ definitions:
         minimum: 1
         maximum: 32
         description: Number of vCPUs (either 1 or an even number)
+      huge_pages:
+        type: string
+        enum:
+          - None
+          - 2M
+        description: Which huge pages configuration (if any) should be used to back guest memory.
 
   MemoryBackend:
     type: object
