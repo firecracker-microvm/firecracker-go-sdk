@@ -13,6 +13,7 @@
 package fctesting
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 )
@@ -25,6 +26,6 @@ func TestLoggingPanic(t *testing.T) {
 	}()
 
 	os.Setenv("FC_TEST_LOG_LEVEL", "debug")
-	l := NewLogEntry(t)
+	l := NewLogEntry(t, slog.LevelDebug, os.Stdout)
 	l.Debug("TestLoggingPanic")
 }
