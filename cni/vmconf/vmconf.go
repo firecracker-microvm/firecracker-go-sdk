@@ -12,19 +12,19 @@
 // permissions and limitations under the License.
 
 /*
- Package vmconf defines an interface for converting particular CNI invocation
- results to networking configuration usable by a VM. It expects the CNI result
- to have the following properties:
- * The results should contain an interface for a tap device, which will be used
-   as the VM's tap device.
- * The results should contain an interface with the same name as the tap device
-   but with sandbox ID set to the containerID provided during CNI invocation.
-   This should be a "pseudo-interface", not one that has actually been created.
-   It represents the configuration that should be applied to the VM internally.
-   The CNI "containerID" is, in this case, used more as a "vmID" to represent
-   the VM's internal network interface.
-     * If the CNI results specify an IP associated with this interface, that IP
-       should be used to statically configure the VM's internal network interface.
+Package vmconf defines an interface for converting particular CNI invocation
+results to networking configuration usable by a VM. It expects the CNI result
+to have the following properties:
+  - The results should contain an interface for a tap device, which will be used
+    as the VM's tap device.
+  - The results should contain an interface with the same name as the tap device
+    but with sandbox ID set to the containerID provided during CNI invocation.
+    This should be a "pseudo-interface", not one that has actually been created.
+    It represents the configuration that should be applied to the VM internally.
+    The CNI "containerID" is, in this case, used more as a "vmID" to represent
+    the VM's internal network interface.
+  - If the CNI results specify an IP associated with this interface, that IP
+    should be used to statically configure the VM's internal network interface.
 */
 package vmconf
 
@@ -62,7 +62,7 @@ type StaticNetworkConf struct {
 	VMMTU int
 	// VMIPConfig is the ip configuration that callers should configure their VM's internal
 	// primary interface to use.
-	VMIPConfig *current.IPConfig
+	VMIPConfig []*current.IPConfig
 	// VMRoutes are the routes that callers should configure their VM's internal route table
 	// to have
 	VMRoutes []*types.Route
@@ -88,32 +88,32 @@ type StaticNetworkConf struct {
 //
 // Due to the limitation of "ip=", not all configuration specified in StaticNetworkConf can be
 // applied automatically. In particular:
-// * The MacAddr and MTU cannot be applied
-// * The only routes created will match what's specified in VMIPConfig; VMRoutes will be ignored.
-// * Only up to two namesevers can be supplied. If VMNameservers is has more than 2 entries, only
-//   the first two in the slice will be applied in the VM.
-// * VMDomain, VMSearchDomains and VMResolverOptions will be ignored
-// * Nameserver settings are also only set in /proc/net/pnp. Most applications will thus require
-//   /etc/resolv.conf to be a symlink to /proc/net/pnp in order to resolve names as expected.
+//   - The MacAddr and MTU cannot be applied
+//   - The only routes created will match what's specified in VMIPConfig; VMRoutes will be ignored.
+//   - Only up to two namesevers can be supplied. If VMNameservers is has more than 2 entries, only
+//     the first two in the slice will be applied in the VM.
+//   - VMDomain, VMSearchDomains and VMResolverOptions will be ignored
+//   - Nameserver settings are also only set in /proc/net/pnp. Most applications will thus require
+//     /etc/resolv.conf to be a symlink to /proc/net/pnp in order to resolve names as expected.
 func (c StaticNetworkConf) IPBootParam() string {
 	// See "ip=" section of kernel linked above for details on each field listed below.
 
 	// client-ip is really just the ip that will be assigned to the primary interface
-	clientIP := c.VMIPConfig.Address.IP.String()
+	clientIP := c.VMIPConfig[0].Address.IP.String()
 
 	// don't set nfs server IP
 	const serverIP = ""
 
 	// default gateway for the network; used to generate a corresponding route table entry
-	defaultGateway := c.VMIPConfig.Gateway.String()
+	defaultGateway := c.VMIPConfig[0].Gateway.String()
 
 	// subnet mask used to generate a corresponding route table entry for the primary interface
 	// (must be provided in dotted decimal notation)
 	subnetMask := fmt.Sprintf("%d.%d.%d.%d",
-		c.VMIPConfig.Address.Mask[0],
-		c.VMIPConfig.Address.Mask[1],
-		c.VMIPConfig.Address.Mask[2],
-		c.VMIPConfig.Address.Mask[3],
+		c.VMIPConfig[0].Address.Mask[0],
+		c.VMIPConfig[0].Address.Mask[1],
+		c.VMIPConfig[0].Address.Mask[2],
+		c.VMIPConfig[0].Address.Mask[3],
 	)
 
 	// the "hostname" field actually just configures a hostname value for DHCP requests, thus no need to set it
@@ -168,11 +168,6 @@ func StaticNetworkConfFrom(result types.Result, containerID string) (*StaticNetw
 
 	// find the IP associated with the VM iface
 	vmIPs := internal.InterfaceIPs(currentResult, vmIface.Name, vmIface.Sandbox)
-	if len(vmIPs) != 1 {
-		return nil, fmt.Errorf("expected to find 1 IP for vm interface %q, but instead found %+v",
-			vmIface.Name, vmIPs)
-	}
-	vmIP := vmIPs[0]
 
 	netNS, err := ns.GetNS(tapIface.Sandbox)
 	if err != nil {
@@ -189,7 +184,7 @@ func StaticNetworkConfFrom(result types.Result, containerID string) (*StaticNetw
 		NetNSPath:         tapIface.Sandbox,
 		VMMacAddr:         vmIface.Mac,
 		VMMTU:             tapMTU,
-		VMIPConfig:        vmIP,
+		VMIPConfig:        vmIPs,
 		VMRoutes:          currentResult.Routes,
 		VMNameservers:     currentResult.DNS.Nameservers,
 		VMDomain:          currentResult.DNS.Domain,
