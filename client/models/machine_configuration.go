@@ -19,6 +19,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+
 	strfmt "github.com/go-openapi/strfmt"
 
 	"github.com/go-openapi/errors"
@@ -32,6 +34,10 @@ type MachineConfiguration struct {
 
 	// cpu template
 	CPUTemplate CPUTemplate `json:"cpu_template,omitempty"`
+
+	// Which huge pages configuration (if any) should be used to back guest memory.
+	// Enum: [None 2M]
+	HugePages string `json:"huge_pages,omitempty"`
 
 	// Memory size of VM
 	// Required: true
@@ -55,6 +61,10 @@ func (m *MachineConfiguration) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateCPUTemplate(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateHugePages(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -82,6 +92,49 @@ func (m *MachineConfiguration) validateCPUTemplate(formats strfmt.Registry) erro
 		if ve, ok := err.(*errors.Validation); ok {
 			return ve.ValidateName("cpu_template")
 		}
+		return err
+	}
+
+	return nil
+}
+
+var machineConfigurationTypeHugePagesPropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["None","2M"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		machineConfigurationTypeHugePagesPropEnum = append(machineConfigurationTypeHugePagesPropEnum, v)
+	}
+}
+
+const (
+
+	// MachineConfigurationHugePagesNone captures enum value "None"
+	MachineConfigurationHugePagesNone string = "None"
+
+	// MachineConfigurationHugePagesNr2M captures enum value "2M"
+	MachineConfigurationHugePagesNr2M string = "2M"
+)
+
+// prop value enum
+func (m *MachineConfiguration) validateHugePagesEnum(path, location string, value string) error {
+	if err := validate.Enum(path, location, value, machineConfigurationTypeHugePagesPropEnum); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *MachineConfiguration) validateHugePages(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.HugePages) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateHugePagesEnum("huge_pages", "body", m.HugePages); err != nil {
 		return err
 	}
 
