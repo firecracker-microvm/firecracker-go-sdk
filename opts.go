@@ -14,10 +14,10 @@
 package firecracker
 
 import (
+	"log/slog"
 	"os/exec"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
-	"github.com/sirupsen/logrus"
 )
 
 // Opt represents a functional option to help modify functionality of a Machine.
@@ -33,7 +33,7 @@ func WithClient(client *Client) Opt {
 }
 
 // WithLogger will allow for the Machine to use the provided logger.
-func WithLogger(logger *logrus.Entry) Opt {
+func WithLogger(logger *slog.Logger) Opt {
 	return func(machine *Machine) {
 		machine.logger = logger
 	}

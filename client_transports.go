@@ -15,18 +15,19 @@ package firecracker
 
 import (
 	"context"
-	"github.com/go-openapi/runtime"
+	"log/slog"
 	"net"
 	"net/http"
 
+	"github.com/go-openapi/runtime"
+
 	httptransport "github.com/go-openapi/runtime/client"
-	"github.com/sirupsen/logrus"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk/client"
 )
 
 // NewUnixSocketTransport creates a new clientTransport configured at the specified Unix socketPath.
-func NewUnixSocketTransport(socketPath string, logger *logrus.Entry, debug bool) runtime.ClientTransport {
+func NewUnixSocketTransport(socketPath string, logger *slog.Logger, debug bool) runtime.ClientTransport {
 	socketTransport := &http.Transport{
 		DialContext: func(ctx context.Context, network, path string) (net.Conn, error) {
 			addr, err := net.ResolveUnixAddr("unix", socketPath)
@@ -46,7 +47,8 @@ func NewUnixSocketTransport(socketPath string, logger *logrus.Entry, debug bool)
 	}
 
 	if logger != nil {
-		transport.SetLogger(logger)
+		// TODO: fix this
+		// transport.SetLogger(logger)
 	}
 
 	return transport
