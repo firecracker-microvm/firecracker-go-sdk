@@ -384,12 +384,6 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 		m.cmd = configureBuilder(defaultFirecrackerVMMCommandBuilder, cfg).Build(ctx)
 	}
 
-	if m.logger == nil {
-		logger := log.New()
-
-		m.logger = log.NewEntry(logger)
-	}
-
 	if m.client == nil {
 		m.client = NewClient(cfg.SocketPath, m.logger, false)
 	}
@@ -413,6 +407,12 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	for _, opt := range opts {
 		opt(m)
+	}
+
+	if m.logger == nil {
+		logger := log.New()
+
+		m.logger = log.NewEntry(logger)
 	}
 
 	m.logger.Debug("Called NewMachine()")
