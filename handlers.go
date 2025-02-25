@@ -315,22 +315,21 @@ var defaultFcInitHandlerList = HandlerList{}.Append(
 	ConfigMmdsHandler,
 )
 
-var loadSnapshotHandlerList = HandlerList{}.Append(
-	SetupNetworkHandler,
-	StartVMMHandler,
-	CreateLogFilesHandler,
-	BootstrapLoggingHandler,
-	LoadSnapshotHandler,
-	AddVsocksHandler,
-)
+// When the machine starts, these handlers cannot run
+// if we plan to load a snapshot. As these handlers are
+// included in defaultFcInitHandlerList, we must remove them
+// if WithSnapshot() has been specified.
+var loadSnapshotRemoveHandlerList = []Handler{
+	SetupKernelArgsHandler,
+	CreateMachineHandler,
+	CreateBootSourceHandler,
+	AttachDrivesHandler,
+	CreateNetworkInterfacesHandler,
+	ConfigMmdsHandler,
+}
 
 var defaultValidationHandlerList = HandlerList{}.Append(
 	NetworkConfigValidationHandler,
-)
-
-var loadSnapshotValidationHandlerList = HandlerList{}.Append(
-	NetworkConfigValidationHandler,
-	LoadSnapshotConfigValidationHandler,
 )
 
 var defaultHandlers = Handlers{

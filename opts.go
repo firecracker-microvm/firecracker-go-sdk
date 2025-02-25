@@ -71,9 +71,17 @@ func WithSnapshot(memFilePath, snapshotPath string, opts ...WithSnapshotOpt) Opt
 			opt(&m.Cfg.Snapshot)
 		}
 
-		m.Handlers.Validation = loadSnapshotValidationHandlerList
-		m.Handlers.FcInit = loadSnapshotHandlerList
+		m.Handlers.Validation = m.Handlers.Validation.Append(LoadSnapshotConfigValidationHandler)
+		m.Handlers.FcInit = modifyHandlersForLoadSnapshot(m.Handlers.FcInit)
 	}
+}
+
+func modifyHandlersForLoadSnapshot(l HandlerList) HandlerList {
+	for _, h := range loadSnapshotRemoveHandlerList {
+		l = l.Remove(h.Name)
+	}
+	l = l.Append(LoadSnapshotHandler)
+	return l
 }
 
 // WithMemoryBackend sets the memory backend to the given type, using the given
