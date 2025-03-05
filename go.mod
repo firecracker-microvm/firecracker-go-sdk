@@ -1,6 +1,7 @@
 module github.com/firecracker-microvm/firecracker-go-sdk
 
 go 1.21
+toolchain go1.23.7
 
 require (
 	github.com/containerd/fifo v1.1.0
@@ -20,7 +21,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	golang.org/x/crypto v0.31.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/sys v0.31.0
 )
 
 require (
