@@ -89,6 +89,11 @@ type JailerConfig struct {
 	// formatted like <cgroup_file>=<value>, like "cpu.shares=10"
 	CgroupArgs []string
 
+	// ParentCgroup is the parent cgroup for the jailer. By specifying this
+	// parameter, the jailer will create a new cgroup named id for the
+	// microvm in the <cgroup_base>/<parent_cgroup> subfolder.
+	ParentCgroup string
+
 	// Stdout specifies the IO writer for STDOUT to use when spawning the jailer.
 	Stdout io.Writer
 	// Stderr specifies the IO writer for STDERR to use when spawning the jailer.
@@ -114,6 +119,7 @@ type JailerCommandBuilder struct {
 	firecrackerArgs []string
 	cgroupVersion   string
 	cgroupArgs      []string
+	parentCgroup    string
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -154,6 +160,10 @@ func (b JailerCommandBuilder) Args() []string {
 
 	if len(b.cgroupVersion) > 0 {
 		args = append(args, "--cgroup-version", b.cgroupVersion)
+	}
+
+	if len(b.parentCgroup) > 0 {
+		args = append(args, "--parent-cgroup", b.parentCgroup)
 	}
 
 	if len(b.chrootBaseDir) > 0 {
@@ -234,6 +244,12 @@ func (b JailerCommandBuilder) WithNumaNode(node int) JailerCommandBuilder {
 //	b = b.WithCgroupArgs("cpu.shares=10")
 func (b JailerCommandBuilder) WithCgroupArgs(cgroupArgs ...string) JailerCommandBuilder {
 	b.cgroupArgs = cgroupArgs
+	return b
+}
+
+// WithParentCgroup will set the parent cgroup for the jailer.
+func (b JailerCommandBuilder) WithParentCgroup(parentCgroup string) JailerCommandBuilder {
+	b.parentCgroup = parentCgroup
 	return b
 }
 
@@ -375,6 +391,7 @@ func jail(ctx context.Context, m *Machine, cfg *Config) error {
 		WithDaemonize(cfg.JailerCfg.Daemonize).
 		WithCgroupVersion(cfg.JailerCfg.CgroupVersion).
 		WithCgroupArgs(cfg.JailerCfg.CgroupArgs...).
+		WithParentCgroup(cfg.JailerCfg.ParentCgroup).
 		WithFirecrackerArgs(fcArgs...).
 		WithStdout(stdout).
 		WithStderr(stderr)

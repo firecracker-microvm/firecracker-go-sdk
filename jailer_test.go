@@ -109,6 +109,7 @@ func TestJailerBuilder(t *testing.T) {
 				ChrootBaseDir:  "/tmp",
 				JailerBinary:   "/path/to/the/jailer",
 				CgroupVersion:  "2",
+				ParentCgroup:   "/path/to/parent-cgroup",
 			},
 			expectedArgs: []string{
 				"/path/to/the/jailer",
@@ -128,6 +129,8 @@ func TestJailerBuilder(t *testing.T) {
 				"cpu.shares=10",
 				"--cgroup-version",
 				"2",
+				"--parent-cgroup",
+				"/path/to/parent-cgroup",
 				"--chroot-base-dir",
 				"/tmp",
 				"--netns",
@@ -151,6 +154,7 @@ func TestJailerBuilder(t *testing.T) {
 				WithNumaNode(IntValue(c.jailerCfg.NumaNode)).
 				WithCgroupArgs(c.jailerCfg.CgroupArgs...).
 				WithCgroupVersion(c.jailerCfg.CgroupVersion).
+				WithParentCgroup(c.jailerCfg.ParentCgroup).
 				WithExecFile(c.jailerCfg.ExecFile)
 
 			if len(c.jailerCfg.JailerBinary) > 0 {
@@ -274,6 +278,7 @@ func TestJail(t *testing.T) {
 				ChrootBaseDir:  "/tmp",
 				JailerBinary:   "/path/to/the/jailer",
 				CgroupVersion:  "2",
+				ParentCgroup:   "/path/to/parent-cgroup",
 			},
 			expectedArgs: []string{
 				"/path/to/the/jailer",
@@ -291,6 +296,8 @@ func TestJail(t *testing.T) {
 				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
 				"--cgroup-version",
 				"2",
+				"--parent-cgroup",
+				"/path/to/parent-cgroup",
 				"--chroot-base-dir",
 				"/tmp",
 				"--netns",
