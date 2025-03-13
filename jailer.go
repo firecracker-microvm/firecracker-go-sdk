@@ -25,8 +25,6 @@ import (
 )
 
 const (
-	// defaultJailerPath is the default chroot base directory that the jailer
-	// will use if no other base directory was provided.
 	defaultJailerPath = "/srv/jailer"
 	defaultJailerBin  = "jailer"
 
