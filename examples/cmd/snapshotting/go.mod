@@ -1,6 +1,6 @@
 module main
 
-go 1.21
+go 1.23
 
 require (
 	github.com/firecracker-microvm/firecracker-go-sdk v1.0.0

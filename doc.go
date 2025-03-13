@@ -18,7 +18,7 @@ Firecracker is an open-source virtualization technology that is purpose-built
 for creating and managing secure, multi-tenant containers and functions-based
 services.  See https://firecracker-microvm.github.io/ for more details.
 
-This library requires Go 1.18 or later and can be used with Go modules.
+This library requires Go 1.23 or later and can be used with Go modules.
 
 BUG(aws): There are some Firecracker features that are not yet supported by the
 SDK.  These are tracked as GitHub issues with the firecracker-feature label:
