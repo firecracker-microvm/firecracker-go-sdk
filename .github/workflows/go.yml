@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go: ['1.21', '1.22', '1.23']
+        go: ['1.23', '1.24']
         os: ['ubuntu-22.04']
       fail-fast: false
     name: ${{ matrix.os }} / Go ${{ matrix.go }}
