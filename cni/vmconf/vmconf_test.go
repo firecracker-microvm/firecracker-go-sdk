@@ -68,12 +68,14 @@ func TestIPBootParams(t *testing.T) {
 		VMMacAddr: "00:11:22:33:44:55",
 		VMIfName:  "eth0",
 		VMMTU:     1337,
-		VMIPConfig: &current.IPConfig{
-			Address: net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 2),
-				Mask: net.IPv4Mask(255, 255, 255, 0),
+		VMIPConfig: []*current.IPConfig{
+			&current.IPConfig{
+				Address: net.IPNet{
+					IP:   net.IPv4(10, 0, 0, 2),
+					Mask: net.IPv4Mask(255, 255, 255, 0),
+				},
+				Gateway: net.IPv4(10, 0, 0, 1),
 			},
-			Gateway: net.IPv4(10, 0, 0, 1),
 		},
 		VMRoutes: []*types.Route{{
 			Dst: net.IPNet{
