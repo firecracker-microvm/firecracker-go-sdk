@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/containerd/fifo v1.1.0
-	github.com/containernetworking/cni v1.2.3
+	github.com/containernetworking/cni v1.3.0
 	github.com/containernetworking/plugins v1.6.2
 	github.com/go-openapi/errors v0.22.1
 	github.com/go-openapi/runtime v0.24.0
