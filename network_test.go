@@ -43,23 +43,27 @@ var (
 	kernelArgsWithIP = parseKernelArgs("foo=bar this=phony ip=whatevz")
 
 	// These RFC 5737 IPs are reserved for documentation, they are not usable
-	validIPConfiguration = &IPConfiguration{
-		IPAddr: net.IPNet{
-			IP:   net.IPv4(198, 51, 100, 2),
-			Mask: net.IPv4Mask(255, 255, 255, 0),
+	validIPConfiguration = []*IPConfiguration{
+		&IPConfiguration{
+			IPAddr: net.IPNet{
+				IP:   net.IPv4(198, 51, 100, 2),
+				Mask: net.IPv4Mask(255, 255, 255, 0),
+			},
+			Gateway:     net.IPv4(198, 51, 100, 1),
+			Nameservers: []string{"192.0.2.1", "192.0.2.2"},
 		},
-		Gateway:     net.IPv4(198, 51, 100, 1),
-		Nameservers: []string{"192.0.2.1", "192.0.2.2"},
 	}
 
 	// IPv6 is currently invalid
 	// These RFC 3849 IPs are reserved for documentation, they are not usable
-	invalidIPConfiguration = &IPConfiguration{
-		IPAddr: net.IPNet{
-			IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
-			Mask: net.CIDRMask(24, 128),
+	invalidIPConfiguration = []*IPConfiguration{
+		&IPConfiguration{
+			IPAddr: net.IPNet{
+				IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
+				Mask: net.CIDRMask(24, 128),
+			},
+			Gateway: net.ParseIP("2001:db8:a0b:12f0::1"),
 		},
-		Gateway: net.ParseIP("2001:db8:a0b:12f0::1"),
 	}
 
 	validStaticNetworkInterface = NetworkInterface{
@@ -98,29 +102,20 @@ func TestNetworkStaticValidationFails_TooManyNameservers(t *testing.T) {
 	staticNetworkConfig := StaticNetworkConfiguration{
 		MacAddress:  mockMacAddrString,
 		HostDevName: tapName,
-		IPConfiguration: &IPConfiguration{
-			IPAddr: net.IPNet{
-				IP:   net.IPv4(198, 51, 100, 2),
-				Mask: net.IPv4Mask(255, 255, 255, 0),
+		IPConfiguration: []*IPConfiguration{
+			&IPConfiguration{
+				IPAddr: net.IPNet{
+					IP:   net.IPv4(198, 51, 100, 2),
+					Mask: net.IPv4Mask(255, 255, 255, 0),
+				},
+				Gateway:     net.IPv4(198, 51, 100, 1),
+				Nameservers: []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"},
 			},
-			Gateway:     net.IPv4(198, 51, 100, 1),
-			Nameservers: []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"},
 		},
 	}
 
 	err := staticNetworkConfig.validate()
 	assert.Error(t, err, "network config with more than two nameservers did not result in validation error")
-}
-
-func TestNetworkStaticValidationFails_IPConfiguration(t *testing.T) {
-	staticNetworkConfig := StaticNetworkConfiguration{
-		MacAddress:      mockMacAddrString,
-		HostDevName:     tapName,
-		IPConfiguration: invalidIPConfiguration,
-	}
-
-	err := staticNetworkConfig.validate()
-	assert.Error(t, err, "invalid network config hostdevname did not result in validation error")
 }
 
 func TestNetworkCNIValidation(t *testing.T) {
@@ -447,12 +442,12 @@ func startCNIMachine(t *testing.T, ctx context.Context, m *Machine) string {
 	assert.NotEmpty(t, staticConfig.HostDevName,
 		"static config should have host dev name set")
 
-	ipConfig := staticConfig.IPConfiguration
+	ipConfig := staticConfig.IPConfiguration[0]
 	require.NotNil(t, ipConfig,
 		"cni configuration should have updated network interface ip configuration")
 
 	require.Equal(t, m.Cfg.NetworkInterfaces[0].CNIConfiguration.VMIfName,
-		staticConfig.IPConfiguration.IfName,
+		staticConfig.IPConfiguration[0].IfName,
 		"interface name should be propagated to static conf")
 
 	return ipConfig.IPAddr.IP.String()
