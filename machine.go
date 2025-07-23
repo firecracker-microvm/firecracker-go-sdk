@@ -588,6 +588,16 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	errCh := make(chan error)
 	go func() {
 		waitErr := m.cmd.Wait()
+
+		// If using daemonized jailer and parent exits cleanly,
+		// this is expected behavior. Don't treat it as an error.
+		// We return immediately and allow subsequent functions
+		// (such as waitForSocket) to send any errors to channels.
+		if m.Cfg.JailerCfg != nil && m.Cfg.JailerCfg.Daemonize && waitErr == nil {
+			m.logger.Debugf("jailer parent exited (expected for daemonized mode)")
+			return
+		}
+
 		if waitErr != nil {
 			m.logger.Warnf("firecracker exited: %s", waitErr.Error())
 		} else {
@@ -606,7 +616,6 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		// second one never ends as it tries to read from empty channel.
 		close(errCh)
 		close(m.cleanupCh)
-
 	}()
 
 	m.setupSignals()
