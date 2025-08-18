@@ -268,6 +268,8 @@ type Machine struct {
 	startOnce sync.Once
 	// exitCh is a channel which gets closed when the VMM exits
 	exitCh chan struct{}
+	// shutdownCh is a channel which gets closed when the VM is shutdown
+	shutdownCh chan struct{}
 	// fatalErr records an error that either stops or prevent starting the VMM
 	fatalErr error
 
@@ -360,8 +362,9 @@ func configureBuilder(builder VMCommandBuilder, cfg Config) VMCommandBuilder {
 // provided Config.
 func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) {
 	m := &Machine{
-		exitCh:    make(chan struct{}),
-		cleanupCh: make(chan struct{}),
+		exitCh:     make(chan struct{}),
+		shutdownCh: make(chan struct{}),
+		cleanupCh:  make(chan struct{}),
 	}
 
 	if cfg.VMID == "" {
@@ -460,6 +463,9 @@ func (m *Machine) Start(ctx context.Context) error {
 // Shutdown requests a clean shutdown of the VM by sending CtrlAltDelete on the virtual keyboard
 func (m *Machine) Shutdown(ctx context.Context) error {
 	m.logger.Debug("Called machine.Shutdown()")
+
+	close(m.shutdownCh)
+
 	if runtime.GOARCH != "arm64" {
 		return m.sendCtrlAltDel(ctx)
 	} else {
@@ -588,6 +594,15 @@ func (m *Machine) startVMM(ctx context.Context) error {
 	errCh := make(chan error)
 	go func() {
 		waitErr := m.cmd.Wait()
+
+		// If using daemonized jailer and parent exits cleanly,
+		// this is expected behavior. Don't treat it as an error.
+		// We instead wait for closure of shutdownCh from m.Shutdown().
+		if m.Cfg.JailerCfg != nil && m.Cfg.JailerCfg.Daemonize && waitErr == nil {
+			m.logger.Debugf("jailer parent exited (expected for daemonized mode)")
+			<-m.shutdownCh
+		}
+
 		if waitErr != nil {
 			m.logger.Warnf("firecracker exited: %s", waitErr.Error())
 		} else {
@@ -606,7 +621,6 @@ func (m *Machine) startVMM(ctx context.Context) error {
 		// second one never ends as it tries to read from empty channel.
 		close(errCh)
 		close(m.cleanupCh)
-
 	}()
 
 	m.setupSignals()
