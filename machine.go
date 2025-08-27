@@ -1275,3 +1275,23 @@ func (m *Machine) UpdateBalloonStats(ctx context.Context, statsPollingIntervals 
 	m.logger.Debug("UpdateBalloonStats successful")
 	return nil
 }
+
+// Reset Firecracker binary
+func (m *Machine) WithFcBin(bin string) {
+	m.cmd.Path = bin
+}
+
+// Reset Firecracker running Stdin
+func (m *Machine) WithStdin(stdin io.Reader) {
+	m.cmd.Stdin = stdin
+}
+
+// Reset Firecracker running Stdout
+func (m *Machine) WithStdout(stdout io.Writer) {
+	m.cmd.Stdout = stdout
+}
+
+// Reset Firecracker running Stderr
+func (m *Machine) WithStderr(stderr io.Writer) {
+	m.cmd.Stderr = stderr
+}
