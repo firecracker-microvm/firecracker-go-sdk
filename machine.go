@@ -509,8 +509,11 @@ func (m *Machine) setupKernelArgs(ctx context.Context) error {
 	// If any network interfaces have a static IP configured, we need to set the "ip=" boot param.
 	// Validation that we are not overriding an existing "ip=" setting happens in the network validation
 	if staticIPInterface := m.Cfg.NetworkInterfaces.staticIPInterface(); staticIPInterface != nil {
-		ipBootParam := staticIPInterface.StaticConfiguration.IPConfiguration.ipBootParam()
-		kernelArgs["ip"] = &ipBootParam
+		// Only generate the ip= boot param if there is a single ip on the interface
+		if len(staticIPInterface.StaticConfiguration.IPConfiguration) == 1 {
+			ipBootParam := staticIPInterface.StaticConfiguration.IPConfiguration[0].ipBootParam()
+			kernelArgs["ip"] = &ipBootParam
+		}
 	}
 
 	m.Cfg.KernelArgs = kernelArgs.String()
