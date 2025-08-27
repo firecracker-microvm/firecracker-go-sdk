@@ -379,6 +379,26 @@ func NewMachine(ctx context.Context, cfg Config, opts ...Opt) (*Machine, error) 
 
 	if cfg.JailerCfg != nil {
 		m.Handlers.Validation = m.Handlers.Validation.Append(JailerConfigValidationHandler)
+
+		if cfg.NetNS == "" && cfg.NetworkInterfaces.cniInterface() != nil {
+			cfg.NetNS = filepath.Join(defaultNetNSDir, cfg.VMID)
+
+			// If the network namespace is set, we need to setup the network prior to running the jailer.
+			err := cfg.ValidateNetwork()
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate network configuration: %w", err)
+			}
+			m.Handlers.Validation = m.Handlers.Validation.Remove(ValidateNetworkCfgHandlerName)
+			m.Handlers.FcInit = m.Handlers.FcInit.Remove(SetupNetworkHandlerName)
+
+			jailLog := log.New()
+			err, cleanupFuncs := cfg.NetworkInterfaces.setupNetwork(ctx, cfg.VMID, cfg.NetNS, log.NewEntry(jailLog), cfg.JailerCfg.UID, cfg.JailerCfg.GID)
+			m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
+			if err != nil {
+				return nil, fmt.Errorf("failed to setup network prior to jailing: %w", err)
+			}
+		}
+
 		if err := jail(ctx, m, &cfg); err != nil {
 			return nil, err
 		}
@@ -498,7 +518,7 @@ func (m *Machine) GetFirecrackerVersion(ctx context.Context) (string, error) {
 }
 
 func (m *Machine) setupNetwork(ctx context.Context) error {
-	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger)
+	err, cleanupFuncs := m.Cfg.NetworkInterfaces.setupNetwork(ctx, m.Cfg.VMID, m.Cfg.NetNS, m.logger, nil, nil)
 	m.cleanupFuncs = append(m.cleanupFuncs, cleanupFuncs...)
 	return err
 }
