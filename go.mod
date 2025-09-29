@@ -1,12 +1,12 @@
 module github.com/firecracker-microvm/firecracker-go-sdk
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containernetworking/cni v1.3.0
 	github.com/containernetworking/plugins v1.7.1
-	github.com/go-openapi/errors v0.22.1
+	github.com/go-openapi/errors v0.22.3
 	github.com/go-openapi/runtime v0.24.0
 	github.com/go-openapi/strfmt v0.23.0
 	github.com/go-openapi/swag v0.23.0
@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mdlayher/vsock v1.2.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
 	golang.org/x/crypto v0.38.0
