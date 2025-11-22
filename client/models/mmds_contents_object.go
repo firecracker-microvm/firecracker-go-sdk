@@ -19,5 +19,6 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 // MmdsContentsObject Describes the contents of MMDS in JSON format.
+//
 // swagger:model MmdsContentsObject
-type MmdsContentsObject interface{}
+type MmdsContentsObject any

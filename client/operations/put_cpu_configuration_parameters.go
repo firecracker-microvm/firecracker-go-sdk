@@ -26,65 +26,80 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
-// NewPutCPUConfigurationParams creates a new PutCPUConfigurationParams object
-// with the default values initialized.
+// NewPutCPUConfigurationParams creates a new PutCPUConfigurationParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewPutCPUConfigurationParams() *PutCPUConfigurationParams {
-	var ()
 	return &PutCPUConfigurationParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewPutCPUConfigurationParamsWithTimeout creates a new PutCPUConfigurationParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewPutCPUConfigurationParamsWithTimeout(timeout time.Duration) *PutCPUConfigurationParams {
-	var ()
 	return &PutCPUConfigurationParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewPutCPUConfigurationParamsWithContext creates a new PutCPUConfigurationParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewPutCPUConfigurationParamsWithContext(ctx context.Context) *PutCPUConfigurationParams {
-	var ()
 	return &PutCPUConfigurationParams{
-
 		Context: ctx,
 	}
 }
 
 // NewPutCPUConfigurationParamsWithHTTPClient creates a new PutCPUConfigurationParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewPutCPUConfigurationParamsWithHTTPClient(client *http.Client) *PutCPUConfigurationParams {
-	var ()
 	return &PutCPUConfigurationParams{
 		HTTPClient: client,
 	}
 }
 
-/*PutCPUConfigurationParams contains all the parameters to send to the API endpoint
-for the put Cpu configuration operation typically these are written to a http.Request
+/*
+PutCPUConfigurationParams contains all the parameters to send to the API endpoint
+
+	for the put Cpu configuration operation.
+
+	Typically these are written to a http.Request.
 */
 type PutCPUConfigurationParams struct {
 
-	/*Body
-	  CPU configuration request
+	/* Body.
 
+	   CPU configuration request
 	*/
 	Body *models.CPUConfig
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the put Cpu configuration params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *PutCPUConfigurationParams) WithDefaults() *PutCPUConfigurationParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the put Cpu configuration params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *PutCPUConfigurationParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the put Cpu configuration params
@@ -138,7 +153,6 @@ func (o *PutCPUConfigurationParams) WriteToRequest(r runtime.ClientRequest, reg 
 		return err
 	}
 	var res []error
-
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
