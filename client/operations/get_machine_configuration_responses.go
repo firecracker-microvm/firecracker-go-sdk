@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // GetMachineConfigurationReader is a Reader for the GetMachineConfiguration structure.
@@ -35,7 +36,7 @@ type GetMachineConfigurationReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *GetMachineConfigurationReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *GetMachineConfigurationReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewGetMachineConfigurationOK()
@@ -60,7 +61,8 @@ func NewGetMachineConfigurationOK() *GetMachineConfigurationOK {
 	return &GetMachineConfigurationOK{}
 }
 
-/*GetMachineConfigurationOK handles this case with default header values.
+/*
+GetMachineConfigurationOK describes a response with status code 200, with default header values.
 
 OK
 */
@@ -68,8 +70,44 @@ type GetMachineConfigurationOK struct {
 	Payload *models.MachineConfiguration
 }
 
+// IsSuccess returns true when this get machine configuration o k response has a 2xx status code
+func (o *GetMachineConfigurationOK) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this get machine configuration o k response has a 3xx status code
+func (o *GetMachineConfigurationOK) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this get machine configuration o k response has a 4xx status code
+func (o *GetMachineConfigurationOK) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this get machine configuration o k response has a 5xx status code
+func (o *GetMachineConfigurationOK) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this get machine configuration o k response a status code equal to that given
+func (o *GetMachineConfigurationOK) IsCode(code int) bool {
+	return code == 200
+}
+
+// Code gets the status code for the get machine configuration o k response
+func (o *GetMachineConfigurationOK) Code() int {
+	return 200
+}
+
 func (o *GetMachineConfigurationOK) Error() string {
-	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfigurationOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfigurationOK %s", 200, payload)
+}
+
+func (o *GetMachineConfigurationOK) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfigurationOK %s", 200, payload)
 }
 
 func (o *GetMachineConfigurationOK) GetPayload() *models.MachineConfiguration {
@@ -81,7 +119,7 @@ func (o *GetMachineConfigurationOK) readResponse(response runtime.ClientResponse
 	o.Payload = new(models.MachineConfiguration)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -95,7 +133,8 @@ func NewGetMachineConfigurationDefault(code int) *GetMachineConfigurationDefault
 	}
 }
 
-/*GetMachineConfigurationDefault handles this case with default header values.
+/*
+GetMachineConfigurationDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -105,13 +144,44 @@ type GetMachineConfigurationDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this get machine configuration default response has a 2xx status code
+func (o *GetMachineConfigurationDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this get machine configuration default response has a 3xx status code
+func (o *GetMachineConfigurationDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this get machine configuration default response has a 4xx status code
+func (o *GetMachineConfigurationDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this get machine configuration default response has a 5xx status code
+func (o *GetMachineConfigurationDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this get machine configuration default response a status code equal to that given
+func (o *GetMachineConfigurationDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the get machine configuration default response
 func (o *GetMachineConfigurationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *GetMachineConfigurationDefault) Error() string {
-	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfiguration default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfiguration default %s", o._statusCode, payload)
+}
+
+func (o *GetMachineConfigurationDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /machine-config][%d] getMachineConfiguration default %s", o._statusCode, payload)
 }
 
 func (o *GetMachineConfigurationDefault) GetPayload() *models.Error {
@@ -123,7 +193,7 @@ func (o *GetMachineConfigurationDefault) readResponse(response runtime.ClientRes
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

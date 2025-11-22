@@ -19,16 +19,17 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
-	strfmt "github.com/go-openapi/strfmt"
-
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // MemoryBackend memory backend
+//
 // swagger:model MemoryBackend
 type MemoryBackend struct {
 
@@ -38,7 +39,7 @@ type MemoryBackend struct {
 
 	// backend type
 	// Required: true
-	// Enum: [File Uffd]
+	// Enum: ["File","Uffd"]
 	BackendType *string `json:"backend_type"`
 }
 
@@ -69,7 +70,7 @@ func (m *MemoryBackend) validateBackendPath(formats strfmt.Registry) error {
 	return nil
 }
 
-var memoryBackendTypeBackendTypePropEnum []interface{}
+var memoryBackendTypeBackendTypePropEnum []any
 
 func init() {
 	var res []string
@@ -92,7 +93,7 @@ const (
 
 // prop value enum
 func (m *MemoryBackend) validateBackendTypeEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, memoryBackendTypeBackendTypePropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, memoryBackendTypeBackendTypePropEnum, true); err != nil {
 		return err
 	}
 	return nil
@@ -109,6 +110,11 @@ func (m *MemoryBackend) validateBackendType(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this memory backend based on context it is used
+func (m *MemoryBackend) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

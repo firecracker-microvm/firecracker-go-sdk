@@ -26,65 +26,80 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
-// NewPatchBalloonParams creates a new PatchBalloonParams object
-// with the default values initialized.
+// NewPatchBalloonParams creates a new PatchBalloonParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewPatchBalloonParams() *PatchBalloonParams {
-	var ()
 	return &PatchBalloonParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewPatchBalloonParamsWithTimeout creates a new PatchBalloonParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewPatchBalloonParamsWithTimeout(timeout time.Duration) *PatchBalloonParams {
-	var ()
 	return &PatchBalloonParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewPatchBalloonParamsWithContext creates a new PatchBalloonParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewPatchBalloonParamsWithContext(ctx context.Context) *PatchBalloonParams {
-	var ()
 	return &PatchBalloonParams{
-
 		Context: ctx,
 	}
 }
 
 // NewPatchBalloonParamsWithHTTPClient creates a new PatchBalloonParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewPatchBalloonParamsWithHTTPClient(client *http.Client) *PatchBalloonParams {
-	var ()
 	return &PatchBalloonParams{
 		HTTPClient: client,
 	}
 }
 
-/*PatchBalloonParams contains all the parameters to send to the API endpoint
-for the patch balloon operation typically these are written to a http.Request
+/*
+PatchBalloonParams contains all the parameters to send to the API endpoint
+
+	for the patch balloon operation.
+
+	Typically these are written to a http.Request.
 */
 type PatchBalloonParams struct {
 
-	/*Body
-	  Balloon properties
+	/* Body.
 
+	   Balloon properties
 	*/
 	Body *models.BalloonUpdate
 
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the patch balloon params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *PatchBalloonParams) WithDefaults() *PatchBalloonParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the patch balloon params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *PatchBalloonParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the patch balloon params
@@ -138,7 +153,6 @@ func (o *PatchBalloonParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.
 		return err
 	}
 	var res []error
-
 	if o.Body != nil {
 		if err := r.SetBodyParam(o.Body); err != nil {
 			return err
