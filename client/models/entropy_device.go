@@ -19,13 +19,16 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
+	"context"
+	stderrors "errors"
 
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 )
 
 // EntropyDevice Defines an entropy device.
+//
 // swagger:model EntropyDevice
 type EntropyDevice struct {
 
@@ -48,16 +51,60 @@ func (m *EntropyDevice) Validate(formats strfmt.Registry) error {
 }
 
 func (m *EntropyDevice) validateRateLimiter(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.RateLimiter) { // not required
 		return nil
 	}
 
 	if m.RateLimiter != nil {
 		if err := m.RateLimiter.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
+			ve := new(errors.Validation)
+			if stderrors.As(err, &ve) {
 				return ve.ValidateName("rate_limiter")
 			}
+			ce := new(errors.CompositeError)
+			if stderrors.As(err, &ce) {
+				return ce.ValidateName("rate_limiter")
+			}
+
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ContextValidate validate this entropy device based on the context it is used
+func (m *EntropyDevice) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateRateLimiter(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *EntropyDevice) contextValidateRateLimiter(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.RateLimiter != nil {
+
+		if swag.IsZero(m.RateLimiter) { // not required
+			return nil
+		}
+
+		if err := m.RateLimiter.ContextValidate(ctx, formats); err != nil {
+			ve := new(errors.Validation)
+			if stderrors.As(err, &ve) {
+				return ve.ValidateName("rate_limiter")
+			}
+			ce := new(errors.CompositeError)
+			if stderrors.As(err, &ce) {
+				return ce.ValidateName("rate_limiter")
+			}
+
 			return err
 		}
 	}

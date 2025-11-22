@@ -19,16 +19,17 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
-	strfmt "github.com/go-openapi/strfmt"
-
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // InstanceInfo Describes MicroVM instance information.
+//
 // swagger:model InstanceInfo
 type InstanceInfo struct {
 
@@ -42,7 +43,7 @@ type InstanceInfo struct {
 
 	// The current detailed state (Not started, Running, Paused) of the Firecracker instance. This value is read-only for the control-plane.
 	// Required: true
-	// Enum: [Not started Running Paused]
+	// Enum: ["Not started","Running","Paused"]
 	State *string `json:"state"`
 
 	// MicroVM hypervisor build version.
@@ -94,7 +95,7 @@ func (m *InstanceInfo) validateID(formats strfmt.Registry) error {
 	return nil
 }
 
-var instanceInfoTypeStatePropEnum []interface{}
+var instanceInfoTypeStatePropEnum []any
 
 func init() {
 	var res []string
@@ -120,7 +121,7 @@ const (
 
 // prop value enum
 func (m *InstanceInfo) validateStateEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, instanceInfoTypeStatePropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, instanceInfoTypeStatePropEnum, true); err != nil {
 		return err
 	}
 	return nil
@@ -146,6 +147,11 @@ func (m *InstanceInfo) validateVmmVersion(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this instance info based on context it is used
+func (m *InstanceInfo) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 
