@@ -95,6 +95,7 @@ $(FC_TEST_DATA_PATH)/firecracker $(FC_TEST_DATA_PATH)/jailer: $(FC_TEST_DATA_PAT
 
 # Download the pinned release version of firecracker and jailer version from github
 $(FC_TEST_DATA_PATH)/fc.stamp:
+	mkdir -p $(FC_TEST_DATA_PATH)
 	$(curl) ${release_url} | tar -xvzf - -C $(FC_TEST_DATA_PATH)
 	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/firecracker-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/firecracker
 	mv $(FC_TEST_DATA_PATH)/release-$(firecracker_version)-$(arch)/jailer-$(firecracker_version)-$(arch) $(FC_TEST_DATA_PATH)/jailer
