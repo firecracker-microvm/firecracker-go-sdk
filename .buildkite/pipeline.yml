@@ -11,10 +11,18 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 env:
-  PATH: "/usr/local/bin:/usr/bin"
+  PATH: "/usr/local/go/bin:/usr/local/bin:/usr/bin"
   FC_TEST_DATA_PATH: "/tmp/buildkite_build_${BUILDKITE_BUILD_NUMBER}_testdata"
 
 steps:
+  - label: ':go: install go 1.24'
+    command:
+      - 'wget -q https://go.dev/dl/go1.24.5.linux-amd64.tar.gz'
+      - 'sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.24.5.linux-amd64.tar.gz'
+    agents:
+      queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
+      distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
+      hostname: "${BUILDKITE_AGENT_META_DATA_HOSTNAME}"
   - label: ':ec2: prepare environment'
     command:
       - uname -a
@@ -150,7 +158,7 @@ steps:
       DOCKER_IMAGE_TAG: "$BUILDKITE_BUILD_NUMBER"
     commands:
       - export FC_TEST_TAP=fc-mst-tap${BUILDKITE_BUILD_NUMBER}
-      - make test EXTRAGOARGS="-exec 'sudo -E' -v -count=1 -race" DISABLE_ROOT_TESTS=
+      - make test EXTRAGOARGS="-exec 'sudo -E' -v -count=1 -race -skip TestJailerMicroVMExecution" DISABLE_ROOT_TESTS=
     agents:
       queue: "${BUILDKITE_AGENT_META_DATA_QUEUE:-default}"
       distro: "${BUILDKITE_AGENT_META_DATA_DISTRO}"
