@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutEntropyDeviceReader is a Reader for the PutEntropyDevice structure.
@@ -35,7 +36,7 @@ type PutEntropyDeviceReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutEntropyDeviceReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutEntropyDeviceReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutEntropyDeviceNoContent()
@@ -60,15 +61,50 @@ func NewPutEntropyDeviceNoContent() *PutEntropyDeviceNoContent {
 	return &PutEntropyDeviceNoContent{}
 }
 
-/*PutEntropyDeviceNoContent handles this case with default header values.
+/*
+PutEntropyDeviceNoContent describes a response with status code 204, with default header values.
 
 Entropy device created
 */
 type PutEntropyDeviceNoContent struct {
 }
 
+// IsSuccess returns true when this put entropy device no content response has a 2xx status code
+func (o *PutEntropyDeviceNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put entropy device no content response has a 3xx status code
+func (o *PutEntropyDeviceNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put entropy device no content response has a 4xx status code
+func (o *PutEntropyDeviceNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put entropy device no content response has a 5xx status code
+func (o *PutEntropyDeviceNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put entropy device no content response a status code equal to that given
+func (o *PutEntropyDeviceNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put entropy device no content response
+func (o *PutEntropyDeviceNoContent) Code() int {
+	return 204
+}
+
 func (o *PutEntropyDeviceNoContent) Error() string {
-	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDeviceNoContent ", 204)
+	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDeviceNoContent", 204)
+}
+
+func (o *PutEntropyDeviceNoContent) String() string {
+	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDeviceNoContent", 204)
 }
 
 func (o *PutEntropyDeviceNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -83,7 +119,8 @@ func NewPutEntropyDeviceDefault(code int) *PutEntropyDeviceDefault {
 	}
 }
 
-/*PutEntropyDeviceDefault handles this case with default header values.
+/*
+PutEntropyDeviceDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -93,13 +130,44 @@ type PutEntropyDeviceDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put entropy device default response has a 2xx status code
+func (o *PutEntropyDeviceDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put entropy device default response has a 3xx status code
+func (o *PutEntropyDeviceDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put entropy device default response has a 4xx status code
+func (o *PutEntropyDeviceDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put entropy device default response has a 5xx status code
+func (o *PutEntropyDeviceDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put entropy device default response a status code equal to that given
+func (o *PutEntropyDeviceDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put entropy device default response
 func (o *PutEntropyDeviceDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutEntropyDeviceDefault) Error() string {
-	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDevice default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDevice default %s", o._statusCode, payload)
+}
+
+func (o *PutEntropyDeviceDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /entropy][%d] putEntropyDevice default %s", o._statusCode, payload)
 }
 
 func (o *PutEntropyDeviceDefault) GetPayload() *models.Error {
@@ -111,7 +179,7 @@ func (o *PutEntropyDeviceDefault) readResponse(response runtime.ClientResponse, 
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

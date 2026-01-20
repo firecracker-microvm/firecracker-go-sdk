@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutMmdsReader is a Reader for the PutMmds structure.
@@ -35,7 +36,7 @@ type PutMmdsReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutMmdsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutMmdsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutMmdsNoContent()
@@ -66,15 +67,50 @@ func NewPutMmdsNoContent() *PutMmdsNoContent {
 	return &PutMmdsNoContent{}
 }
 
-/*PutMmdsNoContent handles this case with default header values.
+/*
+PutMmdsNoContent describes a response with status code 204, with default header values.
 
 MMDS data store created/updated.
 */
 type PutMmdsNoContent struct {
 }
 
+// IsSuccess returns true when this put mmds no content response has a 2xx status code
+func (o *PutMmdsNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put mmds no content response has a 3xx status code
+func (o *PutMmdsNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put mmds no content response has a 4xx status code
+func (o *PutMmdsNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put mmds no content response has a 5xx status code
+func (o *PutMmdsNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put mmds no content response a status code equal to that given
+func (o *PutMmdsNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put mmds no content response
+func (o *PutMmdsNoContent) Code() int {
+	return 204
+}
+
 func (o *PutMmdsNoContent) Error() string {
-	return fmt.Sprintf("[PUT /mmds][%d] putMmdsNoContent ", 204)
+	return fmt.Sprintf("[PUT /mmds][%d] putMmdsNoContent", 204)
+}
+
+func (o *PutMmdsNoContent) String() string {
+	return fmt.Sprintf("[PUT /mmds][%d] putMmdsNoContent", 204)
 }
 
 func (o *PutMmdsNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutMmdsBadRequest() *PutMmdsBadRequest {
 	return &PutMmdsBadRequest{}
 }
 
-/*PutMmdsBadRequest handles this case with default header values.
+/*
+PutMmdsBadRequest describes a response with status code 400, with default header values.
 
 MMDS data store cannot be created due to bad input.
 */
@@ -95,8 +132,44 @@ type PutMmdsBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put mmds bad request response has a 2xx status code
+func (o *PutMmdsBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put mmds bad request response has a 3xx status code
+func (o *PutMmdsBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put mmds bad request response has a 4xx status code
+func (o *PutMmdsBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put mmds bad request response has a 5xx status code
+func (o *PutMmdsBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put mmds bad request response a status code equal to that given
+func (o *PutMmdsBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put mmds bad request response
+func (o *PutMmdsBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutMmdsBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /mmds][%d] putMmdsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /mmds][%d] putMmdsBadRequest %s", 400, payload)
+}
+
+func (o *PutMmdsBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /mmds][%d] putMmdsBadRequest %s", 400, payload)
 }
 
 func (o *PutMmdsBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutMmdsBadRequest) readResponse(response runtime.ClientResponse, consum
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutMmdsDefault(code int) *PutMmdsDefault {
 	}
 }
 
-/*PutMmdsDefault handles this case with default header values.
+/*
+PutMmdsDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -132,13 +206,44 @@ type PutMmdsDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put mmds default response has a 2xx status code
+func (o *PutMmdsDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put mmds default response has a 3xx status code
+func (o *PutMmdsDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put mmds default response has a 4xx status code
+func (o *PutMmdsDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put mmds default response has a 5xx status code
+func (o *PutMmdsDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put mmds default response a status code equal to that given
+func (o *PutMmdsDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put mmds default response
 func (o *PutMmdsDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutMmdsDefault) Error() string {
-	return fmt.Sprintf("[PUT /mmds][%d] putMmds default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /mmds][%d] putMmds default %s", o._statusCode, payload)
+}
+
+func (o *PutMmdsDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /mmds][%d] putMmds default %s", o._statusCode, payload)
 }
 
 func (o *PutMmdsDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutMmdsDefault) readResponse(response runtime.ClientResponse, consumer 
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

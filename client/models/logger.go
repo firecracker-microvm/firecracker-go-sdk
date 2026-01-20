@@ -19,21 +19,22 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
-	strfmt "github.com/go-openapi/strfmt"
-
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // Logger Describes the configuration option for the logging capability.
+//
 // swagger:model Logger
 type Logger struct {
 
 	// Set the level. The possible values are case-insensitive.
-	// Enum: [Error Warning Info Debug]
+	// Enum: ["Error","Warning","Info","Debug"]
 	Level *string `json:"level,omitempty"`
 
 	// Path to the named pipe or file for the human readable log output.
@@ -65,7 +66,7 @@ func (m *Logger) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-var loggerTypeLevelPropEnum []interface{}
+var loggerTypeLevelPropEnum []any
 
 func init() {
 	var res []string
@@ -94,14 +95,13 @@ const (
 
 // prop value enum
 func (m *Logger) validateLevelEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, loggerTypeLevelPropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, loggerTypeLevelPropEnum, true); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (m *Logger) validateLevel(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.Level) { // not required
 		return nil
 	}
@@ -120,6 +120,11 @@ func (m *Logger) validateLogPath(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this logger based on context it is used
+func (m *Logger) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

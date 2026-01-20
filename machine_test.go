@@ -573,7 +573,7 @@ func TestStartVMMOnce(t *testing.T) {
 		},
 	}
 	if cpu_temp, err := internal.SupportCPUTemplate(); cpu_temp && err == nil {
-		cfg.MachineCfg.CPUTemplate = models.CPUTemplate(models.CPUTemplateT2)
+		cfg.MachineCfg.CPUTemplate = models.NewCPUTemplate(models.CPUTemplateT2)
 	}
 	ctx := context.Background()
 	cmd := VMCommandBuilder{}.

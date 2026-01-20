@@ -19,19 +19,22 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
+	"context"
+	stderrors "errors"
 
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // MachineConfiguration Describes the number of vCPUs, memory size, SMT capabilities and the CPU template.
+//
 // swagger:model MachineConfiguration
 type MachineConfiguration struct {
 
 	// cpu template
-	CPUTemplate CPUTemplate `json:"cpu_template,omitempty"`
+	CPUTemplate *CPUTemplate `json:"cpu_template,omitempty"`
 
 	// Memory size of VM
 	// Required: true
@@ -73,16 +76,23 @@ func (m *MachineConfiguration) Validate(formats strfmt.Registry) error {
 }
 
 func (m *MachineConfiguration) validateCPUTemplate(formats strfmt.Registry) error {
-
 	if swag.IsZero(m.CPUTemplate) { // not required
 		return nil
 	}
 
-	if err := m.CPUTemplate.Validate(formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("cpu_template")
+	if m.CPUTemplate != nil {
+		if err := m.CPUTemplate.Validate(formats); err != nil {
+			ve := new(errors.Validation)
+			if stderrors.As(err, &ve) {
+				return ve.ValidateName("cpu_template")
+			}
+			ce := new(errors.CompositeError)
+			if stderrors.As(err, &ce) {
+				return ce.ValidateName("cpu_template")
+			}
+
+			return err
 		}
-		return err
 	}
 
 	return nil
@@ -103,12 +113,51 @@ func (m *MachineConfiguration) validateVcpuCount(formats strfmt.Registry) error 
 		return err
 	}
 
-	if err := validate.MinimumInt("vcpu_count", "body", int64(*m.VcpuCount), 1, false); err != nil {
+	if err := validate.MinimumInt("vcpu_count", "body", *m.VcpuCount, 1, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("vcpu_count", "body", int64(*m.VcpuCount), 32, false); err != nil {
+	if err := validate.MaximumInt("vcpu_count", "body", *m.VcpuCount, 32, false); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ContextValidate validate this machine configuration based on the context it is used
+func (m *MachineConfiguration) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateCPUTemplate(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *MachineConfiguration) contextValidateCPUTemplate(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.CPUTemplate != nil {
+
+		if swag.IsZero(m.CPUTemplate) { // not required
+			return nil
+		}
+
+		if err := m.CPUTemplate.ContextValidate(ctx, formats); err != nil {
+			ve := new(errors.Validation)
+			if stderrors.As(err, &ve) {
+				return ve.ValidateName("cpu_template")
+			}
+			ce := new(errors.CompositeError)
+			if stderrors.As(err, &ce) {
+				return ce.ValidateName("cpu_template")
+			}
+
+			return err
+		}
 	}
 
 	return nil
