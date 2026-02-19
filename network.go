@@ -141,19 +141,18 @@ func (networkInterfaces NetworkInterfaces) setupNetwork(
 			MacAddress:  vmNetConf.VMMacAddr,
 		}
 
-		if vmNetConf.VMIPConfig != nil {
+		for _, vmIPCfg := range vmNetConf.VMIPConfig {
 			if len(vmNetConf.VMNameservers) > 2 {
 				logger.Warnf("more than 2 nameservers provided from CNI result, only the first 2 %+v will be applied",
 					vmNetConf.VMNameservers[:2])
 				vmNetConf.VMNameservers = vmNetConf.VMNameservers[:2]
 			}
-
-			cniNetworkInterface.StaticConfiguration.IPConfiguration = &IPConfiguration{
-				IPAddr:      vmNetConf.VMIPConfig.Address,
-				Gateway:     vmNetConf.VMIPConfig.Gateway,
+			cniNetworkInterface.StaticConfiguration.IPConfiguration = append(cniNetworkInterface.StaticConfiguration.IPConfiguration, &IPConfiguration{
+				IPAddr:      vmIPCfg.Address,
+				Gateway:     vmIPCfg.Gateway,
 				Nameservers: vmNetConf.VMNameservers,
 				IfName:      cniNetworkInterface.CNIConfiguration.VMIfName,
-			}
+			})
 		}
 	}
 
@@ -484,7 +483,7 @@ type StaticNetworkConfiguration struct {
 
 	// IPConfiguration (optional) allows a static IP, gateway and up to 2 DNS nameservers
 	// to be automatically configured within the VM upon startup.
-	IPConfiguration *IPConfiguration
+	IPConfiguration []*IPConfiguration
 }
 
 func (staticConf StaticNetworkConfiguration) validate() error {
@@ -492,8 +491,8 @@ func (staticConf StaticNetworkConfiguration) validate() error {
 		return fmt.Errorf("HostDevName must be provided if StaticNetworkConfiguration is provided: %+v", staticConf)
 	}
 
-	if staticConf.IPConfiguration != nil {
-		err := staticConf.IPConfiguration.validate()
+	for _, ipCfg := range staticConf.IPConfiguration {
+		err := ipCfg.validate()
 		if err != nil {
 			return err
 		}
@@ -522,10 +521,10 @@ type IPConfiguration struct {
 }
 
 func (ipConf IPConfiguration) validate() error {
-	// Make sure only ipv4 is being provided (for now).
+	// Make sure it is a valid ip.
 	for _, ip := range []net.IP{ipConf.IPAddr.IP, ipConf.Gateway} {
-		if ip.To4() == nil {
-			return fmt.Errorf("invalid ip, only ipv4 addresses are supported: %+v", ip)
+		if ip.To4() == nil && ip.To16() == nil {
+			return fmt.Errorf("invalid ip: %+v", ip)
 		}
 	}
 
@@ -538,11 +537,14 @@ func (ipConf IPConfiguration) validate() error {
 
 func (conf IPConfiguration) ipBootParam() string {
 	// the vmconf package already has a function for doing this, just re-use it
+
 	vmConf := vmconf.StaticNetworkConf{
 		VMNameservers: conf.Nameservers,
-		VMIPConfig: &current.IPConfig{
-			Address: conf.IPAddr,
-			Gateway: conf.Gateway,
+		VMIPConfig: []*current.IPConfig{
+			{
+				Address: conf.IPAddr,
+				Gateway: conf.Gateway,
+			},
 		},
 		VMIfName: conf.IfName,
 	}

@@ -133,7 +133,7 @@ func connectToVM(m *sdk.Machine, sshKeyPath string) (*ssh.Client, error) {
 		return nil, errors.New("No network interfaces")
 	}
 
-	ip := m.Cfg.NetworkInterfaces[0].StaticConfiguration.IPConfiguration.IPAddr.IP // IP of VM
+	ip := m.Cfg.NetworkInterfaces[0].StaticConfiguration.IPConfiguration[0].IPAddr.IP // IP of VM
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), config)
 }
@@ -193,7 +193,7 @@ func createSnapshotSSH(ctx context.Context, socketPath, memPath, snapPath string
 		}
 	}()
 
-	vmIP := m.Cfg.NetworkInterfaces[0].StaticConfiguration.IPConfiguration.IPAddr.IP.String()
+	vmIP := m.Cfg.NetworkInterfaces[0].StaticConfiguration.IPConfiguration[0].IPAddr.IP.String()
 	fmt.Printf("IP of VM: %v\n", vmIP)
 
 	sshKeyPath := filepath.Join(dir, "root-drive-ssh-key")
