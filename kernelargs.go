@@ -23,36 +23,54 @@ import "strings"
 // "key" will result in map["key"] = nil
 type kernelArgs map[string]*string
 
+const initSeparator = "--"
+const initKey = "init"
+
 // serialize the kernelArgs back to a string that can be provided
 // to the kernel
 func (kargs kernelArgs) String() string {
 	var fields []string
+	var initField string
+	if initValue, ok := kargs[initKey]; ok && initValue != nil {
+		initField = initKey + "=" + *initValue
+	}
 	for key, value := range kargs {
+		if key == initKey {
+			continue
+		}
 		field := key
 		if value != nil {
 			field += "=" + *value
 		}
 		fields = append(fields, field)
 	}
+	fields = append(fields, initField)
 	return strings.Join(fields, " ")
 }
 
 // deserialize the provided string to a kernelArgs map
 func parseKernelArgs(rawString string) kernelArgs {
 	argMap := make(map[string]*string)
-	for _, kv := range strings.Fields(rawString) {
-		// only split into up to 2 fields (before and after the first "=")
-		kvSplit := strings.SplitN(kv, "=", 2)
+	fields := strings.Fields(rawString)
+	passToInit := false
 
+	for i := 0; i < len(fields); i++ {
+		kvSplit := strings.SplitN(fields[i], "=", 2)
 		key := kvSplit[0]
+		if key == initSeparator {
+			passToInit = true
+		}
 
 		var value *string
-		if len(kvSplit) == 2 {
+		if passToInit {
+			key = initKey
+			initValue := *argMap[key] + " " + kvSplit[0]
+			value = &initValue
+		} else if len(kvSplit) == 2 {
 			value = &kvSplit[1]
 		}
 
 		argMap[key] = value
 	}
-
 	return argMap
 }

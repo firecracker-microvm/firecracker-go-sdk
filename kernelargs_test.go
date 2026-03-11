@@ -24,19 +24,22 @@ func TestKernelArgsSerder(t *testing.T) {
 	fooVal := "bar"
 	booVal := "far"
 	dooVal := "a=silly=val"
+	initVal := "/bin/sh -- -c \"echo hello\""
 	emptyVal := ""
 
-	argsString := fmt.Sprintf("foo=%s blah doo=%s huh=%s bleh duh=%s boo=%s",
+	argsString := fmt.Sprintf("foo=%s blah doo=%s huh=%s bleh duh=%s boo=%s init=%s",
 		fooVal,
 		dooVal,
 		emptyVal,
 		emptyVal,
 		booVal,
+		initVal,
 	)
 
 	expectedParsedArgs := kernelArgs(map[string]*string{
 		"foo":  &fooVal,
 		"doo":  &dooVal,
+		"init": &initVal,
 		"blah": nil,
 		"huh":  &emptyVal,
 		"bleh": nil,
@@ -45,6 +48,8 @@ func TestKernelArgsSerder(t *testing.T) {
 	})
 
 	actualParsedArgs := parseKernelArgs(argsString)
+	fmt.Printf("%v\n", actualParsedArgs)
+	fmt.Printf("%v\n", expectedParsedArgs)
 	require.Equal(t, expectedParsedArgs, actualParsedArgs, "kernel args parsed to unexpected values")
 
 	reparsedArgs := parseKernelArgs(actualParsedArgs.String())
