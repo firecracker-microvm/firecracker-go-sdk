@@ -177,6 +177,7 @@ func TestJail(t *testing.T) {
 	var testCases = []struct {
 		name             string
 		jailerCfg        JailerConfig
+		firecrackerArgs  []string
 		expectedArgs     []string
 		netns            string
 		socketPath       string
@@ -305,6 +306,39 @@ func TestJail(t *testing.T) {
 				"firecracker.socket"),
 		},
 		{
+			name:             "firecracker args passthrough",
+			firecrackerArgs:  []string{"--enable-pci"},
+			expectedSockPath: filepath.Join(defaultJailerPath, "firecracker", "my-test-id", rootfsFolderName, "run", "firecracker.socket"),
+			jailerCfg: JailerConfig{
+				ID:             "my-test-id",
+				UID:            Int(123),
+				GID:            Int(100),
+				NumaNode:       Int(0),
+				ChrootStrategy: NewNaiveChrootStrategy("kernel-image-path"),
+				ExecFile:       "/path/to/firecracker",
+			},
+			expectedArgs: []string{
+				defaultJailerBin,
+				"--id",
+				"my-test-id",
+				"--uid",
+				"123",
+				"--gid",
+				"100",
+				"--exec-file",
+				"/path/to/firecracker",
+				"--cgroup",
+				"cpuset.mems=0",
+				"--cgroup",
+				fmt.Sprintf("cpuset.cpus=%s", getNumaCpuset(0)),
+				"--",
+				"--no-seccomp",
+				"--api-sock",
+				"/run/firecracker.socket",
+				"--enable-pci",
+			},
+		},
+		{
 			name:       "custom socket path",
 			socketPath: "api.sock",
 			jailerCfg: JailerConfig{
@@ -350,10 +384,11 @@ func TestJail(t *testing.T) {
 				},
 			}
 			cfg := &Config{
-				VMID:       "vmid",
-				JailerCfg:  &c.jailerCfg,
-				NetNS:      c.netns,
-				SocketPath: c.socketPath,
+				VMID:            "vmid",
+				JailerCfg:       &c.jailerCfg,
+				NetNS:           c.netns,
+				SocketPath:      c.socketPath,
+				FirecrackerArgs: c.firecrackerArgs,
 			}
 			jail(context.Background(), m, cfg)
 
