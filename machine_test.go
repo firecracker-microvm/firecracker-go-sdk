@@ -2439,3 +2439,23 @@ func testUpdateBalloonStats(ctx context.Context, t *testing.T, m *Machine) {
 		t.Errorf("Updating balloon staistics failed from testUpdateBalloonStats: %s", err)
 	}
 }
+
+func TestConfigureBuilderWithFirecrackerArgs(t *testing.T) {
+	cfg := Config{
+		SocketPath:      "foo/bar",
+		VMID:            "vmid",
+		FirecrackerArgs: []string{"--enable-pci"},
+	}
+
+	cmd := configureBuilder(VMCommandBuilder{}.WithBin("firecracker"), cfg).Build(context.Background())
+
+	assert.Equal(t, []string{
+		"firecracker",
+		"--api-sock",
+		"foo/bar",
+		"--id",
+		"vmid",
+		"--no-seccomp",
+		"--enable-pci",
+	}, cmd.Args)
+}
