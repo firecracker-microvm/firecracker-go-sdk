@@ -1,3 +1,15 @@
+# As of November 10 2026, this project is no longer maintained.
+
+We have made the decision to deprecate firecracker-go-sdk.
+
+The original intention for this project revolved around [firecracker-containerd](https://github.com/firecracker-microvm/firecracker-containerd). As that project is being sunsetted, and most of the work in firecracker-go-sdk revolved around firecracker-containerd, it made sense to also deprecate the Go SDK which itself has been in a state of partial maintenance for a while.
+
+If you are interested in continuing to develop this project, you can fork it and continue to maintain it yourself, provided the original [LICENSE](./LICENSE) continues to be followed.
+
+There are no alternative solutions to this project due to its specificity of use-case and connection to firecracker-containerd.
+
+---
+
 A basic Go interface to the Firecracker API
 ====
 
