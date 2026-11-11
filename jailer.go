@@ -467,6 +467,10 @@ func LinkFilesHandler(kernelImageFileName string) Handler {
 					return err
 				}
 
+				if err := os.Chown(filepath.Join(rootfs, driveFileName), *m.Cfg.JailerCfg.UID, *m.Cfg.JailerCfg.GID); err != nil {
+					return err
+				}
+
 				m.Cfg.Drives[i].PathOnHost = String(driveFileName)
 			}
 
