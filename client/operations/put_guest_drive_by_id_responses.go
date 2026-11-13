@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutGuestDriveByIDReader is a Reader for the PutGuestDriveByID structure.
@@ -35,7 +36,7 @@ type PutGuestDriveByIDReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutGuestDriveByIDReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutGuestDriveByIDReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutGuestDriveByIDNoContent()
@@ -66,15 +67,50 @@ func NewPutGuestDriveByIDNoContent() *PutGuestDriveByIDNoContent {
 	return &PutGuestDriveByIDNoContent{}
 }
 
-/*PutGuestDriveByIDNoContent handles this case with default header values.
+/*
+PutGuestDriveByIDNoContent describes a response with status code 204, with default header values.
 
 Drive created/updated
 */
 type PutGuestDriveByIDNoContent struct {
 }
 
+// IsSuccess returns true when this put guest drive by Id no content response has a 2xx status code
+func (o *PutGuestDriveByIDNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put guest drive by Id no content response has a 3xx status code
+func (o *PutGuestDriveByIDNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put guest drive by Id no content response has a 4xx status code
+func (o *PutGuestDriveByIDNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put guest drive by Id no content response has a 5xx status code
+func (o *PutGuestDriveByIDNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put guest drive by Id no content response a status code equal to that given
+func (o *PutGuestDriveByIDNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put guest drive by Id no content response
+func (o *PutGuestDriveByIDNoContent) Code() int {
+	return 204
+}
+
 func (o *PutGuestDriveByIDNoContent) Error() string {
-	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdNoContent ", 204)
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdNoContent", 204)
+}
+
+func (o *PutGuestDriveByIDNoContent) String() string {
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdNoContent", 204)
 }
 
 func (o *PutGuestDriveByIDNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutGuestDriveByIDBadRequest() *PutGuestDriveByIDBadRequest {
 	return &PutGuestDriveByIDBadRequest{}
 }
 
-/*PutGuestDriveByIDBadRequest handles this case with default header values.
+/*
+PutGuestDriveByIDBadRequest describes a response with status code 400, with default header values.
 
 Drive cannot be created/updated due to bad input
 */
@@ -95,8 +132,44 @@ type PutGuestDriveByIDBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put guest drive by Id bad request response has a 2xx status code
+func (o *PutGuestDriveByIDBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put guest drive by Id bad request response has a 3xx status code
+func (o *PutGuestDriveByIDBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put guest drive by Id bad request response has a 4xx status code
+func (o *PutGuestDriveByIDBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put guest drive by Id bad request response has a 5xx status code
+func (o *PutGuestDriveByIDBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put guest drive by Id bad request response a status code equal to that given
+func (o *PutGuestDriveByIDBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put guest drive by Id bad request response
+func (o *PutGuestDriveByIDBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutGuestDriveByIDBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdBadRequest %s", 400, payload)
+}
+
+func (o *PutGuestDriveByIDBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByIdBadRequest %s", 400, payload)
 }
 
 func (o *PutGuestDriveByIDBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutGuestDriveByIDBadRequest) readResponse(response runtime.ClientRespon
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutGuestDriveByIDDefault(code int) *PutGuestDriveByIDDefault {
 	}
 }
 
-/*PutGuestDriveByIDDefault handles this case with default header values.
+/*
+PutGuestDriveByIDDefault describes a response with status code -1, with default header values.
 
 Internal server error.
 */
@@ -132,13 +206,44 @@ type PutGuestDriveByIDDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put guest drive by ID default response has a 2xx status code
+func (o *PutGuestDriveByIDDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put guest drive by ID default response has a 3xx status code
+func (o *PutGuestDriveByIDDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put guest drive by ID default response has a 4xx status code
+func (o *PutGuestDriveByIDDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put guest drive by ID default response has a 5xx status code
+func (o *PutGuestDriveByIDDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put guest drive by ID default response a status code equal to that given
+func (o *PutGuestDriveByIDDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put guest drive by ID default response
 func (o *PutGuestDriveByIDDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutGuestDriveByIDDefault) Error() string {
-	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByID default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByID default %s", o._statusCode, payload)
+}
+
+func (o *PutGuestDriveByIDDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /drives/{drive_id}][%d] putGuestDriveByID default %s", o._statusCode, payload)
 }
 
 func (o *PutGuestDriveByIDDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutGuestDriveByIDDefault) readResponse(response runtime.ClientResponse,
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

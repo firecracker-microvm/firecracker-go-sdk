@@ -19,12 +19,14 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
+	"context"
 
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 )
 
 // CPUConfig The CPU configuration template defines a set of bit maps as modifiers of flags accessed by register to be disabled/enabled for the microvm.
+//
 // swagger:model CpuConfig
 type CPUConfig string
 
@@ -35,5 +37,10 @@ func (m CPUConfig) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+// ContextValidate validates this Cpu config based on context it is used
+func (m CPUConfig) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }

@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // GetExportVMConfigReader is a Reader for the GetExportVMConfig structure.
@@ -35,7 +36,7 @@ type GetExportVMConfigReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *GetExportVMConfigReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *GetExportVMConfigReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewGetExportVMConfigOK()
@@ -60,7 +61,8 @@ func NewGetExportVMConfigOK() *GetExportVMConfigOK {
 	return &GetExportVMConfigOK{}
 }
 
-/*GetExportVMConfigOK handles this case with default header values.
+/*
+GetExportVMConfigOK describes a response with status code 200, with default header values.
 
 OK
 */
@@ -68,8 +70,44 @@ type GetExportVMConfigOK struct {
 	Payload *models.FullVMConfiguration
 }
 
+// IsSuccess returns true when this get export Vm config o k response has a 2xx status code
+func (o *GetExportVMConfigOK) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this get export Vm config o k response has a 3xx status code
+func (o *GetExportVMConfigOK) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this get export Vm config o k response has a 4xx status code
+func (o *GetExportVMConfigOK) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this get export Vm config o k response has a 5xx status code
+func (o *GetExportVMConfigOK) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this get export Vm config o k response a status code equal to that given
+func (o *GetExportVMConfigOK) IsCode(code int) bool {
+	return code == 200
+}
+
+// Code gets the status code for the get export Vm config o k response
+func (o *GetExportVMConfigOK) Code() int {
+	return 200
+}
+
 func (o *GetExportVMConfigOK) Error() string {
-	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfigOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfigOK %s", 200, payload)
+}
+
+func (o *GetExportVMConfigOK) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfigOK %s", 200, payload)
 }
 
 func (o *GetExportVMConfigOK) GetPayload() *models.FullVMConfiguration {
@@ -81,7 +119,7 @@ func (o *GetExportVMConfigOK) readResponse(response runtime.ClientResponse, cons
 	o.Payload = new(models.FullVMConfiguration)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -95,7 +133,8 @@ func NewGetExportVMConfigDefault(code int) *GetExportVMConfigDefault {
 	}
 }
 
-/*GetExportVMConfigDefault handles this case with default header values.
+/*
+GetExportVMConfigDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -105,13 +144,44 @@ type GetExportVMConfigDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this get export Vm config default response has a 2xx status code
+func (o *GetExportVMConfigDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this get export Vm config default response has a 3xx status code
+func (o *GetExportVMConfigDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this get export Vm config default response has a 4xx status code
+func (o *GetExportVMConfigDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this get export Vm config default response has a 5xx status code
+func (o *GetExportVMConfigDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this get export Vm config default response a status code equal to that given
+func (o *GetExportVMConfigDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the get export Vm config default response
 func (o *GetExportVMConfigDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *GetExportVMConfigDefault) Error() string {
-	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfig default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfig default %s", o._statusCode, payload)
+}
+
+func (o *GetExportVMConfigDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /vm/config][%d] getExportVmConfig default %s", o._statusCode, payload)
 }
 
 func (o *GetExportVMConfigDefault) GetPayload() *models.Error {
@@ -123,7 +193,7 @@ func (o *GetExportVMConfigDefault) readResponse(response runtime.ClientResponse,
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

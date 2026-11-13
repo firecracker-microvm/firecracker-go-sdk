@@ -19,14 +19,16 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
+	"context"
 
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // BalloonStatsUpdate Update the statistics polling interval, with the first statistics update scheduled immediately. Statistics cannot be turned on/off after boot.
+//
 // swagger:model BalloonStatsUpdate
 type BalloonStatsUpdate struct {
 
@@ -55,6 +57,11 @@ func (m *BalloonStatsUpdate) validateStatsPollingIntervals(formats strfmt.Regist
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this balloon stats update based on context it is used
+func (m *BalloonStatsUpdate) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

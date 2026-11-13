@@ -26,56 +26,71 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
-
-	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/strfmt"
 )
 
-// NewDescribeBalloonStatsParams creates a new DescribeBalloonStatsParams object
-// with the default values initialized.
+// NewDescribeBalloonStatsParams creates a new DescribeBalloonStatsParams object,
+// with the default timeout for this client.
+//
+// Default values are not hydrated, since defaults are normally applied by the API server side.
+//
+// To enforce default values in parameter, use SetDefaults or WithDefaults.
 func NewDescribeBalloonStatsParams() *DescribeBalloonStatsParams {
-
 	return &DescribeBalloonStatsParams{
-
 		timeout: cr.DefaultTimeout,
 	}
 }
 
 // NewDescribeBalloonStatsParamsWithTimeout creates a new DescribeBalloonStatsParams object
-// with the default values initialized, and the ability to set a timeout on a request
+// with the ability to set a timeout on a request.
 func NewDescribeBalloonStatsParamsWithTimeout(timeout time.Duration) *DescribeBalloonStatsParams {
-
 	return &DescribeBalloonStatsParams{
-
 		timeout: timeout,
 	}
 }
 
 // NewDescribeBalloonStatsParamsWithContext creates a new DescribeBalloonStatsParams object
-// with the default values initialized, and the ability to set a context for a request
+// with the ability to set a context for a request.
 func NewDescribeBalloonStatsParamsWithContext(ctx context.Context) *DescribeBalloonStatsParams {
-
 	return &DescribeBalloonStatsParams{
-
 		Context: ctx,
 	}
 }
 
 // NewDescribeBalloonStatsParamsWithHTTPClient creates a new DescribeBalloonStatsParams object
-// with the default values initialized, and the ability to set a custom HTTPClient for a request
+// with the ability to set a custom HTTPClient for a request.
 func NewDescribeBalloonStatsParamsWithHTTPClient(client *http.Client) *DescribeBalloonStatsParams {
-
 	return &DescribeBalloonStatsParams{
 		HTTPClient: client,
 	}
 }
 
-/*DescribeBalloonStatsParams contains all the parameters to send to the API endpoint
-for the describe balloon stats operation typically these are written to a http.Request
+/*
+DescribeBalloonStatsParams contains all the parameters to send to the API endpoint
+
+	for the describe balloon stats operation.
+
+	Typically these are written to a http.Request.
 */
 type DescribeBalloonStatsParams struct {
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
+}
+
+// WithDefaults hydrates default values in the describe balloon stats params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *DescribeBalloonStatsParams) WithDefaults() *DescribeBalloonStatsParams {
+	o.SetDefaults()
+	return o
+}
+
+// SetDefaults hydrates default values in the describe balloon stats params (not the query body).
+//
+// All values with no default are reset to their zero value.
+func (o *DescribeBalloonStatsParams) SetDefaults() {
+	// no default values defined for this parameter
 }
 
 // WithTimeout adds the timeout to the describe balloon stats params

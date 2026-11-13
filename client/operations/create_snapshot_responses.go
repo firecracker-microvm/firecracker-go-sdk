@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // CreateSnapshotReader is a Reader for the CreateSnapshot structure.
@@ -35,7 +36,7 @@ type CreateSnapshotReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *CreateSnapshotReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *CreateSnapshotReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewCreateSnapshotNoContent()
@@ -66,15 +67,50 @@ func NewCreateSnapshotNoContent() *CreateSnapshotNoContent {
 	return &CreateSnapshotNoContent{}
 }
 
-/*CreateSnapshotNoContent handles this case with default header values.
+/*
+CreateSnapshotNoContent describes a response with status code 204, with default header values.
 
 Snapshot created
 */
 type CreateSnapshotNoContent struct {
 }
 
+// IsSuccess returns true when this create snapshot no content response has a 2xx status code
+func (o *CreateSnapshotNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this create snapshot no content response has a 3xx status code
+func (o *CreateSnapshotNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create snapshot no content response has a 4xx status code
+func (o *CreateSnapshotNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this create snapshot no content response has a 5xx status code
+func (o *CreateSnapshotNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create snapshot no content response a status code equal to that given
+func (o *CreateSnapshotNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the create snapshot no content response
+func (o *CreateSnapshotNoContent) Code() int {
+	return 204
+}
+
 func (o *CreateSnapshotNoContent) Error() string {
-	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotNoContent ", 204)
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotNoContent", 204)
+}
+
+func (o *CreateSnapshotNoContent) String() string {
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotNoContent", 204)
 }
 
 func (o *CreateSnapshotNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewCreateSnapshotBadRequest() *CreateSnapshotBadRequest {
 	return &CreateSnapshotBadRequest{}
 }
 
-/*CreateSnapshotBadRequest handles this case with default header values.
+/*
+CreateSnapshotBadRequest describes a response with status code 400, with default header values.
 
 Snapshot cannot be created due to bad input
 */
@@ -95,8 +132,44 @@ type CreateSnapshotBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this create snapshot bad request response has a 2xx status code
+func (o *CreateSnapshotBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this create snapshot bad request response has a 3xx status code
+func (o *CreateSnapshotBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this create snapshot bad request response has a 4xx status code
+func (o *CreateSnapshotBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this create snapshot bad request response has a 5xx status code
+func (o *CreateSnapshotBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this create snapshot bad request response a status code equal to that given
+func (o *CreateSnapshotBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the create snapshot bad request response
+func (o *CreateSnapshotBadRequest) Code() int {
+	return 400
+}
+
 func (o *CreateSnapshotBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotBadRequest %s", 400, payload)
+}
+
+func (o *CreateSnapshotBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshotBadRequest %s", 400, payload)
 }
 
 func (o *CreateSnapshotBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *CreateSnapshotBadRequest) readResponse(response runtime.ClientResponse,
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewCreateSnapshotDefault(code int) *CreateSnapshotDefault {
 	}
 }
 
-/*CreateSnapshotDefault handles this case with default header values.
+/*
+CreateSnapshotDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -132,13 +206,44 @@ type CreateSnapshotDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this create snapshot default response has a 2xx status code
+func (o *CreateSnapshotDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this create snapshot default response has a 3xx status code
+func (o *CreateSnapshotDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this create snapshot default response has a 4xx status code
+func (o *CreateSnapshotDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this create snapshot default response has a 5xx status code
+func (o *CreateSnapshotDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this create snapshot default response a status code equal to that given
+func (o *CreateSnapshotDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the create snapshot default response
 func (o *CreateSnapshotDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *CreateSnapshotDefault) Error() string {
-	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshot default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshot default %s", o._statusCode, payload)
+}
+
+func (o *CreateSnapshotDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /snapshot/create][%d] createSnapshot default %s", o._statusCode, payload)
 }
 
 func (o *CreateSnapshotDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *CreateSnapshotDefault) readResponse(response runtime.ClientResponse, co
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

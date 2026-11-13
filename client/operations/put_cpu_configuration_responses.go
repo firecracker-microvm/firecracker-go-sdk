@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutCPUConfigurationReader is a Reader for the PutCPUConfiguration structure.
@@ -35,7 +36,7 @@ type PutCPUConfigurationReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutCPUConfigurationReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutCPUConfigurationReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutCPUConfigurationNoContent()
@@ -66,15 +67,50 @@ func NewPutCPUConfigurationNoContent() *PutCPUConfigurationNoContent {
 	return &PutCPUConfigurationNoContent{}
 }
 
-/*PutCPUConfigurationNoContent handles this case with default header values.
+/*
+PutCPUConfigurationNoContent describes a response with status code 204, with default header values.
 
 CPU configuration set successfully
 */
 type PutCPUConfigurationNoContent struct {
 }
 
+// IsSuccess returns true when this put Cpu configuration no content response has a 2xx status code
+func (o *PutCPUConfigurationNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put Cpu configuration no content response has a 3xx status code
+func (o *PutCPUConfigurationNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put Cpu configuration no content response has a 4xx status code
+func (o *PutCPUConfigurationNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put Cpu configuration no content response has a 5xx status code
+func (o *PutCPUConfigurationNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put Cpu configuration no content response a status code equal to that given
+func (o *PutCPUConfigurationNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put Cpu configuration no content response
+func (o *PutCPUConfigurationNoContent) Code() int {
+	return 204
+}
+
 func (o *PutCPUConfigurationNoContent) Error() string {
-	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationNoContent ", 204)
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationNoContent", 204)
+}
+
+func (o *PutCPUConfigurationNoContent) String() string {
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationNoContent", 204)
 }
 
 func (o *PutCPUConfigurationNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutCPUConfigurationBadRequest() *PutCPUConfigurationBadRequest {
 	return &PutCPUConfigurationBadRequest{}
 }
 
-/*PutCPUConfigurationBadRequest handles this case with default header values.
+/*
+PutCPUConfigurationBadRequest describes a response with status code 400, with default header values.
 
 CPU configuration cannot be updated due to invalid input format
 */
@@ -95,8 +132,44 @@ type PutCPUConfigurationBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put Cpu configuration bad request response has a 2xx status code
+func (o *PutCPUConfigurationBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put Cpu configuration bad request response has a 3xx status code
+func (o *PutCPUConfigurationBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put Cpu configuration bad request response has a 4xx status code
+func (o *PutCPUConfigurationBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put Cpu configuration bad request response has a 5xx status code
+func (o *PutCPUConfigurationBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put Cpu configuration bad request response a status code equal to that given
+func (o *PutCPUConfigurationBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put Cpu configuration bad request response
+func (o *PutCPUConfigurationBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutCPUConfigurationBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationBadRequest %s", 400, payload)
+}
+
+func (o *PutCPUConfigurationBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfigurationBadRequest %s", 400, payload)
 }
 
 func (o *PutCPUConfigurationBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutCPUConfigurationBadRequest) readResponse(response runtime.ClientResp
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutCPUConfigurationDefault(code int) *PutCPUConfigurationDefault {
 	}
 }
 
-/*PutCPUConfigurationDefault handles this case with default header values.
+/*
+PutCPUConfigurationDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -132,13 +206,44 @@ type PutCPUConfigurationDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put Cpu configuration default response has a 2xx status code
+func (o *PutCPUConfigurationDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put Cpu configuration default response has a 3xx status code
+func (o *PutCPUConfigurationDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put Cpu configuration default response has a 4xx status code
+func (o *PutCPUConfigurationDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put Cpu configuration default response has a 5xx status code
+func (o *PutCPUConfigurationDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put Cpu configuration default response a status code equal to that given
+func (o *PutCPUConfigurationDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put Cpu configuration default response
 func (o *PutCPUConfigurationDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutCPUConfigurationDefault) Error() string {
-	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfiguration default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfiguration default %s", o._statusCode, payload)
+}
+
+func (o *PutCPUConfigurationDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /cpu-config][%d] putCpuConfiguration default %s", o._statusCode, payload)
 }
 
 func (o *PutCPUConfigurationDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutCPUConfigurationDefault) readResponse(response runtime.ClientRespons
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutLoggerReader is a Reader for the PutLogger structure.
@@ -35,7 +36,7 @@ type PutLoggerReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutLoggerReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutLoggerReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutLoggerNoContent()
@@ -66,15 +67,50 @@ func NewPutLoggerNoContent() *PutLoggerNoContent {
 	return &PutLoggerNoContent{}
 }
 
-/*PutLoggerNoContent handles this case with default header values.
+/*
+PutLoggerNoContent describes a response with status code 204, with default header values.
 
 Logger created.
 */
 type PutLoggerNoContent struct {
 }
 
+// IsSuccess returns true when this put logger no content response has a 2xx status code
+func (o *PutLoggerNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put logger no content response has a 3xx status code
+func (o *PutLoggerNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put logger no content response has a 4xx status code
+func (o *PutLoggerNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put logger no content response has a 5xx status code
+func (o *PutLoggerNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put logger no content response a status code equal to that given
+func (o *PutLoggerNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put logger no content response
+func (o *PutLoggerNoContent) Code() int {
+	return 204
+}
+
 func (o *PutLoggerNoContent) Error() string {
-	return fmt.Sprintf("[PUT /logger][%d] putLoggerNoContent ", 204)
+	return fmt.Sprintf("[PUT /logger][%d] putLoggerNoContent", 204)
+}
+
+func (o *PutLoggerNoContent) String() string {
+	return fmt.Sprintf("[PUT /logger][%d] putLoggerNoContent", 204)
 }
 
 func (o *PutLoggerNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutLoggerBadRequest() *PutLoggerBadRequest {
 	return &PutLoggerBadRequest{}
 }
 
-/*PutLoggerBadRequest handles this case with default header values.
+/*
+PutLoggerBadRequest describes a response with status code 400, with default header values.
 
 Logger cannot be initialized due to bad input.
 */
@@ -95,8 +132,44 @@ type PutLoggerBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put logger bad request response has a 2xx status code
+func (o *PutLoggerBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put logger bad request response has a 3xx status code
+func (o *PutLoggerBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put logger bad request response has a 4xx status code
+func (o *PutLoggerBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put logger bad request response has a 5xx status code
+func (o *PutLoggerBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put logger bad request response a status code equal to that given
+func (o *PutLoggerBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put logger bad request response
+func (o *PutLoggerBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutLoggerBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /logger][%d] putLoggerBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /logger][%d] putLoggerBadRequest %s", 400, payload)
+}
+
+func (o *PutLoggerBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /logger][%d] putLoggerBadRequest %s", 400, payload)
 }
 
 func (o *PutLoggerBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutLoggerBadRequest) readResponse(response runtime.ClientResponse, cons
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutLoggerDefault(code int) *PutLoggerDefault {
 	}
 }
 
-/*PutLoggerDefault handles this case with default header values.
+/*
+PutLoggerDefault describes a response with status code -1, with default header values.
 
 Internal server error.
 */
@@ -132,13 +206,44 @@ type PutLoggerDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put logger default response has a 2xx status code
+func (o *PutLoggerDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put logger default response has a 3xx status code
+func (o *PutLoggerDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put logger default response has a 4xx status code
+func (o *PutLoggerDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put logger default response has a 5xx status code
+func (o *PutLoggerDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put logger default response a status code equal to that given
+func (o *PutLoggerDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put logger default response
 func (o *PutLoggerDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutLoggerDefault) Error() string {
-	return fmt.Sprintf("[PUT /logger][%d] putLogger default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /logger][%d] putLogger default %s", o._statusCode, payload)
+}
+
+func (o *PutLoggerDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /logger][%d] putLogger default %s", o._statusCode, payload)
 }
 
 func (o *PutLoggerDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutLoggerDefault) readResponse(response runtime.ClientResponse, consume
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

@@ -19,22 +19,23 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"context"
 	"encoding/json"
 
-	strfmt "github.com/go-openapi/strfmt"
-
 	"github.com/go-openapi/errors"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 )
 
 // VM Defines the microVM running state. It is especially useful in the snapshotting context.
+//
 // swagger:model Vm
 type VM struct {
 
 	// state
 	// Required: true
-	// Enum: [Paused Resumed]
+	// Enum: ["Paused","Resumed"]
 	State *string `json:"state"`
 }
 
@@ -52,7 +53,7 @@ func (m *VM) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-var vmTypeStatePropEnum []interface{}
+var vmTypeStatePropEnum []any
 
 func init() {
 	var res []string
@@ -75,7 +76,7 @@ const (
 
 // prop value enum
 func (m *VM) validateStateEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, vmTypeStatePropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, vmTypeStatePropEnum, true); err != nil {
 		return err
 	}
 	return nil
@@ -92,6 +93,11 @@ func (m *VM) validateState(formats strfmt.Registry) error {
 		return err
 	}
 
+	return nil
+}
+
+// ContextValidate validates this Vm based on context it is used
+func (m *VM) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	return nil
 }
 

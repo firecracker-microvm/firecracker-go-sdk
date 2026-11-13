@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutGuestBootSourceReader is a Reader for the PutGuestBootSource structure.
@@ -35,7 +36,7 @@ type PutGuestBootSourceReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutGuestBootSourceReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutGuestBootSourceReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutGuestBootSourceNoContent()
@@ -66,15 +67,50 @@ func NewPutGuestBootSourceNoContent() *PutGuestBootSourceNoContent {
 	return &PutGuestBootSourceNoContent{}
 }
 
-/*PutGuestBootSourceNoContent handles this case with default header values.
+/*
+PutGuestBootSourceNoContent describes a response with status code 204, with default header values.
 
 Boot source created/updated
 */
 type PutGuestBootSourceNoContent struct {
 }
 
+// IsSuccess returns true when this put guest boot source no content response has a 2xx status code
+func (o *PutGuestBootSourceNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put guest boot source no content response has a 3xx status code
+func (o *PutGuestBootSourceNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put guest boot source no content response has a 4xx status code
+func (o *PutGuestBootSourceNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put guest boot source no content response has a 5xx status code
+func (o *PutGuestBootSourceNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put guest boot source no content response a status code equal to that given
+func (o *PutGuestBootSourceNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put guest boot source no content response
+func (o *PutGuestBootSourceNoContent) Code() int {
+	return 204
+}
+
 func (o *PutGuestBootSourceNoContent) Error() string {
-	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceNoContent ", 204)
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceNoContent", 204)
+}
+
+func (o *PutGuestBootSourceNoContent) String() string {
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceNoContent", 204)
 }
 
 func (o *PutGuestBootSourceNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutGuestBootSourceBadRequest() *PutGuestBootSourceBadRequest {
 	return &PutGuestBootSourceBadRequest{}
 }
 
-/*PutGuestBootSourceBadRequest handles this case with default header values.
+/*
+PutGuestBootSourceBadRequest describes a response with status code 400, with default header values.
 
 Boot source cannot be created due to bad input
 */
@@ -95,8 +132,44 @@ type PutGuestBootSourceBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put guest boot source bad request response has a 2xx status code
+func (o *PutGuestBootSourceBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put guest boot source bad request response has a 3xx status code
+func (o *PutGuestBootSourceBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put guest boot source bad request response has a 4xx status code
+func (o *PutGuestBootSourceBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put guest boot source bad request response has a 5xx status code
+func (o *PutGuestBootSourceBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put guest boot source bad request response a status code equal to that given
+func (o *PutGuestBootSourceBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put guest boot source bad request response
+func (o *PutGuestBootSourceBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutGuestBootSourceBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceBadRequest %s", 400, payload)
+}
+
+func (o *PutGuestBootSourceBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSourceBadRequest %s", 400, payload)
 }
 
 func (o *PutGuestBootSourceBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutGuestBootSourceBadRequest) readResponse(response runtime.ClientRespo
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutGuestBootSourceDefault(code int) *PutGuestBootSourceDefault {
 	}
 }
 
-/*PutGuestBootSourceDefault handles this case with default header values.
+/*
+PutGuestBootSourceDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -132,13 +206,44 @@ type PutGuestBootSourceDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put guest boot source default response has a 2xx status code
+func (o *PutGuestBootSourceDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put guest boot source default response has a 3xx status code
+func (o *PutGuestBootSourceDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put guest boot source default response has a 4xx status code
+func (o *PutGuestBootSourceDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put guest boot source default response has a 5xx status code
+func (o *PutGuestBootSourceDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put guest boot source default response a status code equal to that given
+func (o *PutGuestBootSourceDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put guest boot source default response
 func (o *PutGuestBootSourceDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutGuestBootSourceDefault) Error() string {
-	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSource default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSource default %s", o._statusCode, payload)
+}
+
+func (o *PutGuestBootSourceDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /boot-source][%d] putGuestBootSource default %s", o._statusCode, payload)
 }
 
 func (o *PutGuestBootSourceDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutGuestBootSourceDefault) readResponse(response runtime.ClientResponse
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

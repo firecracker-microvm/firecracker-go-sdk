@@ -19,14 +19,15 @@ package operations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
 // PutBalloonReader is a Reader for the PutBalloon structure.
@@ -35,7 +36,7 @@ type PutBalloonReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *PutBalloonReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *PutBalloonReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 204:
 		result := NewPutBalloonNoContent()
@@ -66,15 +67,50 @@ func NewPutBalloonNoContent() *PutBalloonNoContent {
 	return &PutBalloonNoContent{}
 }
 
-/*PutBalloonNoContent handles this case with default header values.
+/*
+PutBalloonNoContent describes a response with status code 204, with default header values.
 
 Balloon device created/updated
 */
 type PutBalloonNoContent struct {
 }
 
+// IsSuccess returns true when this put balloon no content response has a 2xx status code
+func (o *PutBalloonNoContent) IsSuccess() bool {
+	return true
+}
+
+// IsRedirect returns true when this put balloon no content response has a 3xx status code
+func (o *PutBalloonNoContent) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put balloon no content response has a 4xx status code
+func (o *PutBalloonNoContent) IsClientError() bool {
+	return false
+}
+
+// IsServerError returns true when this put balloon no content response has a 5xx status code
+func (o *PutBalloonNoContent) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put balloon no content response a status code equal to that given
+func (o *PutBalloonNoContent) IsCode(code int) bool {
+	return code == 204
+}
+
+// Code gets the status code for the put balloon no content response
+func (o *PutBalloonNoContent) Code() int {
+	return 204
+}
+
 func (o *PutBalloonNoContent) Error() string {
-	return fmt.Sprintf("[PUT /balloon][%d] putBalloonNoContent ", 204)
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloonNoContent", 204)
+}
+
+func (o *PutBalloonNoContent) String() string {
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloonNoContent", 204)
 }
 
 func (o *PutBalloonNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
@@ -87,7 +123,8 @@ func NewPutBalloonBadRequest() *PutBalloonBadRequest {
 	return &PutBalloonBadRequest{}
 }
 
-/*PutBalloonBadRequest handles this case with default header values.
+/*
+PutBalloonBadRequest describes a response with status code 400, with default header values.
 
 Balloon device cannot be created/updated due to bad input
 */
@@ -95,8 +132,44 @@ type PutBalloonBadRequest struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put balloon bad request response has a 2xx status code
+func (o *PutBalloonBadRequest) IsSuccess() bool {
+	return false
+}
+
+// IsRedirect returns true when this put balloon bad request response has a 3xx status code
+func (o *PutBalloonBadRequest) IsRedirect() bool {
+	return false
+}
+
+// IsClientError returns true when this put balloon bad request response has a 4xx status code
+func (o *PutBalloonBadRequest) IsClientError() bool {
+	return true
+}
+
+// IsServerError returns true when this put balloon bad request response has a 5xx status code
+func (o *PutBalloonBadRequest) IsServerError() bool {
+	return false
+}
+
+// IsCode returns true when this put balloon bad request response a status code equal to that given
+func (o *PutBalloonBadRequest) IsCode(code int) bool {
+	return code == 400
+}
+
+// Code gets the status code for the put balloon bad request response
+func (o *PutBalloonBadRequest) Code() int {
+	return 400
+}
+
 func (o *PutBalloonBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /balloon][%d] putBalloonBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloonBadRequest %s", 400, payload)
+}
+
+func (o *PutBalloonBadRequest) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloonBadRequest %s", 400, payload)
 }
 
 func (o *PutBalloonBadRequest) GetPayload() *models.Error {
@@ -108,7 +181,7 @@ func (o *PutBalloonBadRequest) readResponse(response runtime.ClientResponse, con
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -122,7 +195,8 @@ func NewPutBalloonDefault(code int) *PutBalloonDefault {
 	}
 }
 
-/*PutBalloonDefault handles this case with default header values.
+/*
+PutBalloonDefault describes a response with status code -1, with default header values.
 
 Internal server error
 */
@@ -132,13 +206,44 @@ type PutBalloonDefault struct {
 	Payload *models.Error
 }
 
+// IsSuccess returns true when this put balloon default response has a 2xx status code
+func (o *PutBalloonDefault) IsSuccess() bool {
+	return o._statusCode/100 == 2
+}
+
+// IsRedirect returns true when this put balloon default response has a 3xx status code
+func (o *PutBalloonDefault) IsRedirect() bool {
+	return o._statusCode/100 == 3
+}
+
+// IsClientError returns true when this put balloon default response has a 4xx status code
+func (o *PutBalloonDefault) IsClientError() bool {
+	return o._statusCode/100 == 4
+}
+
+// IsServerError returns true when this put balloon default response has a 5xx status code
+func (o *PutBalloonDefault) IsServerError() bool {
+	return o._statusCode/100 == 5
+}
+
+// IsCode returns true when this put balloon default response a status code equal to that given
+func (o *PutBalloonDefault) IsCode(code int) bool {
+	return o._statusCode == code
+}
+
 // Code gets the status code for the put balloon default response
 func (o *PutBalloonDefault) Code() int {
 	return o._statusCode
 }
 
 func (o *PutBalloonDefault) Error() string {
-	return fmt.Sprintf("[PUT /balloon][%d] putBalloon default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloon default %s", o._statusCode, payload)
+}
+
+func (o *PutBalloonDefault) String() string {
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /balloon][%d] putBalloon default %s", o._statusCode, payload)
 }
 
 func (o *PutBalloonDefault) GetPayload() *models.Error {
@@ -150,7 +255,7 @@ func (o *PutBalloonDefault) readResponse(response runtime.ClientResponse, consum
 	o.Payload = new(models.Error)
 
 	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
